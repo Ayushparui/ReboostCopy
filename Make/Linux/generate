@@ -1,0 +1,76 @@
+#!/bin/bash
+# Generate CLion project or CMake caches
+
+cd "$(dirname "$(which "$0")")"
+
+function usage()
+{
+  echo "usage: $0 [--help] [--clion] [CMAKE-OPTIONS...]"
+  echo ""
+  echo "  --help                   Display this usage"
+  echo "  --clion    generate a CLion project instead of CMake caches"
+  echo "  CMAKE-OPTIONS            Most valid cmake command line options are valid here - use with care!!"
+  exit 1
+}
+
+USE_CLION=
+
+case "$1" in
+  --help)
+    usage
+    ;;
+  --clion)
+    USE_CLION=1
+    shift
+    ;;
+esac
+
+
+if [ -f .idea/workspace.xml -o ! -z "$USE_CLION" ]; then
+  CMAKE_RUN_CONFIGURATION_MANAGER="    <generated>
+      <config projectName=\"B-Human\" targetName=\"Booster\" />
+      <config projectName=\"B-Human\" targetName=\"Nao\" />
+      <config projectName=\"B-Human\" targetName=\"SimRobot\" />
+      <config projectName=\"B-Human\" targetName=\"Tests\" />
+    </generated>"
+
+  RUN_MANAGER="    <list>
+      <item itemvalue=\"CMake Application.Booster\" />
+      <item itemvalue=\"CMake Application.Nao\" />
+      <item itemvalue=\"CMake Application.SimRobot\" />
+      <item itemvalue=\"Google Test.Tests\" />
+    </list>"
+
+  if [ -f .idea/workspace.xml ]; then
+    (
+      sed -n "/<component name=\"CMakeRunConfigurationManager\"/{p;:a;N;/<\/component>\$/!ba;c\\
+$((tr '\n' '@' | sed 's/@/\\\n/g') <<<$CMAKE_RUN_CONFIGURATION_MANAGER)
+\
+  <\/component>
+};p" |
+      sed -n "/<component name=\"RunManager\"/{p;:a;N;/<\/component>\$/!ba;c\\
+$((tr '\n' '@' | sed 's/@/\\\n/g') <<<$RUN_MANAGER)
+\
+  <\/component>
+};p"
+    ) <.idea/workspace.xml >.idea/temp.xml && mv .idea/temp.xml .idea/workspace.xml
+  else
+    echo >.idea/workspace.xml "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<project version=\"4\">
+  <component name=\"ExecutionTargetManager\" SELECTED_TARGET=\"CMakeBuildProfile:Develop\" />
+  <component name=\"CMakeRunConfigurationManager\" shouldGenerate=\"false\" shouldDeleteObsolete=\"false\">
+$CMAKE_RUN_CONFIGURATION_MANAGER
+  </component>
+  <component name=\"RunManager\" selected=\"CMake Application.SimRobot\">
+$RUN_MANAGER
+  </component>
+</project>"
+  fi
+
+  mkdir -p .idea/fileTemplates/includes
+  echo -n "#set( \$Author = \"$(git config user.name)\" )" > ".idea/fileTemplates/includes/Set Author."
+else
+  for CONFIG in Debug Develop Release; do
+    cmake -DCMAKE_BUILD_TYPE=$CONFIG -G Ninja -S . -B ../../Build/Linux/CMake/$CONFIG $@
+  done
+fi
