@@ -1,9 +1,23 @@
-# B-Human Code Release
+# RoboEireann `reboost` project (derived from B-Human Code Release 2025)
 
-This is the official 2025 B-Human code release. Documentation can be found [here](https://docs.b-human.de/coderelease2025/).
+This is the RoboEireann software from 2025 onwards (internal development repo).
+It is a flattened psuedo-fork of the B-Human Code Release 2025
+with RoboEireann specific modules and features added.
 
-B-Human is a research project. We provide the software as is. We release it as a snapshot of our internal repository on a yearly basis. You can build on this software, but you have to make do with the documentation we released. You may report bugs or problems with newer releases of operating systems or the tools used by opening a GitHub issue. We might give hints on how to solve these problems if we also ran into them since the code release. Do not write emails to the team or any of its members directly. They will not be answered.
+For all RoboEireann documentation, head over to the [wiki](https://github.com/roboeireann/reboost/wiki) for more information.
 
-Before cloning this repository, you must read our [license terms](License.md) and the [instructions in our documentation](https://docs.b-human.de/coderelease2025/getting-started/initial-setup/).
+Documentation for the official 2025 B-Human code release can be found in the [B-Human documentation wiki](https://docs.b-human.de/coderelease2025/).
 
-Previous code releases are tagged with "coderelease&lt;year&gt;", where &lt;year&gt; is the year in which the code was released (starting with 2013).
+RoboEireann does not guarantee support of some B-Human features such as compiling 
+and running on Windows and Mac. It may work, but if you run into problems you'll 
+need to sort it yourself. Our supported platform is currently Ubuntu (22.04).
+
+The [B-Human license terms](License.md) require derived code (such as this project)
+to be publicly released after each competition. Therefore you need to write your
+code with a view to public release and appropriately cite and credit any code sources 
+you used.
+
+Nevertheless, this project is for internal RoboEireann development and is **not** public. 
+(We make separate public code releases based on it later.) Never fork this project or
+or expose the code publicly - only clone it to  your local machine.
+
