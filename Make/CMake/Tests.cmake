@@ -1,4 +1,4 @@
-set(TESTS_ROOT_DIR "${BHUMAN_PREFIX}/Src/Apps/Tests")
+set(TESTS_ROOT_DIR "${PROJECT_ROOT_PREFIX}/Src/Apps/Tests")
 set(TESTS_OUTPUT_DIR "${OUTPUT_PREFIX}/Build/${PLATFORM}/Tests/$<CONFIG>")
 
 file(GLOB_RECURSE TESTS_SOURCES CONFIGURE_DEPENDS
@@ -25,7 +25,7 @@ if(MACOS)
   target_link_libraries(Tests PRIVATE ${APP_KIT_FRAMEWORK})
 endif()
 
-target_link_libraries(Tests PRIVATE B-Human)
+target_link_libraries(Tests PRIVATE RobotCore)
 target_link_libraries(Tests PRIVATE Framework)
 target_link_libraries(Tests PRIVATE Math)
 target_link_libraries(Tests PRIVATE Platform)

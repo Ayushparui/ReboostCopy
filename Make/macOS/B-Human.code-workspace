@@ -40,7 +40,7 @@
         }
       },
       {
-        "label": "B-Human",
+        "label": "RoboEireann",
         "type": "process",
         "command": "${workspaceFolder}/Make/macOS/compile",
         "args": [
@@ -103,12 +103,12 @@
     ],
     "configurations": [
       {
-        "name": "B-Human",
+        "name": "RoboEireann",
         "type": "cppdbg",
         "request": "launch",
         "program": "${input:program}",
         "cwd": "${workspaceFolder}",
-        "preLaunchTask": "B-Human",
+        "preLaunchTask": "RoboEireann",
         "logging": {
           "moduleLoad": false
         },

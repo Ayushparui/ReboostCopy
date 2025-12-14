@@ -1,4 +1,4 @@
-set(DEBUGGING_ROOT_DIR "${BHUMAN_PREFIX}/Src/Libs/Debugging")
+set(DEBUGGING_ROOT_DIR "${PROJECT_ROOT_PREFIX}/Src/Libs/Debugging")
 
 set(DEBUGGING_SOURCES
     "${DEBUGGING_ROOT_DIR}/Annotation.h"

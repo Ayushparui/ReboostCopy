@@ -1,4 +1,4 @@
-set(NAO_ROOT_DIR "${BHUMAN_PREFIX}/Src/Apps/Nao")
+set(NAO_ROOT_DIR "${PROJECT_ROOT_PREFIX}/Src/Apps/Nao")
 set(NAO_OUTPUT_DIR "${OUTPUT_PREFIX}/Build/Linux/Nao/$<CONFIG>")
 
 set(NAO_SOURCES
@@ -11,8 +11,8 @@ if(BUILD_NAO)
 
   add_executable(Nao ${NAO_SOURCES})
   set_property(TARGET Nao PROPERTY RUNTIME_OUTPUT_DIRECTORY "${NAO_OUTPUT_DIR}")
-  set_property(TARGET Nao PROPERTY RUNTIME_OUTPUT_NAME bhuman)
-  target_link_libraries(Nao PRIVATE B-Human${TARGET_SUFFIX})
+  set_property(TARGET Nao PROPERTY RUNTIME_OUTPUT_NAME roboeireann)
+  target_link_libraries(Nao PRIVATE RobotCore${TARGET_SUFFIX})
   target_link_libraries(Nao PRIVATE Platform${TARGET_SUFFIX})
   target_link_libraries(Nao PRIVATE Math${TARGET_SUFFIX})
   target_link_libraries(Nao PRIVATE Streaming${TARGET_SUFFIX})

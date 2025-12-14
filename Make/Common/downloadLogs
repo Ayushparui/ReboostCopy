@@ -54,10 +54,10 @@ download()
     mkdir -p "$LOCALPATH"
   fi
 
-  if [ ! -z "$(ssh $SSHOPTIONS $TARGET_USER@$IP "pgrep bhuman")" ]; then
+  if [ ! -z "$(ssh $SSHOPTIONS $TARGET_USER@$IP "pgrep roboeireann")" ]; then
     local RESTART=true
-    echo "stopping bhuman"
-    ssh $SSHOPTIONS $TARGET_USER@$IP "systemctl --user stop bhuman.service > /dev/null"
+    echo "stopping roboeireann"
+    ssh $SSHOPTIONS $TARGET_USER@$IP "systemctl --user stop roboeireann.service > /dev/null"
   else
     local RESTART=false
   fi
@@ -91,8 +91,8 @@ download()
   fi
 
   if $RESTART; then
-    echo "starting bhuman"
-    ssh $SSHOPTIONS $TARGET_USER@$IP "systemctl --user start bhuman.service > /dev/null"
+    echo "starting roboeireann"
+    ssh $SSHOPTIONS $TARGET_USER@$IP "systemctl --user start roboeireann.service > /dev/null"
   fi
 
   return 0

@@ -1,4 +1,4 @@
-set(NETWORK_ROOT_DIR "${BHUMAN_PREFIX}/Src/Libs/Network")
+set(NETWORK_ROOT_DIR "${PROJECT_ROOT_PREFIX}/Src/Libs/Network")
 
 set(NETWORK_SOURCES
     "${NETWORK_ROOT_DIR}/RoboCupGameControlData.h"

@@ -1,4 +1,4 @@
-set(STREAMING_ROOT_DIR "${BHUMAN_PREFIX}/Src/Libs/Streaming")
+set(STREAMING_ROOT_DIR "${PROJECT_ROOT_PREFIX}/Src/Libs/Streaming")
 
 set(STREAMING_SOURCES
     "${STREAMING_ROOT_DIR}/AutoStreamable.h"

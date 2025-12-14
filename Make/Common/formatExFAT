@@ -8,7 +8,7 @@
 # drive is not supported. The script will ask for a number,
 # assuming that all logging drives are labeled with one. The
 # drive is then formatted as exFAT with MBR and the name
-# "<number>_B-Human".
+# "<number>_ROBOEIR".
 
 # Function to detect the operating system
 detect_os()
@@ -51,7 +51,7 @@ format_drive_macos()
   if [[ $Device == *"dev"* ]]; then
     echo "Found single external drive: $Info. What number is written on the USB drive?"
     read StickNumber
-    Label=$StickNumber"_B-HUMAN"
+    Label=$StickNumber"_ROBOEIR"
 
     diskutil eraseDisk exFAT $Label MBRFormat $Device
     ExitStatus=$?
@@ -108,7 +108,7 @@ format_drive_linux()
 
   echo "Found single external drive: $Device (${DriveSize}B). What number is written on the USB drive?"
   read StickNumber
-  Label=$StickNumber"_B-HUMAN"
+  Label=$StickNumber"_ROBOEIR"
 
   # Ensure the device is not mounted
   local mount_points=$(mount | grep "$Device" | awk '{print $3}')

@@ -27,7 +27,7 @@ if !count! EQU 0 (
 )
 
 set /p stickNumber="Found single external drive: !driveLetter! (!driveSizeGB! GB). What number is written on the USB drive? "
-set "label=!stickNumber!_B-HUMAN"
+set "label=!stickNumber!_ROBOEIR"
 
 REM Format the drive
 format !driveLetter! /FS:exFAT /V:!label! /Q /Y

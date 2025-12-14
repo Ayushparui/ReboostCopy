@@ -1,4 +1,4 @@
-set(ASMJIT_ROOT_DIR "${BHUMAN_PREFIX}/Util/CompiledNN/3rdParty/asmjit/src")
+set(ASMJIT_ROOT_DIR "${PROJECT_ROOT_PREFIX}/Util/CompiledNN/3rdParty/asmjit/src")
 
 file(GLOB_RECURSE ASMJIT_SOURCES CONFIGURE_DEPENDS
     "${ASMJIT_ROOT_DIR}/*.cpp" "${ASMJIT_ROOT_DIR}/*.h")

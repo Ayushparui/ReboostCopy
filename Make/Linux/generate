@@ -28,10 +28,10 @@ esac
 
 if [ -f .idea/workspace.xml -o ! -z "$USE_CLION" ]; then
   CMAKE_RUN_CONFIGURATION_MANAGER="    <generated>
-      <config projectName=\"B-Human\" targetName=\"Booster\" />
-      <config projectName=\"B-Human\" targetName=\"Nao\" />
-      <config projectName=\"B-Human\" targetName=\"SimRobot\" />
-      <config projectName=\"B-Human\" targetName=\"Tests\" />
+      <config projectName=\"RoboEireann\" targetName=\"Booster\" />
+      <config projectName=\"RoboEireann\" targetName=\"Nao\" />
+      <config projectName=\"RoboEireann\" targetName=\"SimRobot\" />
+      <config projectName=\"RoboEireann\" targetName=\"Tests\" />
     </generated>"
 
   RUN_MANAGER="    <list>

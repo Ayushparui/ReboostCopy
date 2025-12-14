@@ -1,4 +1,4 @@
-set(SIMULATEDNAO_ROOT_DIR "${BHUMAN_PREFIX}/Src/Libs/SimulatedNao")
+set(SIMULATEDNAO_ROOT_DIR "${PROJECT_ROOT_PREFIX}/Src/Libs/SimulatedNao")
 
 file(GLOB SIMULATEDNAO_SOURCES CONFIGURE_DEPENDS
     "${SIMULATEDNAO_ROOT_DIR}/*.cpp" "${SIMULATEDNAO_ROOT_DIR}/*.h"
@@ -30,7 +30,7 @@ target_link_libraries(SimulatedNao PRIVATE Qt6::Core Qt6::Gui Qt6::OpenGLWidgets
 if(MACOS)
   target_link_libraries(SimulatedNao PRIVATE AppleHelper)
 endif()
-target_link_libraries(SimulatedNao PRIVATE B-Human)
+target_link_libraries(SimulatedNao PRIVATE RobotCore)
 target_link_libraries(SimulatedNao PRIVATE LogPlayback)
 target_link_libraries(SimulatedNao PRIVATE qtpropertybrowser)
 target_link_libraries(SimulatedNao PRIVATE SimRobotInterface)

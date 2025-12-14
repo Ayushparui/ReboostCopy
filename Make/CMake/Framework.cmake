@@ -1,4 +1,4 @@
-set(FRAMEWORK_ROOT_DIR "${BHUMAN_PREFIX}/Src/Libs/Framework")
+set(FRAMEWORK_ROOT_DIR "${PROJECT_ROOT_PREFIX}/Src/Libs/Framework")
 
 set(FRAMEWORK_SOURCES
     "${FRAMEWORK_ROOT_DIR}/Blackboard.cpp"
