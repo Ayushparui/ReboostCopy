@@ -533,7 +533,7 @@ include("../CMake/RobotParts.cmake")
 include("../CMake/Debugging.cmake")
 include("../CMake/Framework.cmake")
 include("../CMake/OptionsAndSkills.cmake")
-include("../CMake/B-Human.cmake") # TODO to be renamed
+include("../CMake/RobotCore.cmake")
 
 if(BUILD_DESKTOP)
   include("../CMake/Python.cmake")
@@ -680,7 +680,7 @@ if(NOT MINIMAL_PROJECT)
       include("../CMake/Debugging.cmake")
       include("../CMake/Framework.cmake")
       include("../CMake/OptionsAndSkills.cmake")
-      include("../CMake/B-Human.cmake") # TODO: to be renamed
+      include("../CMake/RobotCore.cmake")
       include("../CMake/${TARGET_SUFFIX}.cmake")
 
       target_link_libraries(Platform${TARGET_SUFFIX} PUBLIC CrossCompile${TARGET_SUFFIX})
