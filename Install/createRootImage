@@ -97,13 +97,13 @@ mount -o bind /dev "${rootDir}/dev"
 mount -o bind /dev/pts "${rootDir}/dev/pts"
 mount -t sysfs /sys "${rootDir}/sys"
 mount -t proc /proc "${rootDir}/proc"
-LANG=C chroot "${rootDir}" /bin/bash <<EOF
+LANG=C LC_ALL=C chroot "${rootDir}" /bin/bash <<EOF
 set -eu
 
 DEBIAN_FRONTEND=noninteractive apt-get update -y
 DEBIAN_FRONTEND=noninteractive apt-get dist-upgrade -y
 
-DEBIAN_FRONTEND=noninteractive apt-get install -y alsa gdb htop i2c-tools libssl3 libusb-1.0-0 openssh-server pciutils rsync ubuntu-minimal vim wpasupplicant
+DEBIAN_FRONTEND=noninteractive apt-get install -y alsa gdb htop i2c-tools iw libssl3 libusb-1.0-0 net-tools openssh-server pciutils rsync ubuntu-minimal valgrind vim wpasupplicant
 
 # wpa_supplicant does not need to run by itself, it will be started by netplan if necessary.
 systemctl disable wpa_supplicant.service
