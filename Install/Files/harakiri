@@ -6,7 +6,7 @@
 ## This is called by systemd-shutdown; see systemd-halt.service(8)
 ##
 
-HARAKIRI=/opt/bhuman/libexec/chest-harakiri
+HARAKIRI=/opt/roboeireann/libexec/chest-harakiri
 SETEARS=/opt/aldebaran/bin/setears
 CAMRESET=/opt/aldebaran/libexec/reset-cameras.sh
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ROBOT=$(whoami)
-BINARY="/home/${ROBOT}/Config/bhuman"
+BINARY="/home/${ROBOT}/Config/roboeireann"
 LOGDIR="/home/${ROBOT}/logging"
 DUMPFILE="/home/${ROBOT}/bhdump.log"
 BACKGROUND=false
@@ -11,14 +11,14 @@ ROBOTS="/home/${ROBOT}/Config/Robots/robots.cfg"
 
 usage()
 {
-  echo "usage: $0 [ -b | -d ] - Starts the last deployed bhuman version."
+  echo "usage: $0 [ -b | -d ] - Starts the last deployed roboeireann version."
   echo "    -b  redirect output to logfile only"
-  echo "    -d  start bhuman in a debugger"
+  echo "    -d  start roboeireann in a debugger"
   exit 1
 }
 
 if [ ${ROBOT} != nao -a ${ROBOT} != booster ]; then
-  echo "bhuman can only be started by user 'nao' or 'booster'."
+  echo "roboeireann can only be started by user 'nao' or 'booster'."
   exit 1
 fi
 
@@ -51,7 +51,7 @@ fi
 rm -f "${DUMPFILE}"
 
 # Ignore SIGINT and SIGTERM. This inherits to child processes,
-# but bhuman installs its own handlers, so this script will come to an end, too.
+# but roboeireann installs its own handlers, so this script will come to an end, too.
 trap "" 2 15
 
 # Select USB sound card as default
@@ -116,14 +116,14 @@ else
 fi
 
 # Make log-names unique by numbering them.
-COUNTER=$(ls "${LOGDIR}" | sed -nE "s/^bhumand_\(([0-9]+)\).log$/\1/p" | sort -n | tail -n1)
+COUNTER=$(ls "${LOGDIR}" | sed -nE "s/^roboeireannd_\(([0-9]+)\).log$/\1/p" | sort -n | tail -n1)
 COUNTER=$(expr ${COUNTER} + 1)
-LOGFILE="${LOGDIR}/bhumand_(${COUNTER}).log"
+LOGFILE="${LOGDIR}/roboeireannd_(${COUNTER}).log"
 
 # Support running an executable from the USB drive.
-if [ -f /media/usb/Config/bhuman ]; then
-  cp /media/usb/Config/bhuman /home/${ROBOT}/bhuman
-  BINARY="/home/${ROBOT}/bhuman"
+if [ -f /media/usb/Config/roboeireann ]; then
+  cp /media/usb/Config/roboeireann /home/${ROBOT}/roboeireann
+  BINARY="/home/${ROBOT}/roboeireann"
   ARGS="-c /media/usb"
   ROBOTS="/media/usb/Config/Robots/robots.cfg"
 fi
@@ -151,7 +151,7 @@ if [ "${ROBOT}" == booster ]; then
   fi
 fi
 
-# Actually execute bhuman.
+# Actually execute roboeireann.
 if ${DEBUG}; then
   gdb --args "${BINARY}" ${ARGS}
 elif ${BACKGROUND}; then
@@ -163,7 +163,7 @@ RESULT=${PIPESTATUS[0]}
 
 # Remove leftovers.
 rm -f "${LOGDIR}"
-rm -f /home/${ROBOT}/bhuman
+rm -f /home/${ROBOT}/roboeireann
 umount /media/usb 2>/dev/null
 
 # Exit with result of ${BINARY}.

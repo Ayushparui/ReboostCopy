@@ -48,7 +48,7 @@ usage() {
   echo " -H <home archive>: set path to the home archive"
   echo " -i <installer>   : set path to the installer"
   echo " -o <opn image>   : set path to the OPN image"
-  echo " -b               : start bhuman after flashing"
+  echo " -b               : start roboeireann after flashing"
   echo ""
   echo " -h               : Display this help"
   exit 1

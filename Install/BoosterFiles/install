@@ -84,8 +84,8 @@ sudo udevadm trigger
 mkdir -p /home/booster/bin /home/booster/logs /home/booster/Profiles
 
 # Copy scripts and make them executable
-cp bin/bhuman bin/chmod-usb bin/setprofile bin/setvolume /home/booster/bin
-chmod +x /home/booster/bin/bhuman /home/booster/bin/chmod-usb /home/booster/bin/setprofile /home/booster/bin/setvolume
+cp bin/roboeireann bin/chmod-usb bin/setprofile bin/setvolume /home/booster/bin
+chmod +x /home/booster/bin/roboeireann /home/booster/bin/chmod-usb /home/booster/bin/setprofile /home/booster/bin/setvolume
 
 # Add second IP address for LAN
 LAN_IP="$(grep "^lan *=" network.cfg | sed -e 's%[^"]*"%%' -e 's%".*%%')"
@@ -96,18 +96,18 @@ sudo nmcli connection reload "$LAN_DEVICE"
 # Setup wireless network connection
 WLAN_IP="$(grep "^wlan *=" network.cfg | sed -e 's%[^"]*"%%' -e 's%".*%%')"
 WLAN_DEVICE="$(nmcli device | grep " wifi " | head -1 | sed 's% .*%%')"
-sudo cp B-Human.nmconnection /etc/NetworkManager/system-connections
-sudo chmod 600 /etc/NetworkManager/system-connections/B-Human.nmconnection
+sudo cp RoboEireannWifi.nmconnection /etc/NetworkManager/system-connections
+sudo chmod 600 /etc/NetworkManager/system-connections/RoboEireannWifi.nmconnection
 sudo nmcli connection reload
-sudo nmcli connection modify "B-Human" connection.interface-name "$WLAN_DEVICE"
-sudo nmcli connection modify "B-Human" ipv4.address "$WLAN_IP/16"
+sudo nmcli connection modify "RoboEireannWifi" connection.interface-name "$WLAN_DEVICE"
+sudo nmcli connection modify "RoboEireannWifi" ipv4.address "$WLAN_IP/16"
 sudo nmcli radio wifi off
 
-# Setup bhuman service
+# Setup roboeireann service
 mkdir -p /home/booster/.config/systemd/user
-cp bhuman.service /home/booster/.config/systemd/user
+cp roboeireann.service /home/booster/.config/systemd/user
 systemctl --user daemon-reload
-systemctl --user enable bhuman
+systemctl --user enable roboeireann
 
 # Make sure everything is written to disk before a reboot
 sync

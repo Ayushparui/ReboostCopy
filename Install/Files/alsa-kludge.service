@@ -2,7 +2,7 @@
 Description=ALSA kludge
 After=sound.target
 Requires=sound.target
-Before=bhuman.service
+Before=roboeireann.service
 
 [Service]
 Type=oneshot

@@ -1,6 +1,6 @@
 [connection]
-id=B-Human
-uuid=24259efb-e7b0-413b-96de-5399b7014adc
+id=RoboEireannWifi
+uuid=c3876d48-49a0-4436-9564-a6cfe3a14277 # in code-release was 24259efb-e7b0-413b-96de-5399b7014adc
 type=wifi
 interface-name=wlan0
 timestamp=1747840455
