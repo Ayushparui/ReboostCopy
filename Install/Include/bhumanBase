@@ -70,3 +70,10 @@ checkApp() {
     return 1
   fi
 }
+
+# Check for root rights
+checkRoot() {
+  if [ "$(whoami)" != "root" ]; then
+    fatal "you should be root to launch this program"
+  fi
+}
