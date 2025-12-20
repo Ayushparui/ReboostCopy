@@ -1,7 +1,15 @@
 set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_PROCESSOR aarch64)
 
-set(CMAKE_CXX_COMPILER clang++)
+# RV-DELETE: set(CMAKE_CXX_COMPILER clang++)
+
+# Support for multiple installed compilers
+if(NOT CMAKE_CXX_COMPILER)
+    find_program(CMAKE_CXX_COMPILER NAMES clang++-17 clang++-18 clang++-16 clang++)
+endif()
+
+
+
 set(CMAKE_CXX_COMPILER_TARGET aarch64-linux-gnu)
 set(CMAKE_CXX_FLAGS_INIT "-nostdinc -nostdinc++")
 set(CMAKE_SKIP_RPATH ON)

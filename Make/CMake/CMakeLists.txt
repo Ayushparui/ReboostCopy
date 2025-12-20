@@ -36,20 +36,20 @@ endif()
 if(NOT BUILD_NAO AND CMAKE_HOST_UNIX)
   # RV-DELETE: set(CMAKE_CXX_COMPILER clang++)
 
-  # Allow the default compiler to be overridden by the user (e.g. when using multiple 
-  # compiler versions for different projects)
-  set(USER_CXX_COMPILER "clang++" CACHE STRING "User specified the default C++ compiler executable or path for this project.")
-
-  # Use the full path resolved by the cache (either user-supplied or the default 'clang++').
-  set(CMAKE_CXX_COMPILER ${USER_CXX_COMPILER})
-
-  # Set the C compiler based on the above
-  string(REPLACE "++" "" USER_CXX_COMPILER_BASE ${USER_CXX_COMPILER})
-  set(USER_C_COMPILER ${USER_CXX_COMPILER_BASE} CACHE STRING "User-supplied C compiler executable or path for this project.")
-  set(CMAKE_C_COMPILER ${USER_C_COMPILER})  
+  # Support for multiple installed compilers
+  if(NOT CMAKE_CXX_COMPILER)
+      find_program(CMAKE_CXX_COMPILER NAMES clang++-17 clang++-18 clang++-16 clang++)
+  endif()
 endif()
 
 project(B-Human LANGUAGES CXX)
+
+# ensure we're not using a compiler that is too old - the compiler will only have been probed by now
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "16.0")
+    message(FATAL_ERROR 
+        "Detected Clang ${CMAKE_CXX_COMPILER_VERSION} which is too old for libstdc++ 12.")
+endif()
+
 
 if(("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL arm64 OR "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL aarch64) AND NOT ROSETTA)
   set(X86 false)
