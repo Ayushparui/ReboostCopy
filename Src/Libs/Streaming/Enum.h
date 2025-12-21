@@ -210,15 +210,23 @@
 #define ENUM(Enum, bracket, ...) _ENUM(_ENUM_TUPLE_SIZE(__VA_ARGS__), Enum, __VA_ARGS__)
 #define _ENUM(n, Enum, ...) _ENUM_I(n, Enum, (_ENUM_REMOVELAST_, n), __VA_ARGS__)
 #define _ENUM_I(n, Enum, param , ...) _ENUM_II(n, Enum, (_ENUM_REG, __VA_ARGS__), _ENUM_JOIN param (__VA_ARGS__))
+
+// DEPRECATED: numOfEnumTypes runs into problems with plurals that don't just add an 's'
+// leading to extra constants being defined in various parts of the code so
+// we'll treat this form as deprecated going forward.
+//   Instead the simpler numEnumType will be the preferred count of elements
+// going forward.
+
 #define _ENUM_II(n, Enum, param, ...) \
   enum Enum : unsigned char \
   { \
     __VA_ARGS__, \
-    numOf##Enum##s \
+    num##Enum, \
+    numOf##Enum##s = num##Enum /* deprecated, prefer the num##Enum version */ \
   }; \
   struct Enum##_Info \
   { \
-    static constexpr Enum numOfElements = numOf##Enum##s; \
+    static constexpr Enum numOfElements = num##Enum; \
     static void reg() \
     { \
       PUBLISH(reg); \
@@ -229,7 +237,8 @@
 
 /**
  * [static] ENUM_NUM_OF_ALIAS(Enum, alias)
- * Defines an alias for the number of elements of an enumeration type
+ * 
+ * [DEPRECATED] Defines an alias for the number of elements of an enumeration type
  * defined by ENUM. It should be used if the constant numOf...s that
  * is generated automatically is not a valid English name.
  * If used inside a class body, this macro must be prefixed by "static".
