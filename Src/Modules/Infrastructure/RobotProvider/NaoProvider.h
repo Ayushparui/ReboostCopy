@@ -51,14 +51,14 @@ class NaoProvider : public NaoProviderBase
   static thread_local NaoProvider* theInstance; /**< The only instance of this module. */
   static const Joints::Joint jointMappings[numOfJoints]; /**< Mappings from LoLA's joint indices to B-Human's joint indices. */
   static const KeyStates::Key keyMappings[KeyStates::numOfKeys]; /**< Mappings from LoLA's touch indices to B-Human's key indices. */
-  static const LEDRequest::LED leftEyeMappings[LEDRequest::faceRightRed0Deg - LEDRequest::faceLeftRed0Deg]; /**< Mappings from LoLA's LED indices to B-Human's LED indices. */
-  static const LEDRequest::LED rightEyeMappings[LEDRequest::earsLeft0Deg - LEDRequest::faceRightRed0Deg]; /**< Mappings from LoLA's LED indices to B-Human's LED indices. */
-  static const LEDRequest::LED leftEarMappings[LEDRequest::earsRight0Deg - LEDRequest::earsLeft0Deg]; /**< Mappings from LoLA's LED indices to B-Human's LED indices. */
-  static const LEDRequest::LED rightEarMappings[LEDRequest::chestRed - LEDRequest::earsRight0Deg]; /**< Mappings from LoLA's LED indices to B-Human's LED indices. */
-  static const LEDRequest::LED chestMappings[LEDRequest::headRearLeft0 - LEDRequest::chestRed]; /**< Mappings from LoLA's LED indices to B-Human's LED indices. */
-  static const LEDRequest::LED skullMappings[LEDRequest::footLeftRed - LEDRequest::headRearLeft0]; /**< Mappings from LoLA's LED indices to B-Human's LED indices. */
-  static const LEDRequest::LED leftFootMappings[LEDRequest::footRightRed - LEDRequest::footLeftRed]; /**< Mappings from LoLA's LED indices to B-Human's LED indices. */
-  static const LEDRequest::LED rightFootMappings[LEDRequest::numOfLEDs - LEDRequest::footRightRed]; /**< Mappings from LoLA's LED indices to B-Human's LED indices. */
+  static const LEDRequest::LED leftEyeMappings[LEDRequest::firstRightEyeLED - LEDRequest::firstLeftEyeLED]; /**< Mappings from LoLA's LED indices to B-Human's LED indices. */
+  static const LEDRequest::LED rightEyeMappings[LEDRequest::firstLeftEarLED - LEDRequest::firstRightEyeLED]; /**< Mappings from LoLA's LED indices to B-Human's LED indices. */
+  static const LEDRequest::LED leftEarMappings[LEDRequest::firstRightEarLED - LEDRequest::firstLeftEarLED]; /**< Mappings from LoLA's LED indices to B-Human's LED indices. */
+  static const LEDRequest::LED rightEarMappings[LEDRequest::firstChestLED - LEDRequest::firstRightEarLED]; /**< Mappings from LoLA's LED indices to B-Human's LED indices. */
+  static const LEDRequest::LED chestMappings[LEDRequest::firstHeadLED - LEDRequest::firstChestLED]; /**< Mappings from LoLA's LED indices to B-Human's LED indices. */
+  static const LEDRequest::LED skullMappings[LEDRequest::firstLeftFootLED - LEDRequest::firstHeadLED]; /**< Mappings from LoLA's LED indices to B-Human's LED indices. */
+  static const LEDRequest::LED leftFootMappings[LEDRequest::firstRightFootLED - LEDRequest::firstLeftFootLED]; /**< Mappings from LoLA's LED indices to B-Human's LED indices. */
+  static const LEDRequest::LED rightFootMappings[LEDRequest::numOfLEDs - LEDRequest::firstRightFootLED]; /**< Mappings from LoLA's LED indices to B-Human's LED indices. */
 
   int socket; /**< Socket to connect to LoLA. */
   unsigned char receivedPacket[896]; /**< The last packet received from LoLA. */

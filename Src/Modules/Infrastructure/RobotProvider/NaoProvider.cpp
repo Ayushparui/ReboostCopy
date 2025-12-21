@@ -21,6 +21,8 @@
 
 MAKE_MODULE(NaoProvider);
 
+// DECL_TLOGGER(tlogger, "NaoProvider", TextLogging::INFO);
+
 #ifdef TARGET_ROBOT
 
 #include <sys/fcntl.h>
@@ -326,6 +328,9 @@ void NaoProvider::update(KeyStates& theKeyStates)
     timeWhenChestButtonUnpressed = theFrameInfo.time;
   else if(timeWhenChestButtonUnpressed && theFrameInfo.getTimeSince(timeWhenChestButtonUnpressed) >= timeChestButtonPressedUntilShutdown)
   {
+//    TLOGW(tlogger, "Chest button pressed for {} ms, initiating Nao shutdown via SIGINT",
+//          theFrameInfo.getTimeSince(timeWhenChestButtonUnpressed));
+
     raise(SIGINT);
     timeWhenChestButtonUnpressed = 0;
   }
@@ -433,14 +438,14 @@ void NaoProvider::receivePacket()
         jointStiffnesses[jointMappings[i]] = MsgPack::write(0.f, p);
 
       // Determine addresses for LEDs
-      writeLEDs("REar", rightEarMappings, LEDRequest::chestRed - LEDRequest::earsRight0Deg, p);
-      writeLEDs("LEar", leftEarMappings, LEDRequest::earsRight0Deg - LEDRequest::earsLeft0Deg, p);
-      writeLEDs("Chest", chestMappings, LEDRequest::headRearLeft0 - LEDRequest::chestRed, p);
-      writeLEDs("LEye", leftEyeMappings, LEDRequest::faceRightRed0Deg - LEDRequest::faceLeftRed0Deg, p);
-      writeLEDs("REye", rightEyeMappings, LEDRequest::earsLeft0Deg - LEDRequest::faceRightRed0Deg, p);
-      writeLEDs("LFoot", leftFootMappings, LEDRequest::footRightRed - LEDRequest::footLeftRed, p);
-      writeLEDs("RFoot", rightFootMappings, LEDRequest::numOfLEDs - LEDRequest::footRightRed, p);
-      writeLEDs("Skull", skullMappings, LEDRequest::footLeftRed - LEDRequest::headRearLeft0, p);
+      writeLEDs("REar", rightEarMappings, LEDRequest::firstChestLED - LEDRequest::firstRightEarLED, p);
+      writeLEDs("LEar", leftEarMappings, LEDRequest::firstRightEarLED - LEDRequest::firstLeftEarLED, p);
+      writeLEDs("Chest", chestMappings, LEDRequest::firstHeadLED - LEDRequest::firstChestLED, p);
+      writeLEDs("LEye", leftEyeMappings, LEDRequest::firstRightEyeLED - LEDRequest::firstLeftEyeLED, p);
+      writeLEDs("REye", rightEyeMappings, LEDRequest::firstLeftEarLED - LEDRequest::firstRightEyeLED, p);
+      writeLEDs("LFoot", leftFootMappings, LEDRequest::firstRightFootLED - LEDRequest::firstLeftFootLED, p);
+      writeLEDs("RFoot", rightFootMappings, LEDRequest::numOfLEDs - LEDRequest::firstRightFootLED, p);
+      writeLEDs("Skull", skullMappings, LEDRequest::firstLeftFootLED - LEDRequest::firstHeadLED, p);
 
       packetToSendSize = static_cast<int>(p - packetToSend);
       ASSERT(packetToSendSize <= static_cast<int>(sizeof(packetToSend)));
@@ -459,6 +464,7 @@ void NaoProvider::writeLEDs(const std::string category, const LEDRequest::LED* l
 void NaoProvider::sendPacket()
 {
   FOREACH_ENUM(Joints::Joint, joint)
+  {
     if(joint != Joints::waistYaw && joint != Joints::rHipYawPitch)
     {
       if(theJointRequest.angles[joint] == SensorData::off || !theJointRequest.stiffnessData.stiffnesses[joint])
@@ -472,17 +478,66 @@ void NaoProvider::sendPacket()
         MsgPack::writeFloat(static_cast<float>(theJointRequest.stiffnessData.stiffnesses[joint]) * 0.01f, jointStiffnesses[joint]);
       }
     }
+  }
+  
+  // OLD BH version
+  // bool on = (timeWhenPacketReceived / 400 & 1) == 1;
+  // bool fastOn = (timeWhenPacketReceived / 80 & 1) == 0;
+  // FOREACH_ENUM(LEDRequest::LED, led)
+  // {
+  //   LEDRequest::LEDState state = theLEDRequest.ledStates[led];
+  //   MsgPack::writeFloat(state == LEDRequest::on ||
+  //                       (state == LEDRequest::blinking && on) ||
+  //                       (state == LEDRequest::fastBlinking && fastOn)
+  //                       ? 1.0f
+  //                       : state == LEDRequest::half ? 0.5f : 0.0f, leds[led]);
+  // }
 
-  bool on = (timeWhenPacketReceived / 400 & 1) == 1;
-  bool fastOn = (timeWhenPacketReceived / 80 & 1) == 0;
+  // new RE version
+  auto blinkOn = [this](unsigned blinkPeriod, unsigned offset)
+  {
+    return (((timeWhenPacketReceived - offset) / (blinkPeriod / 2)) & 1) == 1;
+  };
+
+  auto multiBlinkOn = [this](unsigned blinkPeriod, unsigned numBlinks, unsigned overallPeriod, unsigned offset)
+  {
+    bool blinkingOn = (timeWhenPacketReceived / (blinkPeriod/2) & 1) == 1;
+    unsigned dutyPeriod = blinkPeriod * numBlinks;
+
+    return blinkingOn &&
+            Range<unsigned>(0, dutyPeriod - 1).isInside((timeWhenPacketReceived - offset) % overallPeriod);
+  };
+
+  const unsigned NORMAL_PERIOD_MS   = 800;
+  const unsigned SLOW_PERIOD_MS     = 1600;
+  const unsigned MED_PERIOD_MS      = 400;
+  const unsigned FAST_PERIOD_MS     = 200;
+  const unsigned VFAST_PERIOD_MS    = 100;
+
+  float fade = 0.5f - 0.5f * std::cos(float(timeWhenPacketReceived % 3000) * pi2 / 3000.f); // 3000ms period, 50% duty
+  // basically set it so the cos function is used to fade the LED for 50% of the time (75% duty)
+  // and otherwise it reduces to cos(0) which is 1, i.e. full LED power
+  float fade2 = 0.5f + 0.5f * std::cos(float(Rangei(-1500, 0).limit(int(timeWhenPacketReceived % 3000) - 1500)) *
+                                        pi2 / 1500.f); // 3000ms period, 75% duty
+
   FOREACH_ENUM(LEDRequest::LED, led)
   {
     LEDRequest::LEDState state = theLEDRequest.ledStates[led];
-    MsgPack::writeFloat(state == LEDRequest::on ||
-                        (state == LEDRequest::blinking && on) ||
-                        (state == LEDRequest::fastBlinking && fastOn)
-                        ? 1.0f
-                        : state == LEDRequest::half ? 0.5f : 0.0f, leds[led]);
+    if (state == LEDRequest::on || (state == LEDRequest::blinking && blinkOn(NORMAL_PERIOD_MS, 0)) ||
+        (state == LEDRequest::blinking2 && blinkOn(NORMAL_PERIOD_MS, NORMAL_PERIOD_MS/2)) ||
+        (state == LEDRequest::fastBlinking && blinkOn(FAST_PERIOD_MS, FAST_PERIOD_MS/2)) ||
+        (state == LEDRequest::fastBlinking2 && blinkOn(FAST_PERIOD_MS, 0)) ||
+        (state == LEDRequest::slowDoubleBlink && multiBlinkOn(MED_PERIOD_MS, 2, SLOW_PERIOD_MS, 0)) ||
+        (state == LEDRequest::fastDoubleBlink && multiBlinkOn(FAST_PERIOD_MS, 2, NORMAL_PERIOD_MS, 0)) ||
+        (state == LEDRequest::tripleBlink && multiBlinkOn(VFAST_PERIOD_MS, 3, NORMAL_PERIOD_MS, 0)) ||
+        (state == LEDRequest::tripleBlink2 && multiBlinkOn(VFAST_PERIOD_MS, 3, NORMAL_PERIOD_MS, NORMAL_PERIOD_MS/2)))
+      MsgPack::writeFloat(theLEDRequest.ledValues[led], leds[led]);
+    else if (state == LEDRequest::fade)
+      MsgPack::writeFloat(theLEDRequest.ledValues[led] * fade, leds[led]);
+    else if (state == LEDRequest::fade2)
+      MsgPack::writeFloat(theLEDRequest.ledValues[led] * fade2, leds[led]);
+    else
+      MsgPack::writeFloat(0.f, leds[led]); // off
   }
 
   VERIFY(send(socket, reinterpret_cast<char*>(packetToSend), packetToSendSize, 0) == static_cast<ssize_t>(packetToSendSize));
