@@ -43,9 +43,11 @@ void Thread::nameCurrentThread(const std::string& name)
     // TODO Handle?
   }
   delete[] pcwstr;
+
+  initCachedThreadName();
 }
 
-const std::string Thread::getCurrentThreadName()
+const std::string Thread::getCurrentThreadName(bool useFullName)
 {
   std::string name;
   wchar_t* pcwstr;
@@ -66,6 +68,7 @@ const std::string Thread::getCurrentThreadName()
   }
   LocalFree(pcwstr);
 
-  demangleThreadName(name);
+  if (!useFullName)
+    demangleThreadName(name);
   return name;
 }

@@ -41,12 +41,13 @@ void Thread::threadStart(const std::function<void()>& lambda)
   terminated.post();
 }
 
-const std::string Thread::getCurrentThreadName()
+const std::string Thread::getCurrentThreadName(bool useFullName)
 {
   char cname[16];
   VERIFY(!pthread_getname_np(pthread_self(), cname, 16));
   std::string name(cname);
-  demangleThreadName(name);
+  if (!useFullName)
+    demangleThreadName(name);
   return name;
 }
 
@@ -69,4 +70,6 @@ void Thread::nameCurrentThread(const std::string& name)
   name.copy(cname, sizeof(cname) - 1);
   cname[sizeof(cname) - 1] = '\0';
   VERIFY(!pthread_setname_np(cname));
+
+  initCachedThreadName();
 }

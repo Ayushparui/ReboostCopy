@@ -44,6 +44,9 @@ private:
   int priority = 0;
   Semaphore terminated;
 
+  static inline thread_local std::string cachedName = "";
+  static inline thread_local std::string cachedFullName = "";
+
 public:
   Thread() = default;
   Thread(int priority) : priority(priority) {}
@@ -118,10 +121,34 @@ public:
   static void nameCurrentThread(const std::string& name);
 
   /**
-   * The function returns the name of the thread without the additional debug information.
-   * @return The thread name without the additional debug information.
+   * The function returns the name of the thread (optionally with the additional debug information)
+   * @param fullName specify whether to exclude (default) or include the additional debug info in the thread name
+   * @return The thread name with/without additional debug info
    */
-  static const std::string getCurrentThreadName();
+  static const std::string getCurrentThreadName(bool fullName=false);
+
+  /**
+   * get the cached thread name (without debug info if fullName is false)
+   * 
+   * This has less overhead than calling getCurrentThreadName. Is it not thread
+   * safe (shouldn't be an issue as names are usually just set once).
+   *  
+   * Note: will fall back to getting the thread name if no cached name is available
+   * @param fullName whether to include debug info or not (default false)
+   */
+  static const std::string getCurrentThreadCachedName(bool fullName=false)
+  {
+    // High-level fast path: the cache is almost always ready.
+    if (cachedFullName.empty()) [[unlikely]]
+      initCachedThreadName();
+
+    // second level fast path: full name is rarely needed
+    if (!fullName) [[likely]]
+      return cachedName;
+    else
+      return cachedFullName;
+  }
+
 
   /**
    * The function returns the Thread object representing the current thread.
@@ -149,6 +176,21 @@ private:
     const size_t dotIndex = string.find_last_of('.');
     if(dotIndex != std::string::npos)
       string = string.substr(dotIndex + 1);
+  }
+
+  static void initCachedThreadName()
+  {
+    // Thread* thisThread = getCurrentThread();
+    // if (thisThread)
+    // {
+    //   thisThread->cachedFullName = name;
+    //   thisThread->cachedName = name;
+    //   demangleThreadName(thisThread->cachedName);
+    // }
+
+    cachedFullName = getCurrentThreadName(true);
+    cachedName = cachedFullName;
+    demangleThreadName(cachedName);
   }
 };
 
