@@ -4,6 +4,10 @@
 
 #include "File.h"
 #include "Platform/BHAssert.h"
+#include "TextLogging/TextLogging.h"
+
+#include <unordered_set>
+
 #include <cstdarg>
 #include <cstdio>
 
@@ -21,7 +25,10 @@
 
 thread_local std::vector<std::string> File::searchPath;
 
-File::File(const std::string& name, const char* mode, bool tryAlternatives)
+DECL_TLOGGER(tlogger,"File",TextLogging::DEBUG);
+
+
+File::File(const std::string& name, const char* mode, bool tryAlternatives, bool isOptional)
 {
   fullName = name;
   std::list<std::string> names = getFullNames(name);
@@ -42,6 +49,35 @@ File::File(const std::string& name, const char* mode, bool tryAlternatives)
     stream = fopen(names.back().c_str(), mode);
     if(stream)
       fullName = names.back();
+  }
+
+  // text logging, primarily for debugging config file issues and ensuring
+  // the correct files being loaded. (This is needed because of the fallback
+  // behaviour and the ability to pick up files from many different locations)
+  if (stream == nullptr)
+  {
+    if (!isRepeatedFile(name))
+    {
+      if (isOptional)
+        TLOGD(tlogger, "Optional file '{}' not found", name);
+      else
+        TLOGW(tlogger, "Required file '{}' not found", name);
+    }
+
+    if (tlogger.isEnabled(TextLogging::VERBOSE))
+    {
+      for ([[maybe_unused]] auto& nm : names)
+        TLOGD(tlogger, "  not at '{}'", nm);
+    }
+  }
+  else if (tlogger.isEnabled(TextLogging::INFO))
+  {
+    if (!isRepeatedFile(fullName))
+#ifdef TARGET_ROBOT
+      TLOGI(tlogger, "opened {}", fullName);
+#else
+      TLOGD(tlogger, "opened {}", fullName);
+#endif
   }
 }
 
@@ -271,4 +307,11 @@ void File::setSearchPath(const std::vector<std::string>& paths)
 void File::clearSearchPath()
 {
   searchPath.clear();
+}
+
+bool File::isRepeatedFile(const std::string& name)
+{
+  static std::unordered_set<std::string> files;
+
+  return !files.insert(name).second; // second is true if item inserted which means it is not a repeat
 }

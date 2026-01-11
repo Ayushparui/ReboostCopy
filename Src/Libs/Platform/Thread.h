@@ -142,11 +142,11 @@ public:
     if (cachedFullName.empty()) [[unlikely]]
       initCachedThreadName();
 
-    // second level fast path: full name is rarely needed
-    if (!fullName) [[likely]]
-      return cachedName;
-    else
+    // second level fast path: full name is usually needed (it is used by textlogging)
+    if (fullName) [[likely]]
       return cachedFullName;
+    else
+      return cachedName;
   }
 
 

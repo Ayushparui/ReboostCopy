@@ -20,6 +20,7 @@
 #include "Platform/Time.h"
 #include "Streaming/InStreams.h"
 #include "Streaming/OutStreams.h"
+#include "TextLogging/TextLogging.h"
 #ifdef MACOS
 #include <Carbon/Carbon.h>
 #endif
@@ -27,19 +28,28 @@
 #define STR(x) STR2(x)
 #define STR2(x) #x
 
+DECL_TLOGGER(tlogger, "DeployDialog", TextLogging::INFO);
+
+
 DeployDialog::DeployDialog(int argc, char* argv[])
 {
+  TLOGI(tlogger, "Starting up");
+
   setWindowTitle("Deploy - " STR(CONFIGURATION));
   setWindowIcon(QPixmap(":Icons/DeployDialog.png"));
 
-  QSettings settings("B-Human", "DeployDialog");
+  QSettings settings("RoboEireann", "DeployDialog");
   QStringList substitutes = settings.value("substitutes", QStringList()).toStringList();
 
   gotoConfigDirectory(argc ? argv[0] : nullptr);
 
   // Read known robots.
-  for(const QString& dir : QDir("Robots").entryList(QDir::Dirs, QDir::Name))
+  for(const QString& dir : QDir("Robots").entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name))
   {
+    // Filter out specific names we don't want
+    if(dir == "Default" || dir == "SimulatedNao" || dir == "SimulatedK1" || dir == "SimulatedT1")
+        continue;
+            
     InMapFile stream("Robots/" + dir.toStdString() + "/network.cfg");
     if(stream.exists())
     {
@@ -403,7 +413,7 @@ std::string DeployDialog::localCommand(const std::string& command)
 
 void DeployDialog::done(int reason)
 {
-  QSettings settings("B-Human", "DeployDialog");
+  QSettings settings("RoboEireann", "DeployDialog");
   bool save = reason == QDialog::Accepted;
 
   if(save)

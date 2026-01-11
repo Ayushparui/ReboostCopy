@@ -32,6 +32,30 @@ endif()
 
 add_library(Platform${TARGET_SUFFIX} OBJECT ${PLATFORM_SOURCES})
 set_property(TARGET Platform${TARGET_SUFFIX} PROPERTY FOLDER "Libs/${TARGET_SUFFIX}")
+
+# Add TextLogging support to the platform library since it is used by everything
+# (including platform itself)
+target_sources(Platform${TARGET_SUFFIX} PUBLIC $<TARGET_OBJECTS:TextLogging_Objs${TARGET_SUFFIX}>)
+
+# Ensure that anyone linking to Platform (like Framework) 
+# can find the TextLogging headers and the fmt headers.
+target_include_directories(Platform${TARGET_SUFFIX} PUBLIC 
+    "${PROJECT_ROOT_PREFIX}/Src/Libs/TextLogging"
+    #$<TARGET_PROPERTY:fmt${TARGET_SUFFIX},INTERFACE_INCLUDE_DIRECTORIES>
+)
+# Since Platform 'adopts' TextLogging_Objs, it must PUBLICLY link fmtlib 
+# to ensure the fmt include paths and symbols propagate to Framework and others.
+
+#target_link_libraries(Platform${TARGET_SUFFIX} PUBLIC fmt${TARGET_SUFFIX})
+target_link_libraries(Platform${TARGET_SUFFIX} PUBLIC TextLogging_Objs${TARGET_SUFFIX})
+if(BUILD_NAO)
+    target_link_libraries(Platform${TARGET_SUFFIX} PUBLIC Nao::fmt::fmt)
+elseif(BUILD_BOOSTER)
+    target_link_libraries(Platform${TARGET_SUFFIX} PUBLIC Booster::fmt::fmt)
+else()
+    target_link_libraries(Platform${TARGET_SUFFIX} PUBLIC fmt::fmt)
+endif()
+
 if(BUILD_DESKTOP)
   set_property(TARGET Platform${TARGET_SUFFIX} PROPERTY POSITION_INDEPENDENT_CODE ON)
   if(MACOS)

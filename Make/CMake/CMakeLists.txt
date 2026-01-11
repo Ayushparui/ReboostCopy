@@ -562,10 +562,12 @@ if(BUILD_NAO)
       INTERFACE_LINK_LIBRARIES Nao::OpenSSL::Crypto)
 endif()
 
+
 if(X86)
   include("../CMake/asmjit.cmake")
   include("../CMake/CompiledNN.cmake")
 endif()
+include("../CMake/TextLogging.cmake")
 include("../CMake/Platform.cmake")
 include("../CMake/MathBase.cmake")
 include("../CMake/Streaming.cmake")
@@ -579,6 +581,8 @@ include("../CMake/OptionsAndSkills.cmake")
 include("../CMake/RobotCore.cmake")
 
 include("../CMake/CatchTests.cmake") # TODO: might need to be moved if more than Linux and Nao supported
+include("../CMake/SmallApps.cmake")
+
 if(BUILD_DESKTOP)
   include("../CMake/Python.cmake")
 endif()
@@ -715,6 +719,7 @@ if(NOT MINIMAL_PROJECT)
         set(BUILD_BOOSTER ON)
       endif()
 
+      include("../CMake/TextLogging.cmake")
       include("../CMake/Platform.cmake")
       include("../CMake/MathBase.cmake")
       include("../CMake/Streaming.cmake")

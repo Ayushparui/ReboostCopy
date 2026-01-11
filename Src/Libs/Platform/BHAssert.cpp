@@ -57,3 +57,49 @@ void Assert::abort()
   ::abort();
 #endif
 }
+
+#if defined TARGET_ROBOT || defined LINUX
+
+#include <signal.h>
+
+const char* Assert::getSignalName(int signum)
+{
+  const char* signalNames[] =
+  {
+    "",
+    "sigHUP",
+    "sigINT",
+    "sigQUIT",
+    "sigILL",
+    "sigTRAP",
+    "sigABRT",
+    "sigBUS",
+    "sigFPE",
+    "sigKILL",
+    "sigUSR1",
+    "sigSEGV",
+    "sigUSR2",
+    "sigPIPE",
+    "sigALRM",
+    "sigTERM"
+  };
+
+  if (0 <= signum && signum < int(sizeof(signalNames) / sizeof(*signalNames)))
+    return signalNames[signum];
+  else
+  {
+    switch (signum)
+    {
+    case SIGUSR1:
+      return "sigUSR1";
+
+    default:
+      static char buf[20];
+      sprintf(buf, "signal %d", signum);
+      return buf;
+    }
+  }
+}
+
+#endif // defined TARGET_ROBOT || defined LINUX
+
