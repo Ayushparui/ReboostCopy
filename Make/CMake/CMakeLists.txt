@@ -388,6 +388,37 @@ if(BUILD_DESKTOP)
   endif()
 endif()
 
+
+# --- fmtlib ---
+
+if(BUILD_NAO)
+  add_library(Nao::fmt::fmt STATIC IMPORTED)
+  set_target_properties(Nao::fmt::fmt PROPERTIES
+    IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/fmt/lib/V6/libfmt.a"
+    INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/fmt/include")
+endif()
+
+if(BUILD_BOOSTER)
+  add_library(Booster::fmt::fmt STATIC IMPORTED)
+  set_target_properties(Booster::fmt::fmt PROPERTIES
+    IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/fmt/lib/LinuxArm64/libfmt.a"
+    INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/fmt/include")
+endif()
+
+if(BUILD_DESKTOP)
+  if (LINUX OR MACOS)
+    add_library(fmt::fmt STATIC IMPORTED)
+    set_target_properties(fmt::fmt PROPERTIES
+      IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/fmt/lib/${PLATFORM}${ARCH}/libfmt.a"
+      INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/fmt/include")
+  else() # for WINDOWS
+    message(FATAL_ERROR "Windows support for fmt lib must be added")
+  endif()
+endif()
+
+
+# --- HDF5 ---
+
 if(BUILD_NAO)
   add_library(Nao::HDF5::HDF5 STATIC IMPORTED)
   set_target_properties(Nao::HDF5::HDF5 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/hdf5/include")
