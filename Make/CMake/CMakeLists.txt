@@ -27,9 +27,13 @@ cmake_minimum_required(VERSION 3.17)
 # Export CMAKE_EXPORT_COMPILE_COMMANDS to build the compile_commands.
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+
+
 if(BUILD_NAO)
+  message(STATUS "  CMakeLists.txt -- BUILD_NAO defined: ${BUILD_NAO}")
   set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../CMake/NaoToolchain.cmake")
 elseif(BUILD_BOOSTER)
+  message(STATUS "  CMakeLists.txt -- BUILD_BOOSTER defined: ${BUILD_BOOSTER}")
   set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../CMake/BoosterToolchain.cmake")
 endif()
 
@@ -197,6 +201,14 @@ endif()
 set(_is_msvc "$<CXX_COMPILER_ID:MSVC>")
 set(_is_clang "$<NOT:$<CXX_COMPILER_ID:MSVC>>")
 set(_not_mac "$<NOT:$<PLATFORM_ID:Darwin>>")
+
+# RV: it appears DebugInDevelop flags refer to executables that should include
+# debug symbols in the Develop configuration but should only have
+# the optimisations in the Release configuration, but not Develop
+#
+# In contrast the Default flags will optimise in the Release and Develop
+# configurations (with no debug symbols). The only difference is that
+# NDEBUG is not defined in Develop, so Asserts continue to work.
 
 add_library(Flags::DebugInDevelop INTERFACE IMPORTED)
 target_compile_definitions(Flags::DebugInDevelop INTERFACE
@@ -566,6 +578,7 @@ include("../CMake/Framework.cmake")
 include("../CMake/OptionsAndSkills.cmake")
 include("../CMake/RobotCore.cmake")
 
+include("../CMake/CatchTests.cmake") # TODO: might need to be moved if more than Linux and Nao supported
 if(BUILD_DESKTOP)
   include("../CMake/Python.cmake")
 endif()
@@ -683,6 +696,7 @@ if(NOT MINIMAL_PROJECT)
     set(ARCH_BACKUP "${ARCH}")
 
     foreach(TARGET_SUFFIX Nao Booster)
+      message("  CMakeLists.txt -- TARGET_SUFFIX is ${TARGET_SUFFIX}")
       if("${TARGET_SUFFIX}" STREQUAL Nao)
         set(CMAKE_OSX_ARCHITECTURES "x86_64")
         set(ARM false)
@@ -766,10 +780,12 @@ if(NOT MINIMAL_PROJECT)
     target_link_libraries(asmjitNao PUBLIC CrossCompileNao)
     target_link_libraries(CompiledNNNao PUBLIC CrossCompileNao)
   else()
+    message("  CMakeLists.txt -- include Nao.cmake and Booster.cmake")
     include("../CMake/Nao.cmake")
     include("../CMake/Booster.cmake")
   endif()
-endif()
+
+endif() # end not MINIMAL_PROJECT
 
 if(BUILD_DESKTOP AND NOT MINIMAL_PROJECT)
   add_dependencies(DeployDialogRunner Nao)

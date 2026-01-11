@@ -1,3 +1,10 @@
+message(STATUS "--- Entering Nao.cmake ---")
+message(STATUS "  BUILD_DESKTOP: ${BUILD_DESKTOP}")
+message(STATUS "  BUILD_NAO: ${BUILD_NAO}")
+message(STATUS "  TARGET_SUFFIX: ${TARGET_SUFFIX}")
+message(STATUS "  Platform: ${PLATFORM} Arch: ${ARCH}")
+
+
 set(NAO_ROOT_DIR "${PROJECT_ROOT_PREFIX}/Src/Apps/Nao")
 set(NAO_OUTPUT_DIR "${OUTPUT_PREFIX}/Build/Linux/Nao/$<CONFIG>")
 
@@ -27,6 +34,7 @@ if(BUILD_NAO)
   endif()
 
   target_link_libraries(Nao PRIVATE Flags::Default)
+
   if(MACOS)
     add_dependencies(Nao DeployDialog)
   endif()
@@ -53,3 +61,6 @@ elseif(NOT BUILD_BOOSTER)
     add_dependencies(Nao DeployDialog)
   endif()
 endif()
+
+message(STATUS "--- Exiting Nao.cmake ---")
+
