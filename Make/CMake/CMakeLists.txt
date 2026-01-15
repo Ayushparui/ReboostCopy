@@ -192,7 +192,8 @@ else()
         add_compile_options(-mno-rtm)
       endif()
     else()
-      add_link_options(-fuse-ld=mold)
+      # add_link_options(-fuse-ld=mold)
+      add_link_options(-fuse-ld=lld)
     endif()
   endif()
   add_definitions(-D__extern_always_inline=inline)
@@ -224,7 +225,8 @@ target_compile_options(Flags::DebugInDevelop INTERFACE
     $<${_is_msvc}:$<$<CONFIG:Develop>:/Oy>>
     $<${_is_msvc}:$<$<CONFIG:Release>:/Ox>>
     $<${_is_msvc}:$<$<NOT:$<CONFIG:Debug>>:/GT>>
-    $<${_is_clang}:$<$<NOT:$<CONFIG:Release>>:-g>>
+    $<${_is_clang}:$<$<NOT:$<CONFIG:Release>>:-gdwarf-4>>
+    $<${_is_clang}:$<$<NOT:$<CONFIG:Release>>:-fno-debug-types-section>>
     $<${_is_clang}:$<$<CONFIG:Release>:-O3>>
     $<${_is_clang}:$<$<CONFIG:Release>:-fomit-frame-pointer>>)
 target_link_options(Flags::DebugInDevelop INTERFACE
@@ -242,7 +244,8 @@ target_compile_options(Flags::Default INTERFACE
     $<${_is_msvc}:$<$<CONFIG:Debug>:/Od>>
     $<${_is_msvc}:$<$<NOT:$<CONFIG:Debug>>:/Ox>>
     $<${_is_msvc}:$<$<NOT:$<CONFIG:Debug>>:/GT>>
-    $<${_is_clang}:$<$<CONFIG:Debug>:-g>>
+    $<${_is_clang}:$<$<CONFIG:Debug>:-gdwarf-4>>
+    $<${_is_clang}:$<$<CONFIG:Debug>:-fno-debug-types-section>>
     $<${_is_clang}:$<$<NOT:$<CONFIG:Debug>>:-O3>>
     $<${_is_clang}:$<$<NOT:$<CONFIG:Debug>>:-fomit-frame-pointer>>)
 target_link_options(Flags::Default INTERFACE
