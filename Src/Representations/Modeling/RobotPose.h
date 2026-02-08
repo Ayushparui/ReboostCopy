@@ -4,6 +4,7 @@
  * The file contains the definition of the struct RobotPose.
  *
  * @author Thomas Röfer
+ * @author Rudi Villing [modifications]
  */
 
 #pragma once
@@ -49,6 +50,26 @@ STREAMABLE_WITH_BASE(RobotPose, Pose2f, COMMA public BHumanMessageParticle
     return inversePose;
   }
 
+
+  /** convert field point to robot relative coords */
+  Vector2f toRobotCoordinates(const Vector2f &fieldPoint) const { return this->inversePose * fieldPoint; }
+  
+  /** convert field pose to robot relative coords */
+  Pose2f toRobotCoordinates(const Pose2f &fieldPose) const { return this->inversePose + fieldPose; }
+  
+  /** convert robot relative point to field coords */
+  Vector2f toFieldCoordinates(const Vector2f &point) const { return (*this) * point; }
+  
+  /** convert robot relative pose to field coords */
+  Pose2f toFieldCoordinates(const Pose2f& pose) const { return (*this) + pose; }
+
+  /** convert vector2 field coords to vector3 robot coords */
+  Vector3f toRobotVector3f(const Vector2f& fieldPoint, float z = 0.f) const
+  {
+    return (Vector3f() << this->inversePose * fieldPoint, z).finished();
+  }
+
+  
   void onRead();
 
   /** Verifies that the robot pose contains valid values. */

@@ -5,6 +5,7 @@
  * but not suitable for being exchanged between threads.
  *
  * @author Arne Hasselbring
+ * @author Rudi Villing (modifications)
  */
 
 #include "ExtendedGameStateProvider.h"
@@ -13,6 +14,9 @@ MAKE_MODULE(ExtendedGameStateProvider);
 
 void ExtendedGameStateProvider::update(ExtendedGameState& extendedGameState)
 {
+  if (theGameState.state != stateLastFrame)
+    extendedGameState.stateBeforeCurrent = stateLastFrame;
+  
   extendedGameState.stateLastFrame = stateLastFrame;
   extendedGameState.playerStateLastFrame = playerStateLastFrame;
   extendedGameState.messageBudgetLastFrame = messageBudgetLastFrame;
@@ -21,7 +25,11 @@ void ExtendedGameStateProvider::update(ExtendedGameState& extendedGameState)
   extendedGameState.timeWhenPlayerStateStarted[theGameState.playerState] = theGameState.timeWhenPlayerStateStarted;
 
   if(theGameState.isPenalized() && !extendedGameState.wasPenalized())
-    timeWhenPenalized = theGameState.timeWhenPlayerStateStarted; // Don't use theFrameInfo.time because the timestamp may have been backdated.
+    timeWhenPenalized =
+        theGameState.timeWhenPlayerStateStarted; // Don't use theFrameInfo.time because the timestamp may have been backdated.
+
+  if (!theGameState.isPenalized() && extendedGameState.wasPenalized())
+    extendedGameState.timeWhenLastUnpenalised = theGameState.timeWhenPlayerStateStarted;
 
   if(!theGroundContactState.contact)
     lastTimeWithoutGroundContact = theFrameInfo.time;

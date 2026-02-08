@@ -3,16 +3,50 @@
  * copyable. They do not need to provide a default constructor. The interface of the
  * class is similar to types of the standard template library and it also supports
  * for-each loops.
+ *
+ * Implementation detail:
+ * 
+ * The storage and sense of where the front and back of the buffer is are unusual, e.g.
+ * If the characters A,B,C,D,E,F have been pushed to front, and then pop_back is called 3 times
+ * the storage (With capacity 8) would look something like
+ *
+ * indexes   0   1   2   3   4   5   6   7  
+ *         | - | - | - | D | E | F | - | - |    // size()=3
+ *                       ^       ^   ^
+ *                       |       |   +  head = 6
+ *                       |       +-- front() = head - 1
+ *                       +---------- back() = head - size()
+ * 
+ * calling push_front(G), push_back(H) would result in the storage looking as follows:
+ *
+ * indexes   0   1   2   3   4   5   6   7  
+ *         | - | - | H | D | E | F | G | - |    // size()=5
+ *                   ^               ^   ^
+ *                   |               |   +-- head = 7
+ *                   |               +-- front() = head
+ *                   +------------------ back() = head - size()
+ * 
+ * It should be clear that push_front adds an element at the head and then 
+ * increments it (wrapping if needed).
+ * On the other hand, push_back increments the number of entries
+ * and adds elements at head-size(). These locations are slightly 
+ * counter-intuitive to the front and back in the function names.
+ *
+ *
  * @author Thomas Röfer
+ * @author Rudi Villing (modifications)
  */
 
 #pragma once
 
+#include "Platform/BHAssert.h"
+#include "Platform/Memory.h"
+
 #include <cstddef>
 #include <cstring>
 #include <iterator>
-#include "Platform/BHAssert.h"
-#include "Platform/Memory.h"
+#include <utility>
+#include <type_traits>
 
 template<typename T, std::size_t n = 0> class RingBuffer
 {
@@ -74,11 +108,11 @@ public:
     bool operator==(const const_iterator& other) const {return index == other.index && &buffer == &other.buffer;}
     bool operator!=(const const_iterator& other) const {return index != other.index || &buffer != &other.buffer;}
     const_iterator& operator++() {++index; return *this;}
-    const_iterator operator++(int) {iterator result(*this); ++index; return result;}
+    const_iterator operator++(int) {const_iterator result(*this); ++index; return result;}
     const_iterator& operator+=(std::ptrdiff_t offset) {index += offset; return *this;}
     const_iterator& operator-=(std::ptrdiff_t offset) {index -= offset; return *this;}
-    const_iterator operator+(std::ptrdiff_t offset) {iterator result(*this); return result += offset;}
-    const_iterator operator-(std::ptrdiff_t offset) {iterator result(*this); return result -= offset;}
+    const_iterator operator+(std::ptrdiff_t offset) {const_iterator result(*this); return result += offset;}
+    const_iterator operator-(std::ptrdiff_t offset) {const_iterator result(*this); return result -= offset;}
   };
 
   /**
@@ -158,6 +192,59 @@ public:
     head = (head + 1) % allocated;
   }
 
+  /** insert a new default constructed element at the front if needed*/
+  void push_front()
+  {
+    ASSERT(allocated);
+    if(entries < allocated)
+    {
+      new(buffer + head) T();
+      ++entries;
+    }
+    else
+      buffer[head] = T();
+
+    head = (head + 1) % allocated;
+  }
+
+  /**
+   * Adds a new entry to the back of the buffer. The new entry is accessible under
+   * index size()-1, back(), and *end(). If the buffer was already full, the entry at
+   * front() is lost.
+   * @param value The value that is added to the buffer.
+   */
+  void push_back(const T& value)
+  {
+    ASSERT(allocated);
+    if (entries < allocated)
+    {
+      ++entries;
+      new (buffer + ((allocated + head - entries) % allocated)) T(value);
+    }
+    else
+    {
+      head = (allocated + head - 1) % allocated; // overwrite old head
+      buffer[(allocated + head - entries) % allocated] = value;
+    }
+  }
+
+  /** insert a new default constructed element at the back */
+  void push_back()
+  {
+    ASSERT(allocated);
+    if (entries < allocated)
+    {
+      ++entries;
+      new (buffer + ((allocated + head - entries) % allocated)) T();
+    }
+    else
+    {
+      head = (allocated + head - 1) % allocated; // overwrite old head
+      buffer[(allocated + head - entries) % allocated] = T();
+    }
+  }
+
+
   /** Removes the entry back() from the buffer. */
   void pop_back()
   {
@@ -173,6 +260,16 @@ public:
    */
   T& operator[](std::size_t index) {ASSERT(!empty()); return buffer[(allocated + head - index - 1) % allocated];}
   const T& operator[](std::size_t index) const {ASSERT(!empty()); return buffer[(allocated + head - index - 1) % allocated];}
+
+  /**
+   * Access to individual entries in the buffer indexing from the back rather
+   * than the front
+   * @param index The index of the element. Index 0 is the same as back(), index
+   *              size()-1 is the same as front().
+   */
+  T& from_back(std::size_t index) {ASSERT(!empty()); return buffer[(allocated + head - entries + index) % allocated];}
+  const T& from_back(std::size_t index) const {ASSERT(!empty()); return buffer[(allocated + head - entries + index) % allocated];}
+
 
   /** Access the first element of the buffer. */
   T& front() {ASSERT(!empty()); return (*this)[0];}
@@ -199,17 +296,56 @@ public:
       while(size() > capacity)
         pop_back();
 
-      T* prev = buffer;
-      buffer = reinterpret_cast<T*>(Memory::alignedMalloc(capacity * sizeof(T)));
-      if(head >= entries)
-        std::memcpy(buffer, prev + head - entries, entries * sizeof(T));
-      else
-      {
-        std::memcpy(buffer, prev + allocated - (entries - head), (entries - head) * sizeof(T));
-        std::memcpy(buffer + entries - head, prev, head * sizeof(T));
-      }
+      T *const prev = buffer;
+      const std::size_t prevAllocated = allocated;
+
+      // allocate the new storage
+      buffer = reinterpret_cast<T *>(Memory::alignedMalloc(capacity * sizeof(T)));
       allocated = capacity;
-      head = allocated > entries ? entries : 0;
+
+      // move elements if the buffer was not empty
+      if (entries > 0) // were there previous entries that need copying?
+      {
+        if (head >= entries)
+        {
+          if constexpr(std::is_trivially_copyable_v<T>)
+            std::memcpy(buffer, prev + head - entries, entries * sizeof(T));
+          else
+          {
+            for (std::size_t i = 0; i < entries; ++i)
+            {
+              T &oldObj = prev[head - entries + i];
+              new (buffer + i) T(std::move(oldObj));
+              oldObj.~T();
+            }
+          };
+        }
+        else // elements wrap around the ring buffer end
+        {
+          const std::size_t part1Count = entries - head;
+
+          if constexpr(std::is_trivially_copyable_v<T>)
+          {
+            std::memcpy(buffer, prev + prevAllocated - part1Count, part1Count * sizeof(T));
+            std::memcpy(buffer + part1Count, prev, head * sizeof(T));
+          }
+          else {
+            for (std::size_t i = 0; i < part1Count; ++i)
+            {
+              T &oldObj = prev[prevAllocated - part1Count + i];
+              new (buffer + i) T(std::move(oldObj));
+              oldObj.~T();
+            }
+            for (std::size_t i = 0; i < head; ++i)
+            {
+              T &oldObj = prev[i];
+              new (buffer + part1Count + i) T(std::move(oldObj));
+              oldObj.~T();
+            }
+          }
+        }
+      }
+      head = (allocated > entries) ? entries : 0;
       if(prev)
         Memory::alignedFree(reinterpret_cast<char*>(prev));
     }

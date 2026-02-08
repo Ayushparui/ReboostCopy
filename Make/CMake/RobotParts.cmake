@@ -4,6 +4,7 @@ set(ROBOTPARTS_SOURCES
     "${ROBOTPARTS_ROOT_DIR}/Arms.h"
     "${ROBOTPARTS_ROOT_DIR}/FsrSensors.h"
     "${ROBOTPARTS_ROOT_DIR}/Joints.h"
+    "${ROBOTPARTS_ROOT_DIR}/Joints.cpp"
     "${ROBOTPARTS_ROOT_DIR}/Legs.h"
     "${ROBOTPARTS_ROOT_DIR}/Limbs.h")
 

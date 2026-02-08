@@ -46,3 +46,8 @@ inline ActivationGraph::Node::Node(const std::string& option, int depth,
   stateTime(stateTime),
   arguments(arguments)
 {}
+
+// FIXME - only needed for RE 2025 behaviour but part of BH2021 code release
+STREAMABLE_WITH_BASE(TeamActivationGraph, ActivationGraph,
+{,
+});

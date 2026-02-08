@@ -55,6 +55,8 @@ namespace Joints
     rAnkleRoll,
   });
 
+  extern const char * jointLongNames[numOfJoints];
+
   using stdVectorJoint = std::vector<Joint>;
 
   ENUM(ArmJoint,

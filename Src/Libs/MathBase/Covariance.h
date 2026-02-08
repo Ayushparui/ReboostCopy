@@ -5,6 +5,7 @@
  *
  * @author <a href="mailto:afabisch@tzi.de>Alexander Fabisch</a>
  * @author Tim Laue
+ * @author Rudi Villing [modifications]
  */
 #pragma once
 
@@ -75,4 +76,20 @@ namespace Covariance
         m(i, j) = m(j, i) = (m(i, j) + m(j, i)) * 0.5f;
     }
   }
+
+  // convenience functions for getting SD of covariance
+  inline float getMaxTranslationSD(const Matrix3f& cov)
+  {
+    return std::sqrt(std::max(cov(0, 0), cov(1, 1)));;
+  }
+
+  inline float getRotationSD(const Matrix3f& cov)
+  {
+    return std::sqrt(cov(2,2));
+  }
+
+  inline float getMaxSD(const Matrix2f& cov)
+  {
+    return std::sqrt(std::max(cov(0, 0), cov(1, 1)));;
+  }  
 }

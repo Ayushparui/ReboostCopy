@@ -21,8 +21,8 @@ STREAMABLE(FieldInterceptBall,
   (Vector2f)(Vector2f::Zero()) interceptedEndPositionRelative, /**< The ball end position after interception in relative coordinates */
   (Vector2f)(Vector2f::Zero()) intersectionPositionWithOwnYAxis,          /**< The position (in local coordinates) at which a rolling ball will pass the robot. Vector2f::Zero(), if this will not happen. */
   (Vector2f)(Vector2f::Zero()) intersectionPositionWithOwnXAxis,          /**< The position (in local coordinates) at which a rolling ball will pass the robot. Vector2f::Zero(), if this will not happen. */
-  (float)(std::numeric_limits<float>::max()) timeUntilIntersectsOwnYAxis, /**< The time until a rolling ball will pass the robot. float::max, if this will not happen. */
-  (float)(std::numeric_limits<float>::max()) timeUntilIntersectsOwnXAxis, /**< The time until a rolling ball will pass the robot. float::max, if this will not happen. */
+  (float)(std::numeric_limits<float>::max()) timeUntilIntersectsOwnYAxis, /**< The time (secs) until a rolling ball will pass the robot. float::max, if this will not happen. */
+  (float)(std::numeric_limits<float>::max()) timeUntilIntersectsOwnXAxis, /**< The time (secs) until a rolling ball will pass the robot. float::max, if this will not happen. */
   (bool)(false) interceptBall,                                            /**< If the rolling ball can be intercepted */
   (bool)(false) predictedInterceptBall,                                   /**< The ball will not intercept with us, but it is predicted it will happen. */
   (unsigned int)(0) lastInterceptBall,
