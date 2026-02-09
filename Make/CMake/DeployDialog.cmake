@@ -15,6 +15,10 @@ endif()
 
 set(DEPLOY_DIALOG_TREE "${DEPLOY_DIALOG_SOURCES}")
 
+# Prevent any file/folder beginning with "IGNORE_" from being included in the build
+list(FILTER DEPLOY_DIALOG_SOURCES EXCLUDE REGEX ".*/IGNORE_.*")
+    
+
 if(MACOS)
   set(DEPLOY_DIALOG_FRAMEWORKS
       "${SIMROBOT_PREFIX}/Util/qt/${PLATFORM}/lib/QtConcurrent.framework"

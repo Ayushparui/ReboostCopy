@@ -20,6 +20,10 @@ file(GLOB_RECURSE CATCH_SOURCES
   "${CATCH_TESTS_ROOT}/*.h"
 )
 
+# Prevent any file/folder beginning with "IGNORE_" from being included in the build
+list(FILTER CATCH_SOURCES EXCLUDE REGEX ".*/IGNORE_.*")
+
+
 # 1. Internal logic to ensure unique executable naming
 set(CATCH_EXE_SUFFIX "")
 

@@ -7,6 +7,8 @@ file(GLOB_RECURSE ROBOT_CORE_SOURCES CONFIGURE_DEPENDS
     "${ROBOT_CORE_ROOT_DIR}/Tools/*.cpp" "${ROBOT_CORE_ROOT_DIR}/Tools/*.h")
 
 list(REMOVE_ITEM ROBOT_CORE_SOURCES ${OPTIONS_AND_SKILLS_SOURCES})
+# Prevent any file/folder beginning with "IGNORE_" from being included in the build
+list(FILTER ROBOT_CORE_SOURCES EXCLUDE REGEX ".*/IGNORE_.*")
 
 file(GLOB ROBOT_CORE_OPTIMIZED_SOURCES CONFIGURE_DEPENDS
     "${ROBOT_CORE_ROOT_DIR}/Tools/Math/*.cpp" "${ROBOT_CORE_ROOT_DIR}/Tools/Math/*.h"
@@ -25,6 +27,10 @@ if(NOT WINDOWS)
       "${ROBOT_CORE_ROOT_DIR}/Modules/Sensing/InertialDataProvider/InertialDataProvider.cpp" "${ROBOT_CORE_ROOT_DIR}/Modules/Sensing/InertialDataProvider/InertialDataProvider.h"
       "${ROBOT_CORE_ROOT_DIR}/Tools/Modeling/UKFPose2D.cpp" "${ROBOT_CORE_ROOT_DIR}/Tools/Modeling/UKFPose2D.h")
 endif()
+
+# Prevent any file/folder beginning with "IGNORE_" from being included in the build
+list(FILTER ROBOT_CORE_OPTIMIZED_SOURCES EXCLUDE REGEX ".*/IGNORE_.*")
+
 
 set(ROBOT_CORE_PCHS
     [["Debugging/DebugDrawings.h"]]

@@ -6,6 +6,11 @@ file(GLOB_RECURSE CHECK_THREADS_SOURCES CONFIGURE_DEPENDS
 
 set(CHECK_THREADS_TREE "${CHECK_THREADS_SOURCES}")
 
+# Prevent any file/folder beginning with "IGNORE_" from being included in the build
+list(FILTER CATCH_SOURCES EXCLUDE REGEX ".*/IGNORE_.*")
+    
+
+
 add_executable(CheckThreads EXCLUDE_FROM_ALL ${CHECK_THREADS_SOURCES})
 
 set_property(TARGET CheckThreads PROPERTY RUNTIME_OUTPUT_DIRECTORY "${CHECK_THREADS_OUTPUT_DIR}")
