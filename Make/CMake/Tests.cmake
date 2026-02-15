@@ -1,4 +1,4 @@
-set(TESTS_ROOT_DIR "${BHUMAN_PREFIX}/Src/Apps/Tests")
+set(TESTS_ROOT_DIR "${PROJECT_ROOT_PREFIX}/Src/Apps/Tests")
 set(TESTS_OUTPUT_DIR "${OUTPUT_PREFIX}/Build/${PLATFORM}/Tests/$<CONFIG>")
 
 file(GLOB_RECURSE TESTS_SOURCES CONFIGURE_DEPENDS
@@ -7,6 +7,13 @@ file(GLOB_RECURSE TESTS_SOURCES CONFIGURE_DEPENDS
 if(MACOS AND NOT DEFINED ENV{NO_XCTEST})
   list(APPEND TESTS_SOURCES "${TESTS_ROOT_DIR}/Test.mm")
 endif()
+
+set(TESTS_SOURCES_TREE "${TESTS_SOURCES}")
+
+# Prevent any file/folder beginning with "IGNORE_" from being included in the build
+list(FILTER TESTS_SOURCES EXCLUDE REGEX ".*/IGNORE_.*")
+
+
 
 add_executable(Tests MACOSX_BUNDLE ${TESTS_SOURCES})
 
@@ -25,7 +32,7 @@ if(MACOS)
   target_link_libraries(Tests PRIVATE ${APP_KIT_FRAMEWORK})
 endif()
 
-target_link_libraries(Tests PRIVATE B-Human)
+target_link_libraries(Tests PRIVATE RobotCore)
 target_link_libraries(Tests PRIVATE Framework)
 target_link_libraries(Tests PRIVATE Math)
 target_link_libraries(Tests PRIVATE Platform)
@@ -36,7 +43,7 @@ target_compile_definitions(Tests PRIVATE GTEST_DONT_DEFINE_FAIL GTEST_DONT_DEFIN
 
 target_link_libraries(Tests PRIVATE Flags::DebugInDevelop)
 
-source_group(TREE "${TESTS_ROOT_DIR}" FILES ${TESTS_SOURCES})
+source_group(TREE "${TESTS_ROOT_DIR}" FILES ${TESTS_SOURCES_TREE})
 
 if(WINDOWS)
   add_custom_command(TARGET Tests POST_BUILD

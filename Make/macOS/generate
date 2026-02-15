@@ -7,8 +7,8 @@ cd "$(dirname "$(which "$0")")"
 
 CMAKE=../../Util/Buildchain/macOS/bin/cmake
 PROJECTDIR=../../Build/macOS
-PROJECTPATH=B-Human.xcodeproj
-PROJECTSRC=$PROJECTDIR/B-Human.xcodeproj
+PROJECTPATH=RoboEireann.xcodeproj
+PROJECTSRC=$PROJECTDIR/RoboEireann.xcodeproj
 PLIST="/usr/libexec/PlistBuddy -c"
 TEMPPATH=/tmp/generate.tmp
 TEMPPATH2=/tmp/generate2.tmp
@@ -90,8 +90,8 @@ if [ -d "$PROJECTPATH" ]; then
       if [ -d "$PROJECTDIR/PrecompiledHeaders" ]; then
         rm -r "$PROJECTDIR/PrecompiledHeaders"
       fi
-      if [ -d "$PROJECTDIR/DerivedData/B-Human/Index.noindex/PrecompiledHeaders" ]; then
-        rm -r "$PROJECTDIR/DerivedData/B-Human/Index.noindex/PrecompiledHeaders"
+      if [ -d "$PROJECTDIR/DerivedData/RoboEireann/Index.noindex/PrecompiledHeaders" ]; then
+        rm -r "$PROJECTDIR/DerivedData/RoboEireann/Index.noindex/PrecompiledHeaders"
       fi
     fi
   fi
@@ -167,7 +167,7 @@ else
   # Deactivate some building targets.
   SCHEMETEMPLATE=$SCHEMESRC/SimRobot.xcscheme
   sed <$SCHEMETEMPLATE >$TEMPPATH2 \
-  -e 's%"container:[^"]*/Build/macOS/B-Human%"container:../../Make/macOS/B-Human%' \
+  -e 's%"container:[^"]*/Build/macOS/RoboEireann%"container:../../Make/macOS/RoboEireann%' \
   -e 's%debugDocumentVersioning *= *"YES"/>%debugDocumentVersioning = "YES">\
    </ProfileAction>%' \
   -e 's%<Testables/>%<Testables>\
@@ -191,7 +191,7 @@ else
     echo '         <TestableReference'
     echo '            skipped = "NO">'
     sed <$SCHEMESRC/Tests.xcscheme -n '/BuildableReference/,/\/BuildActionEntry/{/\/BuildActionEntry/!p;};/\/BuildActionEntry/q' \
-    | sed 's%"container:[^"]*/Build/macOS/B-Human%"container:../../Make/macOS/B-Human%'
+    | sed 's%"container:[^"]*/Build/macOS/RoboEireann%"container:../../Make/macOS/RoboEireann%'
     echo "         </TestableReference>"
     sed <$TEMPPATH2 -n '/<\/Testables>/,$p'
   ) \
@@ -209,7 +209,7 @@ else
             ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">\
             <ActionContent\
                title = "Unlock Keychain"\
-               scriptText = "security unlock-keychain -p nao B-Human_Code_Release.keychain">\
+               scriptText = "security unlock-keychain -p nao RoboEireann_Code_Release.keychain">\
             </ActionContent>\
          </ExecutionAction>\
       </PreActions>\
@@ -229,7 +229,7 @@ else
     SCHEMETEMPLATE=$SCHEMESRC/$ROBOT.xcscheme
     sed <$SCHEMETEMPLATE >$TEMPPATH \
     -e "$SEDOPTION" \
-    -e 's%"container:[^"]*/Build/macOS/B-Human%"container:../../Make/macOS/B-Human%' \
+    -e 's%"container:[^"]*/Build/macOS/RoboEireann%"container:../../Make/macOS/RoboEireann%' \
     -e 's%selectedDebuggerIdentifier.*%selectedDebuggerIdentifier = ""%' \
     -e 's%selectedLauncherIdentifier.*%selectedLauncherIdentifier = "Xcode.IDEFoundation.Launcher.PosixSpawn"%' \
     -e 's%buildForTesting *= *"YES"%buildForTesting = "NO"%' \
@@ -265,10 +265,10 @@ else
 fi
 
 # Disable App Nap for SimRobot.
-defaults write org.B-Human.SimRobot NSAppSleepDisabled -bool YES
+defaults write org.RoboEireann.SimRobot NSAppSleepDisabled -bool YES
 
 # Disable a default view menu entry because it doesn't work well with recreating the menu.
-defaults write org.B-Human.SimRobot NSFullScreenMenuItemEverywhere -bool NO
+defaults write org.RoboEireann.SimRobot NSFullScreenMenuItemEverywhere -bool NO
 
 # Install data formatters for Xcode debugger.
 if [ ! -e ~/Library/Developer/Xcode/UserData/Debugger/CustomDataFormatters ]; then
@@ -276,10 +276,10 @@ if [ ! -e ~/Library/Developer/Xcode/UserData/Debugger/CustomDataFormatters ]; th
   ln -sf "`pwd`/../../Util/Buildchain/macOS/CustomDataFormatters" ~/Library/Developer/Xcode/UserData/Debugger/
 fi
 
-# Install AStyle for B-Human service.
-mkdir -p ~/Library/Services/AStyle\ for\ B-Human.workflow/Contents/
-cp ../../Util/Buildchain/macOS/AStyle\ for\ B-Human.workflow/Contents/Info.plist ~/Library/Services/AStyle\ for\ B-Human.workflow/Contents/
-sed <../../Util/Buildchain/macOS/AStyle\ for\ B-Human.workflow/Contents/document.wflow >~/Library/Services/AStyle\ for\ B-Human.workflow/Contents/document.wflow "s%PWD%`pwd`%"
+# Install AStyle for RoboEireann service.
+mkdir -p ~/Library/Services/AStyle\ for\ RoboEireann.workflow/Contents/
+cp ../../Util/Buildchain/macOS/AStyle\ for\ RoboEireann.workflow/Contents/Info.plist ~/Library/Services/AStyle\ for\ RoboEireann.workflow/Contents/
+sed <../../Util/Buildchain/macOS/AStyle\ for\ RoboEireann.workflow/Contents/document.wflow >~/Library/Services/AStyle\ for\ RoboEireann.workflow/Contents/document.wflow "s%PWD%`pwd`%"
 
 # Install Replay with TeamCommunicationMonitor service.
 mkdir -p ~/Library/Services/Replay\ with\ TeamCommunicationMonitor.workflow/Contents/
@@ -292,10 +292,10 @@ cp ../../Util/Buildchain/macOS/Replay\ Log\ with\ SimRobot.workflow/Contents/Inf
 sed <../../Util/Buildchain/macOS/Replay\ Log\ with\ SimRobot.workflow/Contents/document.wflow >~/Library/Services/Replay\ Log\ with\ SimRobot.workflow/Contents/document.wflow "s%PWD%`pwd`%"
 
 # Install certificate for app signing.
-cp ../../Util/Buildchain/macOS/B-Human_Code_Release.keychain-db ~/Library/Keychains/
-security find-certificate -c B-Human_Code_Release >/dev/null 2>/dev/null
+cp ../../Util/Buildchain/macOS/RoboEireann_Code_Release.keychain-db ~/Library/Keychains/
+security find-certificate -c RoboEireann_Code_Release >/dev/null 2>/dev/null
 if [ ! $? = 0 ]; then
-  security list-keychains -s `security list-keychains | tr '\n' ' ' | tr '\"' ' '` B-Human_Code_Release.keychain-db
+  security list-keychains -s `security list-keychains | tr '\n' ' ' | tr '\"' ' '` RoboEireann_Code_Release.keychain-db
 fi
 
 # Set link to clang++ and its headers.
@@ -306,8 +306,8 @@ ln -sf "$CLANGINCLUDEPATH" ../../Util/Buildchain/macOS
 
 # Link file templates.
 mkdir -p ~/Library/Developer/Xcode/Templates/
-rm -f ~/Library/Developer/Xcode/Templates/B-Human
-ln -s "`pwd`/../../Util/BuildChain/macOS/templates" ~/Library/Developer/Xcode/Templates/B-Human
+rm -f ~/Library/Developer/Xcode/Templates/RoboEireann
+ln -s "`pwd`/../../Util/BuildChain/macOS/templates" ~/Library/Developer/Xcode/Templates/RoboEireann
 
 # Copy code snippets.
 mkdir -p ~/Library/Developer/Xcode/UserData/CodeSnippets

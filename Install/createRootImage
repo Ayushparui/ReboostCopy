@@ -11,7 +11,7 @@ includeDir="${baseDir}/Include"
 
 source "${includeDir}/bhumanBase"
 
-rootDir="/tmp/b-human-root"
+rootDir="/tmp/robo-root"
 naoOPN=""
 naoImage="/tmp/nao-image.ext3"
 naoImageDir="/tmp/nao-image-dir"
@@ -97,13 +97,13 @@ mount -o bind /dev "${rootDir}/dev"
 mount -o bind /dev/pts "${rootDir}/dev/pts"
 mount -t sysfs /sys "${rootDir}/sys"
 mount -t proc /proc "${rootDir}/proc"
-LANG=C chroot "${rootDir}" /bin/bash <<EOF
+LANG=C LC_ALL=C chroot "${rootDir}" /bin/bash <<EOF
 set -eu
 
 DEBIAN_FRONTEND=noninteractive apt-get update -y
 DEBIAN_FRONTEND=noninteractive apt-get dist-upgrade -y
 
-DEBIAN_FRONTEND=noninteractive apt-get install -y alsa gdb htop i2c-tools libssl3 libusb-1.0-0 openssh-server pciutils rsync ubuntu-minimal vim wpasupplicant
+DEBIAN_FRONTEND=noninteractive apt-get install -y alsa gdb htop i2c-tools iw libssl3 libusb-1.0-0 net-tools openssh-server pciutils rsync ubuntu-minimal valgrind vim wpasupplicant
 
 # wpa_supplicant does not need to run by itself, it will be started by netplan if necessary.
 systemctl disable wpa_supplicant.service
@@ -143,7 +143,7 @@ DefaultDependencies=no
 
 [Service]
 Type=oneshot
-ExecStart=/usr/sbin/tune2fs -U 66666666-1120-1120-1120-666666666666 -L B-Human-data -j /dev/disk/by-partuuid/66666666-1120-1120-1120-666666666666
+ExecStart=/usr/sbin/tune2fs -U 66666666-1120-1120-1120-666666666666 -L robo-data -j /dev/disk/by-partuuid/66666666-1120-1120-1120-666666666666
 ExecStartPost=/bin/systemctl disable tune-home-fs.service
 
 [Install]
@@ -166,7 +166,7 @@ echo "options snd-hda-intel enable_msi=1 position_fix=1 probe_mask=0x101" >"${ro
 # Add some configuration files.
 cp "${baseDir}/Files/99-nao.rules" "${rootDir}/etc/udev/rules.d"
 cp "${baseDir}/Files/fstab" "${rootDir}/etc/fstab"
-cp "${baseDir}/Files/sudoers_bhuman" "${rootDir}/etc/sudoers.d"
+cp "${baseDir}/Files/sudoers_roboeireann" "${rootDir}/etc/sudoers.d"
 cat >>"${rootDir}/etc/security/limits.conf" <<EOF
 @rt            -       rtprio          65
 @rt            -       nice            -10
@@ -184,9 +184,9 @@ cp "${baseDir}/Files/default.yaml.base" "${baseDir}/Files/default.yaml.wifi" "${
 touch "${rootDir}/etc/netplan/default.yaml.profile"
 
 # Install some scripts and executables.
-mkdir -p "${rootDir}/opt/bhuman/libexec"
+mkdir -p "${rootDir}/opt/roboeireann/libexec"
 mkdir -p "${rootDir}/opt/aldebaran/libexec"
-cp "${baseDir}/Files/chest-harakiri" "${rootDir}/opt/bhuman/libexec"
+cp "${baseDir}/Files/chest-harakiri" "${rootDir}/opt/roboeireann/libexec"
 cp "${baseDir}/Files/flash-cx3" "${rootDir}/opt/aldebaran/libexec"
 cp "${baseDir}/Files/reset-cameras.sh" "${rootDir}/opt/aldebaran/libexec"
 cp "${baseDir}/Files/harakiri" "${rootDir}/lib/systemd/system-shutdown"
@@ -384,7 +384,7 @@ patchelf --set-interpreter /opt/aldebaran/lib/ld-linux.so.2 "${rootDir}/opt/alde
 # Clean up.
 rm -r "${rootDir}/var/lib/apt/lists"/* "${rootDir}/var/log"/* "${rootDir}/var/cache"/*
 
-mke2fs -q -F -U 42424242-1120-1120-1120-424242424242 -L "B-Human-system" -b 4096 -t ext3 -d "${rootDir}" "${rootImage}" 999168
+mke2fs -q -F -U 42424242-1120-1120-1120-424242424242 -L "robo-system" -b 4096 -t ext3 -d "${rootDir}" "${rootImage}" 999168
 
 rm -rf "${rootDir}"
 

@@ -1,4 +1,4 @@
-set(DEPLOY_DIALOG_ROOT_DIR "${BHUMAN_PREFIX}/Src/Apps/DeployDialog")
+set(DEPLOY_DIALOG_ROOT_DIR "${PROJECT_ROOT_PREFIX}/Src/Apps/DeployDialog")
 set(DEPLOY_DIALOG_OUTPUT_DIR "${OUTPUT_PREFIX}/Build/${PLATFORM}/DeployDialog/$<CONFIG>")
 
 file(GLOB_RECURSE DEPLOY_DIALOG_SOURCES CONFIGURE_DEPENDS
@@ -14,6 +14,10 @@ else()
 endif()
 
 set(DEPLOY_DIALOG_TREE "${DEPLOY_DIALOG_SOURCES}")
+
+# Prevent any file/folder beginning with "IGNORE_" from being included in the build
+list(FILTER DEPLOY_DIALOG_SOURCES EXCLUDE REGEX ".*/IGNORE_.*")
+    
 
 if(MACOS)
   set(DEPLOY_DIALOG_FRAMEWORKS

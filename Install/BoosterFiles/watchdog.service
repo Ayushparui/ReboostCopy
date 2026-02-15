@@ -1,5 +1,5 @@
 [Unit]
-Description=B-Human Watchdog service
+Description=RoboEireann Watchdog service
 
 [Service]
 ExecStart=/home/master/bin/watchdog

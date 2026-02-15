@@ -1,4 +1,4 @@
-# This file is either used to build the B-Human system or to generate project files for
+# This file is either used to build the system or to generate project files for
 # either Microsoft Visual Studio or Apple Xcode. While the generated Xcode project can
 # build all targets using Xcode's build system, Visual Studio only builds for Windows and
 # uses CMake to cross-compile for the NAO robot. As a result, this file is used twice on
@@ -27,29 +27,33 @@ cmake_minimum_required(VERSION 3.17)
 # Export CMAKE_EXPORT_COMPILE_COMMANDS to build the compile_commands.
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+
+
 if(BUILD_NAO)
+  message(STATUS "  CMakeLists.txt -- BUILD_NAO defined: ${BUILD_NAO}")
   set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../CMake/NaoToolchain.cmake")
 elseif(BUILD_BOOSTER)
+  message(STATUS "  CMakeLists.txt -- BUILD_BOOSTER defined: ${BUILD_BOOSTER}")
   set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../CMake/BoosterToolchain.cmake")
 endif()
 
 if(NOT BUILD_NAO AND CMAKE_HOST_UNIX)
   # RV-DELETE: set(CMAKE_CXX_COMPILER clang++)
 
-  # Allow the default compiler to be overridden by the user (e.g. when using multiple 
-  # compiler versions for different projects)
-  set(USER_CXX_COMPILER "clang++" CACHE STRING "User specified the default C++ compiler executable or path for this project.")
-
-  # Use the full path resolved by the cache (either user-supplied or the default 'clang++').
-  set(CMAKE_CXX_COMPILER ${USER_CXX_COMPILER})
-
-  # Set the C compiler based on the above
-  string(REPLACE "++" "" USER_CXX_COMPILER_BASE ${USER_CXX_COMPILER})
-  set(USER_C_COMPILER ${USER_CXX_COMPILER_BASE} CACHE STRING "User-supplied C compiler executable or path for this project.")
-  set(CMAKE_C_COMPILER ${USER_C_COMPILER})  
+  # Support for multiple installed compilers
+  if(NOT CMAKE_CXX_COMPILER)
+      find_program(CMAKE_CXX_COMPILER NAMES clang++-17 clang++-18 clang++-16 clang++)
+  endif()
 endif()
 
-project(B-Human LANGUAGES CXX)
+project(RoboEireann LANGUAGES CXX)
+
+# ensure we're not using a compiler that is too old - the compiler will only have been probed by now
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "16.0")
+    message(FATAL_ERROR 
+        "Detected Clang ${CMAKE_CXX_COMPILER_VERSION} which is too old for libstdc++ 12.")
+endif()
+
 
 if(("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL arm64 OR "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL aarch64) AND NOT ROSETTA)
   set(X86 false)
@@ -101,7 +105,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(BHUMAN_PREFIX "${PROJECT_SOURCE_DIR}/../..")
+set(PROJECT_ROOT_PREFIX "${PROJECT_SOURCE_DIR}/../..")
 set(SIMROBOT_PREFIX "${PROJECT_SOURCE_DIR}/../../Util/SimRobot")
 set(OUTPUT_PREFIX "${PROJECT_SOURCE_DIR}/../..")
 
@@ -188,7 +192,8 @@ else()
         add_compile_options(-mno-rtm)
       endif()
     else()
-      add_link_options(-fuse-ld=mold)
+      # add_link_options(-fuse-ld=mold)
+      add_link_options(-fuse-ld=lld)
     endif()
   endif()
   add_definitions(-D__extern_always_inline=inline)
@@ -197,6 +202,14 @@ endif()
 set(_is_msvc "$<CXX_COMPILER_ID:MSVC>")
 set(_is_clang "$<NOT:$<CXX_COMPILER_ID:MSVC>>")
 set(_not_mac "$<NOT:$<PLATFORM_ID:Darwin>>")
+
+# RV: it appears DebugInDevelop flags refer to executables that should include
+# debug symbols in the Develop configuration but should only have
+# the optimisations in the Release configuration, but not Develop
+#
+# In contrast the Default flags will optimise in the Release and Develop
+# configurations (with no debug symbols). The only difference is that
+# NDEBUG is not defined in Develop, so Asserts continue to work.
 
 add_library(Flags::DebugInDevelop INTERFACE IMPORTED)
 target_compile_definitions(Flags::DebugInDevelop INTERFACE
@@ -212,7 +225,8 @@ target_compile_options(Flags::DebugInDevelop INTERFACE
     $<${_is_msvc}:$<$<CONFIG:Develop>:/Oy>>
     $<${_is_msvc}:$<$<CONFIG:Release>:/Ox>>
     $<${_is_msvc}:$<$<NOT:$<CONFIG:Debug>>:/GT>>
-    $<${_is_clang}:$<$<NOT:$<CONFIG:Release>>:-g>>
+    $<${_is_clang}:$<$<NOT:$<CONFIG:Release>>:-gdwarf-4>>
+    $<${_is_clang}:$<$<NOT:$<CONFIG:Release>>:-fno-debug-types-section>>
     $<${_is_clang}:$<$<CONFIG:Release>:-O3>>
     $<${_is_clang}:$<$<CONFIG:Release>:-fomit-frame-pointer>>)
 target_link_options(Flags::DebugInDevelop INTERFACE
@@ -230,7 +244,8 @@ target_compile_options(Flags::Default INTERFACE
     $<${_is_msvc}:$<$<CONFIG:Debug>:/Od>>
     $<${_is_msvc}:$<$<NOT:$<CONFIG:Debug>>:/Ox>>
     $<${_is_msvc}:$<$<NOT:$<CONFIG:Debug>>:/GT>>
-    $<${_is_clang}:$<$<CONFIG:Debug>:-g>>
+    $<${_is_clang}:$<$<CONFIG:Debug>:-gdwarf-4>>
+    $<${_is_clang}:$<$<CONFIG:Debug>:-fno-debug-types-section>>
     $<${_is_clang}:$<$<NOT:$<CONFIG:Debug>>:-O3>>
     $<${_is_clang}:$<$<NOT:$<CONFIG:Debug>>:-fomit-frame-pointer>>)
 target_link_options(Flags::Default INTERFACE
@@ -253,14 +268,14 @@ if(BUILD_DESKTOP)
     include("${SIMROBOT_PREFIX}/Make/CMake/Qt6.cmake")
 
     add_library(GTest::GTest STATIC IMPORTED)
-    set_target_properties(GTest::GTest PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/gtest/include")
+    set_target_properties(GTest::GTest PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/gtest/include")
     if(WINDOWS)
       set_target_properties(GTest::GTest PROPERTIES
           IMPORTED_CONFIGURATIONS "Debug"
-          IMPORTED_LOCATION_DEBUG "${BHUMAN_PREFIX}/Util/gtest/lib/${PLATFORM}${ARCH}/gtestd.lib"
-          IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/gtest/lib/${PLATFORM}${ARCH}/gtest.lib")
+          IMPORTED_LOCATION_DEBUG "${PROJECT_ROOT_PREFIX}/Util/gtest/lib/${PLATFORM}${ARCH}/gtestd.lib"
+          IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/gtest/lib/${PLATFORM}${ARCH}/gtest.lib")
     else()
-      set_target_properties(GTest::GTest PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/gtest/lib/${PLATFORM}${ARCH}/libgtest.a")
+      set_target_properties(GTest::GTest PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/gtest/lib/${PLATFORM}${ARCH}/libgtest.a")
       if(LINUX)
         set_target_properties(GTest::GTest PROPERTIES INTERFACE_LINK_OPTIONS -no-pie)
       endif()
@@ -278,33 +293,33 @@ include("${SIMROBOT_PREFIX}/Make/CMake/Eigen.cmake")
 
 add_library(GameController::GameController INTERFACE IMPORTED)
 set_target_properties(GameController::GameController PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/GameController/include")
+    INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/GameController/include")
 
 if(BUILD_NAO)
   add_library(Nao::ALSA::ALSA SHARED IMPORTED)
-  set_target_properties(Nao::ALSA::ALSA PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/Buildchain/V6/lib/libasound.so.2.0.0")
+  set_target_properties(Nao::ALSA::ALSA PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/Buildchain/V6/lib/libasound.so.2.0.0")
 endif()
 
 if(BUILD_BOOSTER)
   add_library(Booster::ALSA::ALSA SHARED IMPORTED)
-  set_target_properties(Booster::ALSA::ALSA PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/Buildchain/T1/lib/libasound.so.2.0.0")
+  set_target_properties(Booster::ALSA::ALSA PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/Buildchain/T1/lib/libasound.so.2.0.0")
 
   add_library(Booster::realsense2::realsense2 SHARED IMPORTED)
-  set_target_properties(Booster::realsense2::realsense2 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/librealsense2/include")
-  set_target_properties(Booster::realsense2::realsense2 PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/librealsense2/lib/LinuxArm64/librealsense2.so.2.55.1")
+  set_target_properties(Booster::realsense2::realsense2 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/librealsense2/include")
+  set_target_properties(Booster::realsense2::realsense2 PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/librealsense2/lib/LinuxArm64/librealsense2.so.2.55.1")
 
   add_library(Booster::Booster::SDK STATIC IMPORTED)
   add_library(Booster::FastCDR::FastCDR SHARED IMPORTED)
   add_library(Booster::FastRTPS::FastRTPS SHARED IMPORTED)
   add_library(Booster::FooNathan::Memory STATIC IMPORTED)
-  set_target_properties(Booster::Booster::SDK PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/BoosterRoboticsSDK/include")
-  set_target_properties(Booster::FastCDR::FastCDR PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/BoosterRoboticsSDK/include")
-  set_target_properties(Booster::FastRTPS::FastRTPS PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/BoosterRoboticsSDK/include")
-  set_target_properties(Booster::FooNathan::Memory PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/BoosterRoboticsSDK/include")
-  set_target_properties(Booster::Booster::SDK PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/BoosterRoboticsSDK/lib/LinuxArm64/libbooster_robotics_sdk.a")
-  set_target_properties(Booster::FastCDR::FastCDR PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/BoosterRoboticsSDK/lib/LinuxArm64/libfastcdr.so")
-  set_target_properties(Booster::FastRTPS::FastRTPS PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/BoosterRoboticsSDK/lib/LinuxArm64/libfastrtps.so")
-  set_target_properties(Booster::FooNathan::Memory PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/BoosterRoboticsSDK/lib/LinuxArm64/libfoonathan_memory-0.7.3.a")
+  set_target_properties(Booster::Booster::SDK PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/BoosterRoboticsSDK/include")
+  set_target_properties(Booster::FastCDR::FastCDR PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/BoosterRoboticsSDK/include")
+  set_target_properties(Booster::FastRTPS::FastRTPS PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/BoosterRoboticsSDK/include")
+  set_target_properties(Booster::FooNathan::Memory PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/BoosterRoboticsSDK/include")
+  set_target_properties(Booster::Booster::SDK PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/BoosterRoboticsSDK/lib/LinuxArm64/libbooster_robotics_sdk.a")
+  set_target_properties(Booster::FastCDR::FastCDR PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/BoosterRoboticsSDK/lib/LinuxArm64/libfastcdr.so")
+  set_target_properties(Booster::FastRTPS::FastRTPS PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/BoosterRoboticsSDK/lib/LinuxArm64/libfastrtps.so")
+  set_target_properties(Booster::FooNathan::Memory PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/BoosterRoboticsSDK/lib/LinuxArm64/libfoonathan_memory-0.7.3.a")
 endif()
 
 if(BUILD_DESKTOP AND LINUX AND NOT MINIMAL_PROJECT)
@@ -313,95 +328,126 @@ endif()
 
 if(BUILD_DESKTOP)
   add_library(snappy::snappy STATIC IMPORTED)
-  set_target_properties(snappy::snappy PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/snappy/include")
+  set_target_properties(snappy::snappy PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/snappy/include")
   if(LINUX OR MACOS)
-    set_target_properties(snappy::snappy PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/snappy/lib/${PLATFORM}${ARCH}/libsnappy.a")
+    set_target_properties(snappy::snappy PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/snappy/lib/${PLATFORM}${ARCH}/libsnappy.a")
   elseif(WINDOWS)
     set_target_properties(snappy::snappy PROPERTIES
         IMPORTED_CONFIGURATIONS "Debug"
-        IMPORTED_LOCATION_DEBUG "${BHUMAN_PREFIX}/Util/snappy/lib/${PLATFORM}${ARCH}/snappyd.lib"
-        IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/snappy/lib/${PLATFORM}${ARCH}/snappy.lib")
+        IMPORTED_LOCATION_DEBUG "${PROJECT_ROOT_PREFIX}/Util/snappy/lib/${PLATFORM}${ARCH}/snappyd.lib"
+        IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/snappy/lib/${PLATFORM}${ARCH}/snappy.lib")
   endif()
 endif()
 
 if(BUILD_NAO)
   add_library(Nao::libjpeg::libjpeg STATIC IMPORTED)
-  set_target_properties(Nao::libjpeg::libjpeg PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/libjpeg/include")
-  set_target_properties(Nao::libjpeg::libjpeg PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/libjpeg/lib/V6/libjpeg.a")
+  set_target_properties(Nao::libjpeg::libjpeg PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/libjpeg/include")
+  set_target_properties(Nao::libjpeg::libjpeg PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/libjpeg/lib/V6/libjpeg.a")
 endif()
 
 if(BUILD_BOOSTER)
   add_library(Booster::libjpeg::libjpeg STATIC IMPORTED)
-  set_target_properties(Booster::libjpeg::libjpeg PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/libjpeg/include")
-  set_target_properties(Booster::libjpeg::libjpeg PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/libjpeg/lib/LinuxArm64/libjpeg.a")
+  set_target_properties(Booster::libjpeg::libjpeg PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/libjpeg/include")
+  set_target_properties(Booster::libjpeg::libjpeg PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/libjpeg/lib/LinuxArm64/libjpeg.a")
 endif()
 
 if(BUILD_DESKTOP)
   add_library(libjpeg::libjpeg STATIC IMPORTED)
-  set_target_properties(libjpeg::libjpeg PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/libjpeg/include")
+  set_target_properties(libjpeg::libjpeg PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/libjpeg/include")
   if(LINUX)
-    set_target_properties(libjpeg::libjpeg PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/libjpeg/lib/${PLATFORM}${ARCH}/libjpeg.a")
+    set_target_properties(libjpeg::libjpeg PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/libjpeg/lib/${PLATFORM}${ARCH}/libjpeg.a")
   elseif(MACOS)
-    set_target_properties(libjpeg::libjpeg PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/libjpeg/lib/${PLATFORM}/libjpeg.a")
+    set_target_properties(libjpeg::libjpeg PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/libjpeg/lib/${PLATFORM}/libjpeg.a")
   elseif(WINDOWS)
-    set_target_properties(libjpeg::libjpeg PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/libjpeg/lib/${PLATFORM}${ARCH}/libjpeg.lib")
+    set_target_properties(libjpeg::libjpeg PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/libjpeg/lib/${PLATFORM}${ARCH}/libjpeg.lib")
   endif()
 endif()
 
 if(BUILD_NAO)
   add_library(Nao::FFTW::FFTW STATIC IMPORTED)
   add_library(Nao::FFTW::FFTWF STATIC IMPORTED)
-  set_target_properties(Nao::FFTW::FFTW PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/fftw-3.3")
-  set_target_properties(Nao::FFTW::FFTWF PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/fftw-3.3")
-  set_target_properties(Nao::FFTW::FFTW PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/fftw-3.3/V6/libfftw3.a")
-  set_target_properties(Nao::FFTW::FFTWF PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/fftw-3.3/V6/libfftw3f.a")
+  set_target_properties(Nao::FFTW::FFTW PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/fftw-3.3")
+  set_target_properties(Nao::FFTW::FFTWF PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/fftw-3.3")
+  set_target_properties(Nao::FFTW::FFTW PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/fftw-3.3/V6/libfftw3.a")
+  set_target_properties(Nao::FFTW::FFTWF PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/fftw-3.3/V6/libfftw3f.a")
 endif()
 
 if(BUILD_BOOSTER)
   add_library(Booster::FFTW::FFTW STATIC IMPORTED)
   add_library(Booster::FFTW::FFTWF STATIC IMPORTED)
-  set_target_properties(Booster::FFTW::FFTW PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/fftw-3.3")
-  set_target_properties(Booster::FFTW::FFTWF PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/fftw-3.3")
-  set_target_properties(Booster::FFTW::FFTW PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/fftw-3.3/LinuxArm64/libfftw3.a")
-  set_target_properties(Booster::FFTW::FFTWF PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/fftw-3.3/LinuxArm64/libfftw3f.a")
+  set_target_properties(Booster::FFTW::FFTW PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/fftw-3.3")
+  set_target_properties(Booster::FFTW::FFTWF PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/fftw-3.3")
+  set_target_properties(Booster::FFTW::FFTW PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/fftw-3.3/LinuxArm64/libfftw3.a")
+  set_target_properties(Booster::FFTW::FFTWF PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/fftw-3.3/LinuxArm64/libfftw3f.a")
 endif()
 
 if(BUILD_DESKTOP)
   if(LINUX OR MACOS)
     add_library(FFTW::FFTW STATIC IMPORTED)
     add_library(FFTW::FFTWF STATIC IMPORTED)
-    set_target_properties(FFTW::FFTW PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/fftw-3.3")
-    set_target_properties(FFTW::FFTWF PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/fftw-3.3")
-    set_target_properties(FFTW::FFTW PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/fftw-3.3/${PLATFORM}${ARCH}/libfftw3.a")
-    set_target_properties(FFTW::FFTWF PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/fftw-3.3/${PLATFORM}${ARCH}/libfftw3f.a")
+    set_target_properties(FFTW::FFTW PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/fftw-3.3")
+    set_target_properties(FFTW::FFTWF PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/fftw-3.3")
+    set_target_properties(FFTW::FFTW PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/fftw-3.3/${PLATFORM}${ARCH}/libfftw3.a")
+    set_target_properties(FFTW::FFTWF PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/fftw-3.3/${PLATFORM}${ARCH}/libfftw3f.a")
   else(WINDOWS)
     add_library(FFTW::FFTW SHARED IMPORTED)
     add_library(FFTW::FFTWF SHARED IMPORTED)
-    set_target_properties(FFTW::FFTW PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/fftw-3.3")
-    set_target_properties(FFTW::FFTWF PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/fftw-3.3")
+    set_target_properties(FFTW::FFTW PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/fftw-3.3")
+    set_target_properties(FFTW::FFTWF PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/fftw-3.3")
     set_target_properties(FFTW::FFTW PROPERTIES
-        IMPORTED_IMPLIB "${BHUMAN_PREFIX}/Util/fftw-3.3/${PLATFORM}${ARCH}/libfftw3-3.lib"
-        IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/fftw-3.3/${PLATFORM}${ARCH}/libfftw3-3.dll")
+        IMPORTED_IMPLIB "${PROJECT_ROOT_PREFIX}/Util/fftw-3.3/${PLATFORM}${ARCH}/libfftw3-3.lib"
+        IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/fftw-3.3/${PLATFORM}${ARCH}/libfftw3-3.dll")
     set_target_properties(FFTW::FFTWF PROPERTIES
-        IMPORTED_IMPLIB "${BHUMAN_PREFIX}/Util/fftw-3.3/${PLATFORM}${ARCH}/libfftw3f-3.lib"
-        IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/fftw-3.3/${PLATFORM}${ARCH}/libfftw3f-3.dll")
+        IMPORTED_IMPLIB "${PROJECT_ROOT_PREFIX}/Util/fftw-3.3/${PLATFORM}${ARCH}/libfftw3f-3.lib"
+        IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/fftw-3.3/${PLATFORM}${ARCH}/libfftw3f-3.dll")
   endif()
 endif()
 
+
+# --- fmtlib ---
+
+if(BUILD_NAO)
+  add_library(Nao::fmt::fmt STATIC IMPORTED)
+  set_target_properties(Nao::fmt::fmt PROPERTIES
+    IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/fmt/lib/V6/libfmt.a"
+    INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/fmt/include")
+endif()
+
+if(BUILD_BOOSTER)
+  add_library(Booster::fmt::fmt STATIC IMPORTED)
+  set_target_properties(Booster::fmt::fmt PROPERTIES
+    IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/fmt/lib/LinuxArm64/libfmt.a"
+    INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/fmt/include")
+endif()
+
+if(BUILD_DESKTOP)
+  if (LINUX OR MACOS)
+    add_library(fmt::fmt STATIC IMPORTED)
+    set_target_properties(fmt::fmt PROPERTIES
+      IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/fmt/lib/${PLATFORM}${ARCH}/libfmt.a"
+      INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/fmt/include")
+  else() # for WINDOWS
+    message(FATAL_ERROR "Windows support for fmt lib must be added")
+  endif()
+endif()
+
+
+# --- HDF5 ---
+
 if(BUILD_NAO)
   add_library(Nao::HDF5::HDF5 STATIC IMPORTED)
-  set_target_properties(Nao::HDF5::HDF5 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/hdf5/include")
-  set_target_properties(Nao::HDF5::HDF5 PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/hdf5/lib/V6/libhdf5.a")
+  set_target_properties(Nao::HDF5::HDF5 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/hdf5/include")
+  set_target_properties(Nao::HDF5::HDF5 PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/hdf5/lib/V6/libhdf5.a")
 endif()
 
 if(BUILD_DESKTOP)
   add_library(HDF5::HDF5 STATIC IMPORTED)
-  set_target_properties(HDF5::HDF5 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/hdf5/include")
+  set_target_properties(HDF5::HDF5 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/hdf5/include")
   set_target_properties(HDF5::HDF5 PROPERTIES INTERFACE_LINK_LIBRARIES $<$<PLATFORM_ID:Linux>:-ldl>)
   if(LINUX OR MACOS)
-    set_target_properties(HDF5::HDF5 PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/hdf5/lib/${PLATFORM}${ARCH}/libhdf5.a")
+    set_target_properties(HDF5::HDF5 PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/hdf5/lib/${PLATFORM}${ARCH}/libhdf5.a")
   elseif(WINDOWS)
-    set_target_properties(HDF5::HDF5 PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/hdf5/lib/${PLATFORM}${ARCH}/hdf5.lib")
+    set_target_properties(HDF5::HDF5 PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/hdf5/lib/${PLATFORM}${ARCH}/hdf5.lib")
   endif()
 endif()
 
@@ -410,11 +456,11 @@ if(BUILD_NAO)
   add_library(Nao::flite::flite_usenglish STATIC IMPORTED)
   add_library(Nao::flite::flite_cmulex STATIC IMPORTED)
   add_library(Nao::flite::flite STATIC IMPORTED)
-  set_target_properties(Nao::flite::flite PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/flite/include")
-  set_target_properties(Nao::flite::flite_cmu_us_slt PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/flite/lib/V6/libflite_cmu_us_slt.a")
-  set_target_properties(Nao::flite::flite_usenglish PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/flite/lib/V6/libflite_usenglish.a")
-  set_target_properties(Nao::flite::flite_cmulex PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/flite/lib/V6/libflite_cmulex.a")
-  set_target_properties(Nao::flite::flite PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/flite/lib/V6/libflite.a")
+  set_target_properties(Nao::flite::flite PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/flite/include")
+  set_target_properties(Nao::flite::flite_cmu_us_slt PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/flite/lib/V6/libflite_cmu_us_slt.a")
+  set_target_properties(Nao::flite::flite_usenglish PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/flite/lib/V6/libflite_usenglish.a")
+  set_target_properties(Nao::flite::flite_cmulex PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/flite/lib/V6/libflite_cmulex.a")
+  set_target_properties(Nao::flite::flite PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/flite/lib/V6/libflite.a")
 endif()
 
 if(BUILD_BOOSTER)
@@ -422,11 +468,11 @@ if(BUILD_BOOSTER)
   add_library(Booster::flite::flite_usenglish STATIC IMPORTED)
   add_library(Booster::flite::flite_cmulex STATIC IMPORTED)
   add_library(Booster::flite::flite STATIC IMPORTED)
-  set_target_properties(Booster::flite::flite PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/flite/include")
-  set_target_properties(Booster::flite::flite_cmu_us_slt PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/flite/lib/LinuxArm64/libflite_cmu_us_slt.a")
-  set_target_properties(Booster::flite::flite_usenglish PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/flite/lib/LinuxArm64/libflite_usenglish.a")
-  set_target_properties(Booster::flite::flite_cmulex PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/flite/lib/LinuxArm64/libflite_cmulex.a")
-  set_target_properties(Booster::flite::flite PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/flite/lib/LinuxArm64/libflite.a")
+  set_target_properties(Booster::flite::flite PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/flite/include")
+  set_target_properties(Booster::flite::flite_cmu_us_slt PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/flite/lib/LinuxArm64/libflite_cmu_us_slt.a")
+  set_target_properties(Booster::flite::flite_usenglish PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/flite/lib/LinuxArm64/libflite_usenglish.a")
+  set_target_properties(Booster::flite::flite_cmulex PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/flite/lib/LinuxArm64/libflite_cmulex.a")
+  set_target_properties(Booster::flite::flite PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/flite/lib/LinuxArm64/libflite.a")
 endif()
 
 if(BUILD_DESKTOP AND LINUX AND NOT MINIMAL_PROJECT)
@@ -434,73 +480,73 @@ if(BUILD_DESKTOP AND LINUX AND NOT MINIMAL_PROJECT)
   add_library(flite::flite_usenglish STATIC IMPORTED)
   add_library(flite::flite_cmulex STATIC IMPORTED)
   add_library(flite::flite STATIC IMPORTED)
-  set_target_properties(flite::flite PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/flite/include")
-  set_target_properties(flite::flite_cmu_us_slt PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/flite/lib/${PLATFORM}${ARCH}/libflite_cmu_us_slt.a")
-  set_target_properties(flite::flite_usenglish PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/flite/lib/${PLATFORM}${ARCH}/libflite_usenglish.a")
-  set_target_properties(flite::flite_cmulex PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/flite/lib/${PLATFORM}${ARCH}/libflite_cmulex.a")
-  set_target_properties(flite::flite PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/flite/lib/${PLATFORM}${ARCH}/libflite.a")
+  set_target_properties(flite::flite PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/flite/include")
+  set_target_properties(flite::flite_cmu_us_slt PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/flite/lib/${PLATFORM}${ARCH}/libflite_cmu_us_slt.a")
+  set_target_properties(flite::flite_usenglish PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/flite/lib/${PLATFORM}${ARCH}/libflite_usenglish.a")
+  set_target_properties(flite::flite_cmulex PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/flite/lib/${PLATFORM}${ARCH}/libflite_cmulex.a")
+  set_target_properties(flite::flite PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/flite/lib/${PLATFORM}${ARCH}/libflite.a")
 endif()
 
 if(BUILD_NAO)
   add_library(Nao::ONNXRuntime::ONNXRuntime SHARED IMPORTED)
   set_target_properties(Nao::ONNXRuntime::ONNXRuntime PROPERTIES
-      INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/onnxruntime/include"
-      IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/onnxruntime/lib/Linux/libonnxruntime.so.1.10.0")
+      INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/onnxruntime/include"
+      IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/onnxruntime/lib/Linux/libonnxruntime.so.1.10.0")
   target_link_options(Nao::ONNXRuntime::ONNXRuntime INTERFACE -rpath /home/nao/Config)
 endif()
 
 if(BUILD_BOOSTER)
   add_library(Booster::ONNXRuntime::ONNXRuntime SHARED IMPORTED)
   set_target_properties(Booster::ONNXRuntime::ONNXRuntime PROPERTIES
-      INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/onnxruntime/include"
-      IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/onnxruntime/lib/LinuxArm64/libonnxruntime.so.1.10.0")
+      INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/onnxruntime/include"
+      IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/onnxruntime/lib/LinuxArm64/libonnxruntime.so.1.10.0")
   target_link_options(Booster::ONNXRuntime::ONNXRuntime INTERFACE -rpath /home/booster/Config)
 endif()
 
 if(BUILD_DESKTOP)
   add_library(ONNXRuntime::ONNXRuntime SHARED IMPORTED)
-  set_target_properties(ONNXRuntime::ONNXRuntime PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/onnxruntime/include")
+  set_target_properties(ONNXRuntime::ONNXRuntime PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/onnxruntime/include")
   if(LINUX)
-    set_target_properties(ONNXRuntime::ONNXRuntime PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/onnxruntime/lib/${PLATFORM}${ARCH}/libonnxruntime.so.1.10.0")
+    set_target_properties(ONNXRuntime::ONNXRuntime PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/onnxruntime/lib/${PLATFORM}${ARCH}/libonnxruntime.so.1.10.0")
   elseif(WINDOWS)
     set_target_properties(ONNXRuntime::ONNXRuntime PROPERTIES
-        IMPORTED_IMPLIB "${BHUMAN_PREFIX}/Util/onnxruntime/lib/${PLATFORM}/onnxruntime.lib"
-        IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/onnxruntime/lib/${PLATFORM}/onnxruntime.dll")
-    set(CONTROLLER_DYLIBS "${BHUMAN_PREFIX}/Util/onnxruntime/lib/${PLATFORM}/onnxruntime.dll")
+        IMPORTED_IMPLIB "${PROJECT_ROOT_PREFIX}/Util/onnxruntime/lib/${PLATFORM}/onnxruntime.lib"
+        IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/onnxruntime/lib/${PLATFORM}/onnxruntime.dll")
+    set(CONTROLLER_DYLIBS "${PROJECT_ROOT_PREFIX}/Util/onnxruntime/lib/${PLATFORM}/onnxruntime.dll")
   elseif(MACOS)
-    set_target_properties(ONNXRuntime::ONNXRuntime PROPERTIES IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/onnxruntime/lib/${PLATFORM}/libonnxruntime.1.11.1.dylib")
-    set(CONTROLLER_DYLIBS "${BHUMAN_PREFIX}/Util/onnxruntime/lib/${PLATFORM}/libonnxruntime.1.11.1.dylib")
+    set_target_properties(ONNXRuntime::ONNXRuntime PROPERTIES IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/onnxruntime/lib/${PLATFORM}/libonnxruntime.1.11.1.dylib")
+    set(CONTROLLER_DYLIBS "${PROJECT_ROOT_PREFIX}/Util/onnxruntime/lib/${PLATFORM}/libonnxruntime.1.11.1.dylib")
   endif()
 endif()
 
 if(BUILD_NAO)
   add_library(Nao::CompiledNN::ONNX INTERFACE IMPORTED)
-  target_include_directories(Nao::CompiledNN::ONNX SYSTEM INTERFACE "${BHUMAN_PREFIX}/Util/CompiledNN2ONNX/include")
+  target_include_directories(Nao::CompiledNN::ONNX SYSTEM INTERFACE "${PROJECT_ROOT_PREFIX}/Util/CompiledNN2ONNX/include")
   target_link_libraries(Nao::CompiledNN::ONNX INTERFACE Nao::ONNXRuntime::ONNXRuntime)
 endif()
 
 if(BUILD_BOOSTER)
   add_library(Booster::CompiledNN::ONNX INTERFACE IMPORTED)
-  target_include_directories(Booster::CompiledNN::ONNX SYSTEM INTERFACE "${BHUMAN_PREFIX}/Util/CompiledNN2ONNX/include")
+  target_include_directories(Booster::CompiledNN::ONNX SYSTEM INTERFACE "${PROJECT_ROOT_PREFIX}/Util/CompiledNN2ONNX/include")
   target_link_libraries(Booster::CompiledNN::ONNX INTERFACE Booster::ONNXRuntime::ONNXRuntime)
-  target_include_directories(Booster::CompiledNN::ONNX SYSTEM INTERFACE "${BHUMAN_PREFIX}/Util/CompiledNN2ONNX/arm64/include")
+  target_include_directories(Booster::CompiledNN::ONNX SYSTEM INTERFACE "${PROJECT_ROOT_PREFIX}/Util/CompiledNN2ONNX/arm64/include")
 endif()
 
 if(BUILD_DESKTOP OR BUILD_BOOSTER)
   add_library(CompiledNN::ONNX INTERFACE IMPORTED)
-  target_include_directories(CompiledNN::ONNX SYSTEM INTERFACE "${BHUMAN_PREFIX}/Util/CompiledNN2ONNX/include")
+  target_include_directories(CompiledNN::ONNX SYSTEM INTERFACE "${PROJECT_ROOT_PREFIX}/Util/CompiledNN2ONNX/include")
   target_link_libraries(CompiledNN::ONNX INTERFACE ONNXRuntime::ONNXRuntime)
 
   if(ARM)
-    target_include_directories(CompiledNN::ONNX SYSTEM INTERFACE "${BHUMAN_PREFIX}/Util/CompiledNN2ONNX/arm64/include")
+    target_include_directories(CompiledNN::ONNX SYSTEM INTERFACE "${PROJECT_ROOT_PREFIX}/Util/CompiledNN2ONNX/arm64/include")
 
     add_library(asmjit INTERFACE)
-    target_include_directories(asmjit SYSTEM INTERFACE "${BHUMAN_PREFIX}/Util/CompiledNN2ONNX/arm64/include")
+    target_include_directories(asmjit SYSTEM INTERFACE "${PROJECT_ROOT_PREFIX}/Util/CompiledNN2ONNX/arm64/include")
   endif()
 endif()
 
 add_library(voronoi::voronoi INTERFACE IMPORTED)
-target_include_directories(voronoi::voronoi SYSTEM INTERFACE "${BHUMAN_PREFIX}/Util/voronoi/include")
+target_include_directories(voronoi::voronoi SYSTEM INTERFACE "${PROJECT_ROOT_PREFIX}/Util/voronoi/include")
 
 if(BUILD_DESKTOP)
   find_package(OpenSSL QUIET)
@@ -509,20 +555,22 @@ endif()
 if(BUILD_NAO)
   add_library(Nao::OpenSSL::Crypto SHARED IMPORTED)
   set_target_properties(Nao::OpenSSL::Crypto PROPERTIES
-      INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/openssl/include"
-      IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/openssl/lib/libcrypto.so.3")
+      INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/openssl/include"
+      IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/openssl/lib/libcrypto.so.3")
 
   add_library(Nao::OpenSSL::SSL SHARED IMPORTED)
   set_target_properties(Nao::OpenSSL::SSL PROPERTIES
-      INTERFACE_INCLUDE_DIRECTORIES "${BHUMAN_PREFIX}/Util/openssl/include"
-      IMPORTED_LOCATION "${BHUMAN_PREFIX}/Util/openssl/lib/libssl.so.3"
+      INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/openssl/include"
+      IMPORTED_LOCATION "${PROJECT_ROOT_PREFIX}/Util/openssl/lib/libssl.so.3"
       INTERFACE_LINK_LIBRARIES Nao::OpenSSL::Crypto)
 endif()
+
 
 if(X86)
   include("../CMake/asmjit.cmake")
   include("../CMake/CompiledNN.cmake")
 endif()
+include("../CMake/TextLogging.cmake")
 include("../CMake/Platform.cmake")
 include("../CMake/MathBase.cmake")
 include("../CMake/Streaming.cmake")
@@ -533,7 +581,10 @@ include("../CMake/RobotParts.cmake")
 include("../CMake/Debugging.cmake")
 include("../CMake/Framework.cmake")
 include("../CMake/OptionsAndSkills.cmake")
-include("../CMake/B-Human.cmake")
+include("../CMake/RobotCore.cmake")
+
+include("../CMake/CatchTests.cmake") # TODO: might need to be moved if more than Linux and Nao supported
+include("../CMake/SmallApps.cmake")
 
 if(BUILD_DESKTOP)
   include("../CMake/Python.cmake")
@@ -549,7 +600,7 @@ if(BUILD_DESKTOP)
   set(SIMROBOT_CONTROLLERS SimulatedNao)
   if(MACOS)
     set(SIMROBOT_LIBRARY_DIR "${OUTPUT_PREFIX}/Build/${PLATFORM}/SimRobot/$<CONFIG>/SimRobot.app/Contents/lib")
-    set(ALL_ROOT_DIR "${BHUMAN_PREFIX}/Src")
+    set(ALL_ROOT_DIR "${PROJECT_ROOT_PREFIX}/Src")
     file(GLOB_RECURSE ALL_SOURCES
         "${ALL_ROOT_DIR}/Modules/*.cpp" "${ALL_ROOT_DIR}/Modules/*.h"
         "${ALL_ROOT_DIR}/Representations/*.cpp" "${ALL_ROOT_DIR}/Representations/*.h"
@@ -582,15 +633,16 @@ if(BUILD_DESKTOP)
 
   set_property(TARGET SimRobot PROPERTY FOLDER Apps)
   if(MACOS)
-    set_property(TARGET SimRobot SimRobotCore3 SimRobotCore2D SimRobotEditor ${SIMROBOT_CONTROLLERS} DeployDialogRunner PROPERTY XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "B-Human Code Release")
+    set_property(TARGET SimRobot SimRobotCore3 SimRobotCore2D SimRobotEditor ${SIMROBOT_CONTROLLERS} DeployDialogRunner 
+                  PROPERTY XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "RoboEireann Code Release")
   endif()
 endif()
 
 if(NOT MINIMAL_PROJECT)
   if(MACOS)
     set_property(TARGET
-        B-Human
-        B-Human-Optimized
+        RobotCore
+        RobotCore-Optimized
         Debugging
         Framework
         ImageProcessing
@@ -651,6 +703,7 @@ if(NOT MINIMAL_PROJECT)
     set(ARCH_BACKUP "${ARCH}")
 
     foreach(TARGET_SUFFIX Nao Booster)
+      message("  CMakeLists.txt -- TARGET_SUFFIX is ${TARGET_SUFFIX}")
       if("${TARGET_SUFFIX}" STREQUAL Nao)
         set(CMAKE_OSX_ARCHITECTURES "x86_64")
         set(ARM false)
@@ -669,6 +722,7 @@ if(NOT MINIMAL_PROJECT)
         set(BUILD_BOOSTER ON)
       endif()
 
+      include("../CMake/TextLogging.cmake")
       include("../CMake/Platform.cmake")
       include("../CMake/MathBase.cmake")
       include("../CMake/Streaming.cmake")
@@ -679,7 +733,7 @@ if(NOT MINIMAL_PROJECT)
       include("../CMake/Debugging.cmake")
       include("../CMake/Framework.cmake")
       include("../CMake/OptionsAndSkills.cmake")
-      include("../CMake/B-Human.cmake")
+      include("../CMake/RobotCore.cmake")
       include("../CMake/${TARGET_SUFFIX}.cmake")
 
       target_link_libraries(Platform${TARGET_SUFFIX} PUBLIC CrossCompile${TARGET_SUFFIX})
@@ -692,10 +746,10 @@ if(NOT MINIMAL_PROJECT)
       target_link_libraries(Debugging${TARGET_SUFFIX} PUBLIC CrossCompile${TARGET_SUFFIX})
       target_link_libraries(Framework${TARGET_SUFFIX} PUBLIC CrossCompile${TARGET_SUFFIX})
       target_link_libraries(OptionsAndSkills${TARGET_SUFFIX} PUBLIC CrossCompile${TARGET_SUFFIX})
-      target_link_libraries(B-Human${TARGET_SUFFIX} PUBLIC CrossCompile${TARGET_SUFFIX})
+      target_link_libraries(RobotCore${TARGET_SUFFIX} PUBLIC CrossCompile${TARGET_SUFFIX})
 
       set_property(TARGET
-          B-Human${TARGET_SUFFIX}
+          RobotCore${TARGET_SUFFIX}
           Debugging${TARGET_SUFFIX}
           Framework${TARGET_SUFFIX}
           ImageProcessing${TARGET_SUFFIX}
@@ -734,10 +788,12 @@ if(NOT MINIMAL_PROJECT)
     target_link_libraries(asmjitNao PUBLIC CrossCompileNao)
     target_link_libraries(CompiledNNNao PUBLIC CrossCompileNao)
   else()
+    message("  CMakeLists.txt -- include Nao.cmake and Booster.cmake")
     include("../CMake/Nao.cmake")
     include("../CMake/Booster.cmake")
   endif()
-endif()
+
+endif() # end not MINIMAL_PROJECT
 
 if(BUILD_DESKTOP AND NOT MINIMAL_PROJECT)
   add_dependencies(DeployDialogRunner Nao)

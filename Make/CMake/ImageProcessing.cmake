@@ -1,4 +1,4 @@
-set(IMAGEPROCESSING_ROOT_DIR "${BHUMAN_PREFIX}/Src/Libs/ImageProcessing")
+set(IMAGEPROCESSING_ROOT_DIR "${PROJECT_ROOT_PREFIX}/Src/Libs/ImageProcessing")
 
 set(IMAGEPROCESSING_SOURCES
     "${IMAGEPROCESSING_ROOT_DIR}/CNS/CameraModelOpenCV.cpp"
@@ -47,7 +47,7 @@ else()
   target_compile_options(ImageProcessing${TARGET_SUFFIX} PRIVATE $<$<CONFIG:Develop>:-UNDEBUG>)
 endif()
 if(ARM)
-  target_include_directories(ImageProcessing${TARGET_SUFFIX} SYSTEM PUBLIC "${BHUMAN_PREFIX}/Util/sse2neon/include")
+  target_include_directories(ImageProcessing${TARGET_SUFFIX} SYSTEM PUBLIC "${PROJECT_ROOT_PREFIX}/Util/sse2neon/include")
 endif()
 target_link_libraries(ImageProcessing${TARGET_SUFFIX} PUBLIC Eigen::Eigen)  # for CNS
 target_link_libraries(ImageProcessing${TARGET_SUFFIX} PUBLIC Math${TARGET_SUFFIX})

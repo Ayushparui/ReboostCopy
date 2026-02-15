@@ -24,14 +24,14 @@ fi
 if [ -s "${PROFILES}/$1" ]; then
   ssid=$(sed -ne "s/^\"\(.*\)\":$/\1/p" "${PROFILES}/$1")
   password=$(sed -ne "s/^  password: \"\(.*\)\"$/\1/p" "${PROFILES}/$1")
-  nmcli connection modify B-Human 802-11-wireless.ssid "${ssid}"
-  nmcli connection modify B-Human 802-11-wireless-security.psk "${password}"
-  nmcli --wait 0 connection down B-Human 2>/dev/null
+  nmcli connection modify RoboEireannWifi 802-11-wireless.ssid "${ssid}"
+  nmcli connection modify RoboEireannWifi 802-11-wireless-security.psk "${password}"
+  nmcli --wait 0 connection down RoboEireannWifi 2>/dev/null
   if [ "$(nmcli radio wifi)" = "disabled" ]; then
     nmcli radio wifi on
     sleep 0.5
   fi
-  nmcli --wait 0 connection up B-Human
+  nmcli --wait 0 connection up RoboEireannWifi
 else
   nmcli radio wifi off
 fi

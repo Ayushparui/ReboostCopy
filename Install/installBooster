@@ -69,7 +69,7 @@ copyFiles() {
   ssh ${SSHOPTIONS} ${2}@${1} "rm -rf ${copyTo}" || fatal "Can't remove '${copyTo}' on robot"
   ssh ${SSHOPTIONS} ${2}@${1} "mkdir -p ${copyTo}" || fatal "Can't create '${copyTo}' on robot"
   rsync ${rsyncOptions} -e "ssh ${SSHOPTIONS}" "${baseDir}/BoosterFiles"/* ${2}@${1}:${copyTo} || fatal "Can't copy to '${copyTo}' on robot"
-  rsync ${rsyncOptions} -e "ssh ${SSHOPTIONS}" "${baseDir}/Files/bin/bhuman" "${baseDir}/Files/bin/chmod-usb" ${2}@${1}:${copyTo}bin/ || fatal "Can't copy to '${copyTo}bin/' on robot"
+  rsync ${rsyncOptions} -e "ssh ${SSHOPTIONS}" "${baseDir}/Files/bin/roboeireann" "${baseDir}/Files/bin/chmod-usb" ${2}@${1}:${copyTo}bin/ || fatal "Can't copy to '${copyTo}bin/' on robot"
   rsync ${rsyncOptions} -e "ssh ${SSHOPTIONS}" "${bhDir}/Config/Robots/${robotName}/network.cfg" ${2}@${1}:${copyTo} || fatal "Can't copy network.cfg to '${copyTo}' on robot"
 }
 

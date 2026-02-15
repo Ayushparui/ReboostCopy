@@ -33,7 +33,7 @@ includeDir="${baseDir}/Include"
 
 source "${includeDir}/bhumanBase"
 
-rootImage="${baseDir}/root-2022-11-18.ext3"
+rootImage="${baseDir}/root-2025-12-15.ext3"
 homeArchive="${baseDir}/home.tar.gz"
 installer="${baseDir}/Files/install.sh"
 opnImage="${baseDir}/image.opn"
@@ -48,7 +48,7 @@ usage() {
   echo " -H <home archive>: set path to the home archive"
   echo " -i <installer>   : set path to the installer"
   echo " -o <opn image>   : set path to the OPN image"
-  echo " -b               : start bhuman after flashing"
+  echo " -b               : start roboeireann after flashing"
   echo ""
   echo " -h               : Display this help"
   exit 1

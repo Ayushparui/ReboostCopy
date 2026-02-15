@@ -1,10 +1,15 @@
-set(CHECK_THREADS_ROOT_DIR "${BHUMAN_PREFIX}/Src/Apps/CheckThreads")
+set(CHECK_THREADS_ROOT_DIR "${PROJECT_ROOT_PREFIX}/Src/Apps/CheckThreads")
 set(CHECK_THREADS_OUTPUT_DIR "${OUTPUT_PREFIX}/Build/${PLATFORM}/CheckThreads/$<CONFIG>")
 
 file(GLOB_RECURSE CHECK_THREADS_SOURCES CONFIGURE_DEPENDS
     "${CHECK_THREADS_ROOT_DIR}/*.cpp" "${CHECK_THREADS_ROOT_DIR}/*.h")
 
 set(CHECK_THREADS_TREE "${CHECK_THREADS_SOURCES}")
+
+# Prevent any file/folder beginning with "IGNORE_" from being included in the build
+list(FILTER CATCH_SOURCES EXCLUDE REGEX ".*/IGNORE_.*")
+    
+
 
 add_executable(CheckThreads EXCLUDE_FROM_ALL ${CHECK_THREADS_SOURCES})
 
@@ -15,7 +20,7 @@ set_property(TARGET CheckThreads PROPERTY XCODE_ATTRIBUTE_LD_RUNPATH_SEARCH_PATH
 
 target_include_directories(CheckThreads PRIVATE "${CHECK_THREADS_ROOT_DIR}")
 
-target_link_libraries(CheckThreads PRIVATE B-Human)
+target_link_libraries(CheckThreads PRIVATE RobotCore)
 target_link_libraries(CheckThreads PRIVATE Framework)
 target_link_libraries(CheckThreads PRIVATE Streaming)
 target_link_libraries(CheckThreads PRIVATE Flags::Default)

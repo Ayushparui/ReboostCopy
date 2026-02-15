@@ -1,7 +1,15 @@
 set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_PROCESSOR aarch64)
 
-set(CMAKE_CXX_COMPILER clang++)
+# RV-DELETE: set(CMAKE_CXX_COMPILER clang++)
+
+# Support for multiple installed compilers
+if(NOT CMAKE_CXX_COMPILER)
+    find_program(CMAKE_CXX_COMPILER NAMES clang++-17 clang++-18 clang++-16 clang++)
+endif()
+
+
+
 set(CMAKE_CXX_COMPILER_TARGET aarch64-linux-gnu)
 set(CMAKE_CXX_FLAGS_INIT "-nostdinc -nostdinc++")
 set(CMAKE_SKIP_RPATH ON)
@@ -14,7 +22,8 @@ set(_buildchain_dir "${CMAKE_CURRENT_LIST_DIR}/../../Util/Buildchain")
 if(MACOS OR WINDOWS)
   message(FATAL_ERROR "This file should not be included on macOS or Windows.")
 else()
-  set(_linker "ld.mold")
+  # set(_linker "ld.mold")
+  set(_linker "ld.lld")
 endif()
 
 set(_t1_lib_dir "${_buildchain_dir}/T1/lib")
@@ -23,6 +32,7 @@ execute_process(COMMAND bash -c "for d in $(clang++ -c -v -E - </dev/null 2>&1 |
 do [ -f $d/xmmintrin.h ] && echo $d; done | head -1" OUTPUT_VARIABLE _clang_system_include_dir)
 
 set(CMAKE_CXX_LINK_EXECUTABLE "${_linker} <LINK_FLAGS> -nostdlib --hash-style=gnu --eh-frame-hdr -m aarch64linux \
+--compress-debug-sections=none \
 -dynamic-linker=/lib/ld-linux-aarch64.so.1 -o <TARGET> \
 \"${_t1_lib_dir}/crt1.o\" \"${_t1_lib_dir}/crti.o\" \"${_t1_lib_dir}/crtbegin.o\" \
 -L\"${_t1_lib_dir}\" <OBJECTS> <LINK_LIBRARIES> \

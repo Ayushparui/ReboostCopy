@@ -1,4 +1,4 @@
-set(CONFIG_ROOT_DIR "${BHUMAN_PREFIX}/Config")
+set(CONFIG_ROOT_DIR "${PROJECT_ROOT_PREFIX}/Config")
 file(GLOB_RECURSE CONFIG_FILES
     "${CONFIG_ROOT_DIR}/Behavior/*.cfg"
     "${CONFIG_ROOT_DIR}/KickEngine/*.kmc")

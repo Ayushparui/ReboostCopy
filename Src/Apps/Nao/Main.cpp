@@ -4,18 +4,6 @@
  * @author Colin Graf
  */
 
-#include <algorithm>
-#include <cmath>
-#include <csignal>
-#include <cstdio>
-#include <cstring>
-#include <sys/file.h> // flock
-#include <fcntl.h>
-#include <sys/wait.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <unistd.h>
-
 #include "Framework/Robot.h"
 #include "Framework/Robots.h"
 #include "Framework/Settings.h"
@@ -28,29 +16,50 @@
 #include "Streaming/InStreams.h"
 #include "Streaming/OutStreams.h"
 #include "Tools/Communication/MsgPack.h"
+#include "TextLogging/TextLogging.h"
 
-static pid_t bhumanPid = 0;
+#include <algorithm>
+#include <cmath>
+#include <csignal>
+#include <cstdio>
+#include <cstring>
+#include <chrono>
+
+#include <sys/file.h> // flock
+#include <fcntl.h>
+#include <sys/wait.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
+
+
+static pid_t roboeireannPid = 0;
 static Robot* robot = nullptr;
 static bool run = true;
 static pthread_t mainThread;
 static bool shutdownNAO = false;
+
+
+DECL_TLOGGER(tlogger, "Main", TextLogging::INFO);
+
 
 SystemCall::Mode SystemCall::getMode()
 {
   return physicalRobot;
 }
 
-static void bhumanStart(const Settings& settings)
+static void roboeireannStart(const Settings& settings)
 {
-  fprintf(stderr, "B-Human: Start.\n");
+  TLOGI(tlogger, "RoboEireann: Start.");
 
   robot = new Robot(settings, std::string());
   robot->start();
 }
 
-static void bhumanStop()
+static void roboeireannStop()
 {
-  fprintf(stderr, "B-Human: Stop.\n");
+  TLOGI(tlogger, "RoboEireann: Stop.");
+
   robot->announceStop();
   robot->stop();
   delete robot;
@@ -61,19 +70,36 @@ static void sighandlerShutdown(int sig)
 {
   if(pthread_self() != mainThread)
   {
+    // When we detect a long chest button press, the thread on which it is detected raises
+    // SIGINT and will be the thread to initially catch the signal, hence we need to redirect
+    // to the main thread here.
+    TLOGI(tlogger, "Caught termination/interrupt signal ({}:{}) on non-main thread -- redirecting to main thread...",
+          sig, Assert::getSignalName(sig));
+
     shutdownNAO = true;
     pthread_kill(mainThread, sig);
   }
   else
   {
     if(run)
-      fprintf(stderr, "Caught signal %i\nShutting down...\n", sig);
+    {
+      TLOGI(tlogger, "Caught normal termination/interrupt signal ({}:{}) -- Shutting down executable...",
+            sig, Assert::getSignalName(sig));
+      TextLogging::requestAsyncOutput(false); // output any async log messages
+      fflush(NULL); // flush all streams
+    }
+    
     run = false;
   }
 }
 
-static void sighandlerRedirect(int)
+static void sighandlerRedirect(int sig)
 {
+  Thread::sleep(100);
+  TLOGI(tlogger, "sighandlerRedirect, caught {}, set run to false", Assert::getSignalName(sig));
+  TextLogging::requestAsyncOutput(false); // output any async log messages
+  fflush(NULL); // try to flush all streams
+
   run = false;
 }
 
@@ -85,10 +111,10 @@ static std::string getBodyId()
   std::strcpy(address.sun_path, "/tmp/robocup");
   if(connect(socket, reinterpret_cast<sockaddr*>(&address), sizeof(address)))
   {
-    fprintf(stderr, "Waiting for LoLA... ");
+    TLOGI(tlogger, "Waiting for LoLA...");
     while(connect(socket, reinterpret_cast<sockaddr*>(&address), sizeof(address)))
       usleep(100000);
-    fprintf(stderr, "OK\n");
+    TLOGI(tlogger, "...LoLA OK");
   }
 
   std::string bodyId;
@@ -115,6 +141,8 @@ static std::string getBodyId()
 
 static void sitDown(bool ok)
 {
+  TLOGI(tlogger, "sit down the Nao if needed, normalShutdown {}", ok);
+
   static constexpr Joints::Joint numOfJoints = static_cast<Joints::Joint>(Joints::numOfJoints - 2);
   static const Angle targetAngles[numOfJoints] =
   {
@@ -164,6 +192,8 @@ static void sitDown(bool ok)
     // If sitting down is required, interpolate from start angles to target angles.
     if(sitDownRequired)
     {
+      TLOGI(tlogger, "...sit down is required");
+
       float ratio = 0.f;
       while(ratio < 1.f)
       {
@@ -256,7 +286,7 @@ static std::string getBodyName(const std::string& bodyId)
   std::string bhdir = File::getBHDir();
   InMapFile robotsStream(bhdir + "/Config/Robots/robots.cfg");
   if(!robotsStream.exists())
-    fprintf(stderr, "Could not load robots.cfg\n");
+    TLOGW(tlogger, "Could not load robots.cfg");
   else
   {
     Robots robots;
@@ -267,7 +297,8 @@ static std::string getBodyName(const std::string& bodyId)
         bodyName = robot.name;
         return bodyName;
       }
-    fprintf(stderr, "Could not find bodyName in robots.cfg! BodyId: %s\nAssuming \"Default\".\n", bodyId.c_str());
+
+    TLOGW(tlogger, "Could not find bodyName in robots.cfg! BodyId: {} -- Assuming \"Default\".", bodyId);
     bodyName = "Default";
   }
   return bodyName;
@@ -282,36 +313,40 @@ int main(int argc, char* argv[])
     setvbuf(stderr, nullptr, _IONBF, 0);
 
     mainThread = pthread_self();
+    Thread::nameCurrentThread("ParentMain"); // for text logging output
 
     // parse command-line arguments
     bool watchdog = false;
-    const char* bhDir = "/home/nao";
+    const char* configDir = "/home/nao";
 
     for(int i = 1; i < argc; ++i)
       if(!strcmp(argv[i], "-c") && i + 1 < argc)
-        bhDir = argv[++i];
+        configDir = argv[++i];
       else if(!strcmp(argv[i], "-w"))
         watchdog = true;
       else
       {
-        fprintf(stderr, "Usage: %s [-c <dir>] [-w]\n\
-    -c <dir>      used bh directory (default is /home/nao)\n\
-    -w            use a watchdog for crash recovery and creating trace dumps\n", argv[0]);
+        TLOGI(tlogger, "\n  Usage: {} [-c <dir>] [-w]\n\
+      -c <dir>      base directory for config (default is /home/nao)\n\
+      -w            use a watchdog for crash recovery and creating trace dumps", argv[0]);
+
         exit(EXIT_FAILURE);
       }
 
+    TLOGI(tlogger, "Starting up, watchdog={}", watchdog);
+
     // avoid duplicated instances
-    int fd = open("/tmp/bhuman", O_CREAT, 0600);
+    int fd = open("/tmp/roboeireann", O_CREAT, 0600);
     if(fd == -1 || flock(fd, LOCK_EX | LOCK_NB) == -1)
     {
-      fprintf(stderr, "There is already an instance of this process!\n");
+      TLOGE(tlogger, "There is already an instance of this process!");
       exit(EXIT_FAILURE);
     }
 
     // change working directory
-    if(*bhDir && chdir(bhDir) != 0)
+    if(*configDir && chdir(configDir) != 0)
     {
-      fprintf(stderr, "chdir to config directory failed!\n");
+      TLOGE(tlogger, "chdir to config directory ({}) failed!", configDir);
       exit(EXIT_FAILURE);
     }
 
@@ -320,16 +355,17 @@ int main(int argc, char* argv[])
     {
       for(;;)
       {
-        bhumanPid = fork();
-        if(bhumanPid == -1)
+        roboeireannPid = fork();
+        if(roboeireannPid == -1)
           exit(EXIT_FAILURE);
-        else if(bhumanPid == 0)
-          break;
+        else if(roboeireannPid == 0)
+          break; // child process
 
+        // if we get this far we are the parent (watchdog) version of the process
         int status;
         signal(SIGTERM, sighandlerRedirect);
         signal(SIGINT, sighandlerRedirect);
-        if(waitpid(bhumanPid, &status, 0) != bhumanPid)
+        if(waitpid(roboeireannPid, &status, 0) != roboeireannPid)
         {
           exit(EXIT_FAILURE);
         }
@@ -338,6 +374,8 @@ int main(int argc, char* argv[])
 
         // detect requested or normal exit
         bool normalExit = !run || (WIFEXITED(status) && WEXITSTATUS(status) == EXIT_SUCCESS);
+
+        TLOGI(tlogger, "Child process has exited, normalExit={}, exitStatus={}", normalExit, WEXITSTATUS(status));
 
         // dump trace and assert trace
         if(!normalExit)
@@ -357,6 +395,8 @@ int main(int argc, char* argv[])
       }
     }
 
+    // if we get to here, this is the child process    
+    Thread::nameCurrentThread("Main"); // for text logging output in child (if any)
     BH_TRACE_INIT("main");
 
     // Acquire static data, e.g. about types
@@ -366,27 +406,33 @@ int main(int argc, char* argv[])
     if(settings.playerNumber < 0 || settings.bodyName.empty())
       return EXIT_FAILURE;
 
-    // print status information
+
+    TextLogging::logStartupTime(tlogger, TextLogging::INFO);
+
+
     if(settings.headName == settings.bodyName)
-      printf("Hi, I am %s.\n", settings.headName.c_str());
+      TLOGI(tlogger, "Hi, I am %s.", settings.headName.c_str());
     else
-      printf("Hi, I am %s (using %s's body).\n", settings.headName.c_str(), settings.bodyName.c_str());
-    printf("teamNumber %d\n", settings.teamNumber);
-    printf("fieldPlayerColor %s\n", TypeRegistry::getEnumName(settings.fieldPlayerColor));
-    printf("goalkeeperColor %s\n", TypeRegistry::getEnumName(settings.goalkeeperColor));
-    printf("playerNumber %d\n", settings.playerNumber);
-    printf("location %s\n", settings.location.c_str());
-    printf("scenario %s\n", settings.scenario.c_str());
-    printf("magicNumber %d\n", settings.magicNumber);
+      TLOGI(tlogger, "Hi, I am {} (using {}'s body).", settings.headName.c_str(), settings.bodyName.c_str());
+    TLOGI(tlogger, "teamNumber {}", settings.teamNumber);
+    TLOGI(tlogger, "fieldPlayerColor {}", TypeRegistry::getEnumName(settings.fieldPlayerColor));
+    TLOGI(tlogger, "goalkeeperColor {}", TypeRegistry::getEnumName(settings.goalkeeperColor));
+    TLOGI(tlogger, "playerNumber {}", settings.playerNumber);
+    TLOGI(tlogger, "location {}", settings.location.c_str());
+    TLOGI(tlogger, "scenario {}", settings.scenario.c_str());
+    TLOGI(tlogger, "magicNumber {}", settings.magicNumber);
 
     // put the current body name in a file (at the moment only used in downloadCalibration)
     OutTextRawFile("/var/volatile/tmp/bodyName.txt") << settings.bodyName;
 
-    // register signal handler for ctrl+c and termination signal
+    // register signal handler for ctrl+c and termination signal - for graceful shutdown
     signal(SIGTERM, sighandlerShutdown);
     signal(SIGINT, sighandlerShutdown);
 
-    bhumanStart(settings);
+    // start asynchronous logging so as not to block any of the main robot threads on I/O
+    // TextLogging::requestAsyncOutput(true); // TODO
+
+    roboeireannStart(settings);
 
     // settings go out of scope here, but everything that needs it later makes a copy.
   }
@@ -394,10 +440,26 @@ int main(int argc, char* argv[])
   while(run)
     pause();
 
-  bhumanStop();
+  roboeireannStop();
   sitDown(true);
+
+  TextLogging::requestAsyncOutput(false);
+  TLOGI(tlogger, "RoboEireann stopped.");
+  fflush(NULL);
+
   if(shutdownNAO)
+  {
+    TLOGI(tlogger, "About to power off the Nao");
+    fflush(NULL);
+
+    Thread::sleep(500);
+
+    // to be sure to be sure...
+    TLOGI(tlogger, "power off");
+    fflush(NULL);
+
     static_cast<void>(!system("sudo systemctl poweroff &"));
+  }
 
   return EXIT_SUCCESS;
 }

@@ -1,4 +1,4 @@
-set(MATHBASE_ROOT_DIR "${BHUMAN_PREFIX}/Src/Libs/MathBase")
+set(MATHBASE_ROOT_DIR "${PROJECT_ROOT_PREFIX}/Src/Libs/MathBase")
 
 set(MATHBASE_SOURCES
     "${MATHBASE_ROOT_DIR}/Angle.h"
@@ -27,7 +27,7 @@ set(MATHBASE_SOURCES
 add_library(MathBase${TARGET_SUFFIX} OBJECT ${MATHBASE_SOURCES})
 target_sources(MathBase${TARGET_SUFFIX} INTERFACE $<TARGET_OBJECTS:Platform${TARGET_SUFFIX}>)
 if(WINDOWS AND NOT MINIMAL_PROJECT)
-  target_sources(MathBase${TARGET_SUFFIX} INTERFACE "${BHUMAN_PREFIX}/Util/Buildchain/Windows/Visualizers/Angle.natvis")
+  target_sources(MathBase${TARGET_SUFFIX} INTERFACE "${PROJECT_ROOT_PREFIX}/Util/Buildchain/Windows/Visualizers/Angle.natvis")
 endif()
 set_property(TARGET MathBase${TARGET_SUFFIX} PROPERTY FOLDER "Libs/${TARGET_SUFFIX}")
 if(BUILD_DESKTOP)

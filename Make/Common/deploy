@@ -1,11 +1,11 @@
 #!/bin/bash
-# copies a bhuman distribution to a robot
+# copies a roboeireann distribution to a robot
 
 usage()
 {
   echo "usage: deploy [Release|Develop|Debug] [<ipaddress>|(-r <playernumber> <ipaddress>)*] {options}"
   echo "  options:"
-  echo "    -b                       restart bhuman"
+  echo "    -b                       restart roboeireann"
   echo "    -c <field player color>  set field player color to blue, red, yellow, black, white, orange, purple, brown, or gray"
   echo "    -d                       delete logs or add timestamp to image"
   echo "    -g <goalkeeper color>    set goalkeeper color to blue, red, yellow, black, white, orange, purple, brown, or gray"
@@ -48,6 +48,7 @@ copy()
   REMOTE=$1
   PLAYER=$2
 
+  # this sets up TARGET_NAME, TARGET_USER etc.
   source ../Common/setupTarget "$REMOTE"
 
   if [ ! -z $PLAYER ] && ( (( $PLAYER < 1 )) || (( $PLAYER > 20 )) ); then
@@ -62,8 +63,8 @@ copy()
     fi
   fi
 
-  echo "stopping bhuman"
-  ssh $SSHOPTIONS $TARGET_USER@$REMOTE "systemctl --user stop bhuman.service > /dev/null"
+  echo "stopping roboeireann"
+  ssh $SSHOPTIONS $TARGET_USER@$REMOTE "systemctl --user stop roboeireann.service > /dev/null"
 
   if [ ! -z $DELETELOGS ]; then
     echo "removing log files"
@@ -89,8 +90,25 @@ copy()
     fi
   fi
 
-  echo "updating bhuman"
-  rsync --del --exclude=.* --exclude=/Images --exclude=/Logs --exclude=/Scenes --chmod=u+rw,go+r,Dugo+x -rzce "ssh $SSHOPTIONS" ../../Build/Linux/$TARGET_NAME/$CONFIG/bhuman ../../Util/onnxruntime/lib/Linux$TARGET_ARCH/libonnxruntime.so.1.10.0 ../../Config/. $TARGET_USER@$REMOTE:/home/$TARGET_USER/Config
+  echo "updating roboeireann with $CONFIG version"
+  rsync --del --exclude=.* --exclude=/Images --exclude=/Logs --exclude=/Scenes --chmod=u+rw,go+r,Dugo+x -rzce "ssh $SSHOPTIONS" ../../Build/Linux/$TARGET_NAME/$CONFIG/roboeireann ../../Util/onnxruntime/lib/Linux$TARGET_ARCH/libonnxruntime.so.1.10.0 ../../Config/. $TARGET_USER@$REMOTE:/home/$TARGET_USER/Config
+
+  # Define optional binaries to deploy alongside roboeireann
+  # These must be located in Build/Linux/<appname>/<config>/<appname>
+  OPTIONAL_TOOLS=("CatchTests${TARGET_NAME}" "BenchmarkTextLogging${TARGET_NAME}")
+
+  for TOOL in "${OPTIONAL_TOOLS[@]}"; do
+    # Corrected path logic for isolated directories:
+    # e.g., ../../Build/Linux/CatchTestsNao/Develop/CatchTestsNao
+    LOCAL_PATH="../../Build/Linux/$TOOL/$CONFIG/$TOOL"
+    
+    if [ -f "$LOCAL_PATH" ]; then
+      echo "deploying auxiliary tool: $TOOL"
+      # Deploy to the ~/bin/ directory on the robot
+      rsync --chmod=u+rw,go+r,Dugo+x -zce "ssh $SSHOPTIONS" "$LOCAL_PATH" "$TARGET_USER@$REMOTE:/home/$TARGET_USER/bin/"
+    fi
+  done
+
 
   # set playback volume
   echo "setting volume to $VOLUME%"
@@ -111,8 +129,8 @@ copy()
   fi
 
   if [ ! -z $RESTART ]; then
-    echo "starting bhuman"
-    ssh $SSHOPTIONS $TARGET_USER@$REMOTE "systemctl --user start bhuman.service > /dev/null"
+    echo "starting roboeireann"
+    ssh $SSHOPTIONS $TARGET_USER@$REMOTE "systemctl --user start roboeireann.service > /dev/null"
   fi
 
   true
@@ -128,9 +146,13 @@ fi
 
 cd "$(dirname "$(which "$0")")"
 
+# capture the cmd line args before parsing and shifting
+ORIGINAL_ARGS="$@"
+
 source ../Common/setupSSH
 
 # init variables
+SHOWCMD=
 CONFIG="Develop"
 PLAYER=
 FIELDPLAYERCOLOR=
@@ -236,6 +258,9 @@ while true; do
     "-i" | "/i")
       IMAGE=1
       ;;
+    "--showcmd")
+      SHOWCMD=1
+      ;;
     "Release")
       CONFIG="Release"
       ;;
@@ -257,6 +282,10 @@ while true; do
   esac
   shift
 done
+
+if [ ! -z $SHOWCMD ]; then
+  echo "$0 $ORIGINAL_ARGS"
+fi
 
 if [ ! -z "$IMAGE" -a \( ! -z "$REMOTE$MULTIPLEDATA" -o -z "$CHECK" \) ]; then
   echo >&2 "Option -i cannot be combined with a remote ip or -r or -nr."
@@ -371,7 +400,7 @@ if [ ! -z $IMAGE ]; then # write an opn image
   fi
 
   echo "y" | ../../Install/createHomeArchive $USBOPT -c $CONFIG -v $VOLUME $PROFILEOPT -H "$IMAGEPATH/home.tar.gz" \
-  && ../../Install/createOPN -H "$IMAGEPATH/home.tar.gz" -o "$IMAGEPATH/bhuman$DATE.opn" $RESTARTOPT
+  && ../../Install/createOPN -H "$IMAGEPATH/home.tar.gz" -o "$IMAGEPATH/roboeireann$DATE.opn" $RESTARTOPT
 
   if [ -f /tmp/deploy_settings.cfg ]; then
     mv /tmp/deploy_settings.cfg ../../Config/settings.cfg

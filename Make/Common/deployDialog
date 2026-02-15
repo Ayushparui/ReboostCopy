@@ -3,7 +3,18 @@
 
 cd "$(dirname "$(which "$0")")"
 
-CONFIGURATION="$1"
+# default configuration is Develop
+CONFIGURATION="${1:-Develop}"
+
+# ensure a valid configuration
+case "$CONFIGURATION" in
+  Debug|Develop|Release)
+    ;;
+  *)
+    echo "Invalid configuration: $CONFIGURATION. Expected Debug, Develop, or Release."
+    exit 1
+    ;;
+esac
 
 killall DeployDialog 2>/dev/null
 
@@ -44,7 +55,7 @@ fi ) | while read ARGS; do
       ARGS="$(sed 's%^logs %%' <<<"$ARGS")"
       ./downloadLogs $ARGS
     else
-      ./deploy $CONFIGURATION $ARGS
+      ./deploy $CONFIGURATION --showcmd $ARGS
     fi
   else
     break

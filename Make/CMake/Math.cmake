@@ -1,4 +1,4 @@
-set(MATH_ROOT_DIR "${BHUMAN_PREFIX}/Src/Libs/Math")
+set(MATH_ROOT_DIR "${PROJECT_ROOT_PREFIX}/Src/Libs/Math")
 
 set(MATH_SOURCES
     "${MATH_ROOT_DIR}/Angle.h"

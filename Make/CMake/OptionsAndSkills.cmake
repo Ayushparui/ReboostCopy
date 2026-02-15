@@ -1,8 +1,14 @@
-set(OPTIONS_AND_SKILLS_ROOT_DIR "${BHUMAN_PREFIX}/Src/Modules/BehaviorControl/SkillBehaviorControl")
+set(OPTIONS_AND_SKILLS_ROOT_DIR "${PROJECT_ROOT_PREFIX}/Src/Modules/BehaviorControl/SkillBehaviorControl")
 
 file(GLOB_RECURSE OPTIONS_AND_SKILLS_SOURCES CONFIGURE_DEPENDS
     "${OPTIONS_AND_SKILLS_ROOT_DIR}/Options/*.cpp" "${OPTIONS_AND_SKILLS_ROOT_DIR}/Options/*.h"
     "${OPTIONS_AND_SKILLS_ROOT_DIR}/Skills/*.cpp" "${OPTIONS_AND_SKILLS_ROOT_DIR}/Skills/*.h")
+
+set(OPTIONS_AND_SKILLS_TREE "${OPTIONS_AND_SKILLS_SOURCES}")
+
+# Prevent any file/folder beginning with "IGNORE_" from being included in the build
+list(FILTER OPTIONS_AND_SKILLS_SOURCES EXCLUDE REGEX ".*/IGNORE_.*")
+
 
 set(OPTIONS_AND_SKILLS_PCHS
     [["SkillBehaviorControl.h"]])
@@ -10,7 +16,7 @@ set(OPTIONS_AND_SKILLS_PCHS
 add_library(OptionsAndSkills${TARGET_SUFFIX} OBJECT ${OPTIONS_AND_SKILLS_SOURCES})
 set_property(TARGET OptionsAndSkills${TARGET_SUFFIX} PROPERTY FOLDER "Libs/${TARGET_SUFFIX}")
 set_property(TARGET OptionsAndSkills${TARGET_SUFFIX} PROPERTY POSITION_INDEPENDENT_CODE ON)
-target_include_directories(OptionsAndSkills${TARGET_SUFFIX} PRIVATE "${BHUMAN_PREFIX}/Src")
+target_include_directories(OptionsAndSkills${TARGET_SUFFIX} PRIVATE "${PROJECT_ROOT_PREFIX}/Src")
 target_include_directories(OptionsAndSkills${TARGET_SUFFIX} PRIVATE "${OPTIONS_AND_SKILLS_ROOT_DIR}")
 target_link_libraries(OptionsAndSkills${TARGET_SUFFIX} PRIVATE Platform${TARGET_SUFFIX})
 target_link_libraries(OptionsAndSkills${TARGET_SUFFIX} PRIVATE MathBase${TARGET_SUFFIX})
@@ -35,4 +41,4 @@ if(MSVC)
   target_compile_options(OptionsAndSkills${TARGET_SUFFIX} PUBLIC /Zm200)
 endif()
 
-source_group(TREE "${OPTIONS_AND_SKILLS_ROOT_DIR}" FILES ${OPTIONS_AND_SKILLS_SOURCES})
+source_group(TREE "${OPTIONS_AND_SKILLS_ROOT_DIR}" FILES ${OPTIONS_AND_SKILLS_TREE})

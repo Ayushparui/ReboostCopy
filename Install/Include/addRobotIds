@@ -124,7 +124,7 @@ fi
 echo ""
 echo "using:"
 echo "  name:     ${name}"
-echo "  model:    ${name}"
+echo "  model:    ${model}"
 echo "  headId:   ${headId}"
 echo "  bodyId:   ${bodyId}"
 echo ""

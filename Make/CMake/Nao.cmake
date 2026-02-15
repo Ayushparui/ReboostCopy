@@ -1,4 +1,11 @@
-set(NAO_ROOT_DIR "${BHUMAN_PREFIX}/Src/Apps/Nao")
+message(STATUS "--- Entering Nao.cmake ---")
+message(STATUS "  BUILD_DESKTOP: ${BUILD_DESKTOP}")
+message(STATUS "  BUILD_NAO: ${BUILD_NAO}")
+message(STATUS "  TARGET_SUFFIX: ${TARGET_SUFFIX}")
+message(STATUS "  Platform: ${PLATFORM} Arch: ${ARCH}")
+
+
+set(NAO_ROOT_DIR "${PROJECT_ROOT_PREFIX}/Src/Apps/Nao")
 set(NAO_OUTPUT_DIR "${OUTPUT_PREFIX}/Build/Linux/Nao/$<CONFIG>")
 
 set(NAO_SOURCES
@@ -11,8 +18,8 @@ if(BUILD_NAO)
 
   add_executable(Nao ${NAO_SOURCES})
   set_property(TARGET Nao PROPERTY RUNTIME_OUTPUT_DIRECTORY "${NAO_OUTPUT_DIR}")
-  set_property(TARGET Nao PROPERTY RUNTIME_OUTPUT_NAME bhuman)
-  target_link_libraries(Nao PRIVATE B-Human${TARGET_SUFFIX})
+  set_property(TARGET Nao PROPERTY RUNTIME_OUTPUT_NAME roboeireann)
+  target_link_libraries(Nao PRIVATE RobotCore${TARGET_SUFFIX})
   target_link_libraries(Nao PRIVATE Platform${TARGET_SUFFIX})
   target_link_libraries(Nao PRIVATE Math${TARGET_SUFFIX})
   target_link_libraries(Nao PRIVATE Streaming${TARGET_SUFFIX})
@@ -27,6 +34,7 @@ if(BUILD_NAO)
   endif()
 
   target_link_libraries(Nao PRIVATE Flags::Default)
+
   if(MACOS)
     add_dependencies(Nao DeployDialog)
   endif()
@@ -53,3 +61,6 @@ elseif(NOT BUILD_BOOSTER)
     add_dependencies(Nao DeployDialog)
   endif()
 endif()
+
+message(STATUS "--- Exiting Nao.cmake ---")
+

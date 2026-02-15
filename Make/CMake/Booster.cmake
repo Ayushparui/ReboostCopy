@@ -1,4 +1,4 @@
-set(BOOSTER_ROOT_DIR "${BHUMAN_PREFIX}/Src/Apps/Booster")
+set(BOOSTER_ROOT_DIR "${PROJECT_ROOT_PREFIX}/Src/Apps/Booster")
 set(BOOSTER_OUTPUT_DIR "${OUTPUT_PREFIX}/Build/Linux/Booster/$<CONFIG>")
 
 set(BOOSTER_SOURCES
@@ -11,8 +11,8 @@ if(BUILD_BOOSTER)
 
   add_executable(Booster ${BOOSTER_SOURCES})
   set_property(TARGET Booster PROPERTY RUNTIME_OUTPUT_DIRECTORY "${BOOSTER_OUTPUT_DIR}")
-  set_property(TARGET Booster PROPERTY RUNTIME_OUTPUT_NAME bhuman)
-  target_link_libraries(Booster PRIVATE B-Human${TARGET_SUFFIX})
+  set_property(TARGET Booster PROPERTY RUNTIME_OUTPUT_NAME roboeireann)
+  target_link_libraries(Booster PRIVATE RobotCore${TARGET_SUFFIX})
   target_link_libraries(Booster PRIVATE Platform${TARGET_SUFFIX})
   target_link_libraries(Booster PRIVATE Math${TARGET_SUFFIX})
   target_link_libraries(Booster PRIVATE Streaming${TARGET_SUFFIX})

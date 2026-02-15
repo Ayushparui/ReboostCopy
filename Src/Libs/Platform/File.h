@@ -24,8 +24,10 @@ public:
    *             the path is used directly.
    * @param mode File open mode as used by fopen defined in stdio.h.
    * @param tryAlternatives Try alternative paths.
+   * @param isOptional If true it signals that this is an optional file and
+   *                     it is not a problem if the file is not present
    */
-  File(const std::string& name, const char* mode, bool tryAlternatives = true);
+  File(const std::string &name, const char *mode, bool tryAlternatives = true, bool isOptional = false);
 
   ~File();
 
@@ -152,4 +154,5 @@ public:
 
 private:
   static thread_local std::vector<std::string> searchPath;
+  static bool isRepeatedFile(const std::string& name); // used with text logging
 };

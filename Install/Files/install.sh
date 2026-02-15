@@ -845,7 +845,7 @@ create_user_partition() {
   local disk="$(get_device "${USER_PART}")"
   watchdog $((1*60)) true "sfdisk --part-uuid '${disk}' ${part_nr} 66666666-1120-1120-1120-666666666666"
   watchdog $((15*60)) true "sync ; sync"
-  watchdog $((1*60)) true "mkfs.ext2 -L B-Human-data '$USER_PART'"
+  watchdog $((1*60)) true "mkfs.ext2 -L robo-data '$USER_PART'"
   watchdog $((15*60)) true "sync ; sync"
   killall -q -USR1 setears
 }

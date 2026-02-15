@@ -11,6 +11,8 @@
 #include "Debugging/Debugging.h"
 #include "Platform/File.h"
 #include "Streaming/Global.h"
+#include "TextLogging/TextLogging.h"
+
 #include <asmjit/asmjit.h>
 
 ThreadFrame::ThreadFrame(const Settings& settings, const std::string& robotName) :
@@ -20,6 +22,7 @@ ThreadFrame::ThreadFrame(const Settings& settings, const std::string& robotName)
 {
   // Set settings as soon as possible for file access.
   Global::theSettings = &this->settings;
+
   File::setSearchPath(settings.searchPath);
 }
 
@@ -32,6 +35,7 @@ ThreadFrame::ThreadFrame(const Settings& settings, const std::string& robotName,
 {
   // Set settings as soon as possible for file access and debugOut for debugging.
   Global::theSettings = &this->settings;
+
   File::setSearchPath(settings.searchPath);
 
   // Initialize MessageQueues if no messaging is required.
@@ -70,6 +74,8 @@ void ThreadFrame::setGlobals()
 
 void ThreadFrame::threadMain()
 {
+  TextLogging::setRobotContext({.teamNumber = settings.teamNumber, .playerNumber = settings.playerNumber});
+
   Thread::nameCurrentThread(robotName.empty() ? getName() : (robotName + "." + getName()));
 
 #ifndef MACOS
