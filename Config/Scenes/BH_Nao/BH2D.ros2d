@@ -1,6 +1,6 @@
 <Simulation>
 
-  <Include href="Includes/2D.rsi2d"/>
+  <Include href="../Includes/2D.rsi2d"/>
 
   <Scene name="RoboCup" controller="SimulatedNao" stepLength="0.01666666s" background="Textures/field.svg">
     <Compound ref="field"/>
