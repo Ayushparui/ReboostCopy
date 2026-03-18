@@ -51,7 +51,7 @@ void main()
 }
 )glsl";
 
-static const char* fragmentShaderSourceCode = R"glsl(
+static const char *fragmentShaderSourceCode = R"glsl(
 struct DirLight
 {
   vec4 diffuseColor;
@@ -163,7 +163,16 @@ void main()
   vec4 ambient = GLOBAL_AMBIENT_LIGHT;
   vec4 specular = vec4(0.0);
   CALCULATE_LIGHTS
-  color = surfaces[surfaceIndex].emissionColor + ambient * surfaces[surfaceIndex].ambientColor + diffuse * surfaces[surfaceIndex].diffuseColor + specular * surfaces[surfaceIndex].specularColor;
+  // old
+  // color = surfaces[surfaceIndex].emissionColor + ambient * surfaces[surfaceIndex].ambientColor + diffuse * surfaces[surfaceIndex].diffuseColor + specular * surfaces[surfaceIndex].specularColor;
+  // 
+  // RE mod: Calculate RGB lighting using all components, but force Alpha to come from diffuseColor
+  color.rgb = surfaces[surfaceIndex].emissionColor.rgb + 
+              ambient.rgb * surfaces[surfaceIndex].ambientColor.rgb + 
+              diffuse.rgb * surfaces[surfaceIndex].diffuseColor.rgb + 
+              specular.rgb * surfaces[surfaceIndex].specularColor.rgb;
+  color.a = surfaces[surfaceIndex].diffuseColor.a;
+
   color = clamp(color, 0.0, 1.0);
 #else
   color = surfaces[surfaceIndex].diffuseColor;
@@ -766,7 +775,7 @@ void GraphicsContext::setSurface(const Surface* surface)
     f->glBindTexture(GL_TEXTURE_2D, (data->boundTexture = newTexture));
   if(shader->surfaceIndexLocation >= 0)
     f->glUniform1ui(shader->surfaceIndexLocation, static_cast<GLuint>(surface->index));
-  const bool newBlendState = surface->texture ? surface->texture->hasAlpha : (surface->diffuseColor[3] < 1.f);
+  const bool newBlendState = (surface->texture && surface->texture->hasAlpha) || (surface->diffuseColor[3] < 1.f);
   if(newBlendState && !data->blendEnabled)
   {
     f->glEnable(GL_BLEND);
