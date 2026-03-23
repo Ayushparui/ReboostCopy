@@ -5,6 +5,7 @@
  *
  * @author Martin Lötzsch
  * @author Jan Fiedler
+ * @author Rudi Villing (modifications)
  */
 
 #include "Debug.h"
@@ -16,15 +17,20 @@
 static DebugReceiver<MessageQueue>* dummy = nullptr;
 #endif
 
-Debug::Debug(const Settings& settings, const std::string& robotName, const Configuration& config) :
+Debug::Debug(const Settings &settings, const std::string &robotName, const Configuration &config) :
 #ifdef TARGET_ROBOT
-  ThreadFrame(settings, robotName, nullptr, nullptr), // Initializes the MessageQueues used from the DebugHandler.
-  debugHandler(*debugReceiver, *debugSender, MAX_PACKAGE_SEND_SIZE, 0),
+      ThreadFrame(settings, robotName, nullptr, nullptr), // Initializes the MessageQueues used from the DebugHandler.
+      debugHandler(*debugReceiver, *debugSender, MAX_PACKAGE_SEND_SIZE, 0),
 #else
-  ThreadFrame(settings, robotName, new DebugReceiver<MessageQueue>(this, "LocalConsole"), new DebugSender<MessageQueue>(*dummy, "LocaleConsole")),
+      ThreadFrame(settings, robotName, new DebugReceiver<MessageQueue>(this, "LocalConsole"),
+                  new DebugSender<MessageQueue>(*dummy, "LocaleConsole")),
 #endif
-  config(config)
+      config(config)
 {
+  // Call the hook if it exists
+  if (TypeRegistry::extensionHook)
+    TypeRegistry::extensionHook(settings);
+  
 #ifdef TARGET_ROBOT
   debugSender->reserve(MAX_PACKAGE_SEND_SIZE - 2000);
   debugReceiver->reserve(MAX_PACKAGE_RECEIVE_SIZE - 2000);

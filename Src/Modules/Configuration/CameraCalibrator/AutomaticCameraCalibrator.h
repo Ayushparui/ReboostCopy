@@ -56,7 +56,7 @@ MODULE(AutomaticCameraCalibrator,
 
   DEFINES_PARAMETERS(
   {,
-    (ENUM_INDEXED_ARRAY(CameraResolutionRequest::Resolutions, CameraInfo::Camera))({CameraResolutionRequest::CameraResolutionRequest::Resolutions::w1280h960, CameraResolutionRequest::CameraResolutionRequest::Resolutions::w1280h960}) resRequest, /**< Last camera resolution requested. */
+    (ENUM_INDEXED_ARRAY(CameraResolutionRequest::Resolutions, CameraInfo::Camera))({CameraResolutionRequest::CameraResolutionRequest::Resolutions::w1280h960f30, CameraResolutionRequest::CameraResolutionRequest::Resolutions::w1280h960f30}) resRequest, /**< Last camera resolution requested. */
     (float)(0.00005f) terminationCriterion, /**< If the norm of the parameter vector update is less than this in an optimization step, it is counted as termination step. */
     (unsigned int)(3) minSuccessiveConvergences, /**< The number of successive steps the termination criterion must be fulfilled. */
     (float)(10000.f) notValidError, /**< The error that results from parameters that result in a sample that cannot be projected. */

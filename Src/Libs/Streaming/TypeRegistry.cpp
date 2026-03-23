@@ -8,6 +8,7 @@
  * each string only exists once, i.e. its address is sufficient to identify it.
  *
  * @author Thomas Röfer
+ * @author Rudi Villing (modifications)
  */
 
 #include "TypeRegistry.h"
@@ -75,7 +76,9 @@ static std::unordered_set<const char*> primitives(
 });
 
 static std::unordered_map<const char*, Enum> enums; /**< All enumeration types. */
-static std::unordered_map<const char*, Class> classes; /**< All classes and structures. */
+static std::unordered_map<const char *, Class> classes; /**< All classes and structures. */
+
+TypeRegistry::ExtensionHook TypeRegistry::extensionHook = nullptr;
 
 void TypeRegistry::addEnum(const char* enumeration)
 {

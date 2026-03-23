@@ -2,6 +2,7 @@
  * @file SimulatedNao/RemoteConsole.cpp
  * Implementation of the base class of threads that communicate with a remote robot.
  * @author Thomas Röfer
+ * @author Rudi Villing (modifications)
  */
 
 #include "RemoteConsole.h"
@@ -13,6 +14,9 @@
 RemoteConsole::RemoteConsole(const std::string& robotName, const std::string& ip, ConsoleRoboCupCtrl* ctrl, const Settings& settings) :
   RobotConsole(settings, robotName, ctrl, SystemCall::remoteRobot, nullptr, nullptr), ip(ip)
 {
+  if (TypeRegistry::extensionHook)
+    TypeRegistry::extensionHook(settings);
+  
   if(!ctrl->is2D)
   {
     SimRobot::Object* puppet = RoboCupCtrl::application->resolveObject("RoboCup.puppets." + QString::fromStdString(robotName), SimRobotCore3::body);

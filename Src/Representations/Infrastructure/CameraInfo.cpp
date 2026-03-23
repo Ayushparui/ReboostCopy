@@ -21,6 +21,13 @@ void CameraInfo::updateFocalLength()
 
 std::string CameraInfo::getThreadName() const
 {
+  if (camera == color || camera == upper)
+    return "Upper";
+  else if (camera == depth || camera == lower)
+    return "Lower";
+
+  // fall through to default behaviour if none of the above
+  
   std::string name = TypeRegistry::getEnumName(camera);
   name[0] &= ~0x20;
   return name;

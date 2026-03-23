@@ -25,8 +25,10 @@ STREAMABLE(CameraInfo,
    */
   ENUM(Camera,
   {,
-    upper,
-    lower,
+    color,
+    upper = color,
+    depth,
+    lower = depth,
   });
 
   /**
@@ -58,6 +60,7 @@ STREAMABLE(CameraInfo,
   (Camera) camera,
   (int)(0) width,
   (int)(0) height,
+  (int)(30) frameRate,
   (Angle) openingAngleWidth,
   (Angle) openingAngleHeight,
   (Vector2f) opticalCenter,

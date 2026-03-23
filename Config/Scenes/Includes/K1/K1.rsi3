@@ -417,7 +417,7 @@
         <Translation x="0.02m" y="-0.05" z="0.08m"/>
         <Rotation y="90degree"/>
       </CylinderGeometry>
-      <Camera name="CameraTop" imageWidth="1280" imageHeight="720" angleX="101degree" angleY="68degree">
+      <Camera name="CameraColor" imageWidth="1280" imageHeight="720" angleX="101degree" angleY="68degree">
         <Translation x="0.05" y="0.06" z="0.08"/>
       </Camera>
     </Body>

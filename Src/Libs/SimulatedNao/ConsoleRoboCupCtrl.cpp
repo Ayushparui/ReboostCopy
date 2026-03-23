@@ -20,6 +20,7 @@
 #include "Streaming/InStreams.h"
 #include "Streaming/OutStreams.h"
 #include "Representations/BehaviorControl/SkillRequest.h"
+#include "TextLogging/TextLogging.h"
 
 #include <SimRobotEditor.h>
 
@@ -38,6 +39,8 @@
 #include <string>
 
 #define FRAMES_PER_SECOND 60
+
+DECL_TLOGGER(tlogger, "ConsoleRoboCupCtrl", TextLogging::INFO);
 
 ConsoleRoboCupCtrl::ConsoleRoboCupCtrl(SimRobot::Application& application) :
   RoboCupCtrl(application), calculateImageFps(FRAMES_PER_SECOND),
@@ -630,6 +633,8 @@ bool ConsoleRoboCupCtrl::executeConsoleCommand(std::string command, RobotConsole
       printLn("_cls");
     else if(buffer == "echo")
       echo(stream);
+    else if (buffer == "tlog")
+      tlog(stream);
     else
       printLn("No robot selected!");
   else
@@ -850,6 +855,7 @@ void ConsoleRoboCupCtrl::help(In& stream)
   list("  test situation <numRuns> <runTimeout> [<conFile>] [fuz ((all | pos | rot | x | y | z | rotx | roty | rotz) <deviation>)+] [rt] [q] teamPossession (teamA | teamB) : Play till Team A or Team B is in possession of the ball or till the time is gone.", pattern, true);
   list("  test situation <numRuns> <runTimeout> [<conFile>] [fuz ((all | pos | rot | x | y | z | rotx | roty | rotz) <deviation>)+] [rt] [q] budget (teamA | teamB) (< | > | >= | <=) <value> : Play till Team A or Team B has a budget that matches the condition or till the time is gone.", pattern, true);
   list("  test stop  : Stops the current test and deletes all working files", pattern, true);
+  list("  tlog <text> : Output text into the text log. Useful in .con files to debug progress vs code.", pattern, true);
   list("  vf <name> : Add field view.", pattern, true);
   list("  vfd ? [<pattern>] | off | ( all | <name> ) ( ? [<pattern>] | <drawing> [ on | off ] ) : (De)activate debug drawing in field view.", pattern, true);
   list("  vi ? [<pattern>] | ( <image> | none ) [<name>] [gain <value>] [ddScale <value>] : Add image view.", pattern, true);
@@ -873,6 +879,26 @@ void ConsoleRoboCupCtrl::echo(In& stream)
     print(text);
   }
   printLn("");
+}
+
+void ConsoleRoboCupCtrl::tlog(In &stream)
+{
+  fmt::memory_buffer out;
+  bool first = true;
+
+  while (!stream.eof())
+  {
+    std::string text;
+    stream >> text;
+
+    if (!first)
+      fmt::format_to(std::back_inserter(out), " ");
+
+    fmt::format_to(std::back_inserter(out), "{}", text);
+    first = false;
+  }
+
+  TLOGI(tlogger, "console tlog: {}", std::string_view(out.data(), out.size()));
 }
 
 bool ConsoleRoboCupCtrl::startRemote(In& stream)
@@ -998,8 +1024,7 @@ void ConsoleRoboCupCtrl::printStatusText(const QString& text)
 
 void ConsoleRoboCupCtrl::createCompletion()
 {
-  const char* commands[] =
-  {
+  const char *commands[] = {
     "ar off",
     "ar on",
     "bc",
@@ -1092,6 +1117,7 @@ void ConsoleRoboCupCtrl::createCompletion()
     "sv oracle",
     "test game <numRuns> [rt] [q]",
     "test stop",
+    "tlog",
     "vf",
     "vp"
   };

@@ -115,7 +115,7 @@ void OrbbecProvider::Settings::reg()
 }
 
 OrbbecProvider::OrbbecProvider()
-  : cameraInfo(CameraInfo::upper)
+  : cameraInfo(CameraInfo::color)
 {
   theInstance = this;
   VERIFY(readCameraIntrinsics());
@@ -166,8 +166,8 @@ bool OrbbecProvider::readCameraResolution()
 
 bool OrbbecProvider::processResolutionRequest()
 {
-  const CameraResolutionRequest::Resolutions requestedResolution = theCameraResolutionRequest.resolutions[CameraInfo::upper];
-  CameraResolutionRequest::Resolutions& currentResolution = cameraResolutionRequest.resolutions[CameraInfo::upper];
+  const CameraResolutionRequest::Resolutions requestedResolution = theCameraResolutionRequest.resolutions[CameraInfo::color];
+  CameraResolutionRequest::Resolutions& currentResolution = cameraResolutionRequest.resolutions[CameraInfo::color];
   if(SystemCall::getMode() == SystemCall::Mode::physicalRobot && requestedResolution != lastResolutionRequest)
   {
     lastResolutionRequest = requestedResolution;
@@ -177,15 +177,14 @@ bool OrbbecProvider::processResolutionRequest()
         return false;
       case CameraResolutionRequest::defaultRes:
         if(!readCameraResolution())
-          currentResolution = CameraResolutionRequest::w640h480;
+          currentResolution = CameraResolutionRequest::w640h480f30;
         return true;
-      case CameraResolutionRequest::w424h240:
-      case CameraResolutionRequest::w480x270:
-      case CameraResolutionRequest::w640h360:
-      case CameraResolutionRequest::w640h480:
-      case CameraResolutionRequest::w848h480:
-      case CameraResolutionRequest::w1280h720:
-      case CameraResolutionRequest::w1280h800:
+      case CameraResolutionRequest::w424h240f30:
+      case CameraResolutionRequest::w480h270f30:
+      case CameraResolutionRequest::w640h360f30:
+      case CameraResolutionRequest::w640h480f30:
+      case CameraResolutionRequest::w848h480f30:
+      case CameraResolutionRequest::w1280h720f30:
         currentResolution = requestedResolution;
         return true;
       default:
@@ -217,15 +216,15 @@ void OrbbecProvider::applySettings()
 void OrbbecProvider::setupCamera()
 {
   // set resolution
-  cameraResolutionRequest.apply(CameraInfo::upper, cameraInfo);
+  cameraResolutionRequest.apply(CameraInfo::color, cameraInfo);
 
   // set opening angle
-  cameraInfo.openingAngleWidth = cameraIntrinsics.cameras[CameraInfo::upper].openingAngleWidth;
-  cameraInfo.openingAngleHeight = cameraIntrinsics.cameras[CameraInfo::upper].openingAngleHeight;
+  cameraInfo.openingAngleWidth = cameraIntrinsics.cameras[CameraInfo::color].openingAngleWidth;
+  cameraInfo.openingAngleHeight = cameraIntrinsics.cameras[CameraInfo::color].openingAngleHeight;
 
   // set optical center
-  cameraInfo.opticalCenter.x() = cameraIntrinsics.cameras[CameraInfo::upper].opticalCenter.x() * cameraInfo.width;
-  cameraInfo.opticalCenter.y() = cameraIntrinsics.cameras[CameraInfo::upper].opticalCenter.y() * cameraInfo.height;
+  cameraInfo.opticalCenter.x() = cameraIntrinsics.cameras[CameraInfo::color].opticalCenter.x() * cameraInfo.width;
+  cameraInfo.opticalCenter.y() = cameraIntrinsics.cameras[CameraInfo::color].opticalCenter.y() * cameraInfo.height;
 
   // update focal length
   cameraInfo.updateFocalLength();

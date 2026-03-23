@@ -4,6 +4,7 @@
  * This file implements the interface to a robot with the 3D simulation core.
  *
  * @author Arne Hasselbring et al
+ * @author Rudi Villing (modifications)
  */
 
 #include "SimulatedRobot3D.h"
@@ -23,7 +24,13 @@
 #include "Math/Pose3f.h"
 #include "Math/Approx.h"
 #include "Streaming/InStreams.h"
+
+#include "TextLogging/TextLogging.h"
+
 #include <SimRobotCore3.h>
+
+
+DECL_TLOGGER(tlogger, "SimulatedRobot3D", TextLogging::INFO);
 
 SimRobotCore3::SensorPort* SimulatedRobot3D::activeCameras[SimulatedRobot::robotsPerTeam * 2] = {nullptr};
 unsigned SimulatedRobot3D::activeCameraCount = 0;
@@ -98,12 +105,31 @@ SimulatedRobot3D::SimulatedRobot3D(SimRobot::Object* robot) :
   accSensor = application->resolveObject(parts, robot, SimRobotCore3::sensorPort);
 
   // cameras
-  parts[0] = "CameraTop.image";
-  upperCameraSensor = application->resolveObject(parts, robot, SimRobotCore3::sensorPort);
-  parts[0] = "CameraBottom.image";
-  lowerCameraSensor = application->resolveObject(parts, robot, SimRobotCore3::sensorPort);
-  cameraSensor = upperCameraSensor;
-  activeCameras[activeCameraIndex] = reinterpret_cast<SimRobotCore3::SensorPort*>(cameraSensor);
+  parts[0] = "CameraColor.image"; // K1
+  cameraSensors[0] = application->resolveObject(parts, robot, SimRobotCore3::sensorPort);
+  if (cameraSensors[0])
+  {
+    parts[0] = "CameraDepth.image"; // K1
+    cameraSensors[1] = application->resolveObject(parts, robot, SimRobotCore3::sensorPort);
+    cameraIndexes[0] = CameraInfo::color;
+    cameraIndexes[1] = CameraInfo::depth;
+
+    TLOGI(tlogger, "resolved Booster K1/T1 color (CameraColor) and depth (CameraDepth) cameras");
+  }
+  else
+  {
+    parts[0] = "CameraTop.image"; // Nao
+    cameraSensors[0] = application->resolveObject(parts, robot, SimRobotCore3::sensorPort);
+    parts[0] = "CameraBottom.image"; // Nao
+    cameraSensors[1] = application->resolveObject(parts, robot, SimRobotCore3::sensorPort);
+    cameraIndexes[0] = CameraInfo::upper;
+    cameraIndexes[1] = CameraInfo::lower;
+
+    TLOGI(tlogger, "resolved Nao upper (CameraTop) and lower (CameraBottom) cameras");
+  }
+
+  selectedCamera = 0;
+  activeCameras[activeCameraIndex] = reinterpret_cast<SimRobotCore3::SensorPort*>(cameraSensors[selectedCamera]);
 
   // load calibration
   InMapFile stream("jointCalibration.cfg");
@@ -234,16 +260,18 @@ void SimulatedRobot3D::getImage(CameraImage& cameraImage, CameraInfo& cameraInfo
 {
   ASSERT(robot);
 
-  if(cameraSensor)
+  TLOGV(tlogger, "getImage called, selectedCamera {}", selectedCamera);
+
+  if (selectedCamera != -1)
   {
-    reinterpret_cast<SimRobotCore3::SensorPort*>(cameraSensor)->renderCameraImages(activeCameras, activeCameraCount);
+    reinterpret_cast<SimRobotCore3::SensorPort*>(cameraSensors[selectedCamera])->renderCameraImages(activeCameras, activeCameraCount);
 
     ASSERT(!cameraImage.isReference());
 
-    cameraInfo = cameraInfos[cameraSensor == upperCameraSensor ? CameraInfo::upper : CameraInfo::lower];
+    cameraInfo = cameraInfos[cameraIndexes[selectedCamera]];
     cameraImage.setResolution(cameraInfo.width / 2, cameraInfo.height);
 
-    const unsigned char* const src = reinterpret_cast<SimRobotCore3::SensorPort*>(cameraSensor)->getValue().byteArray;
+    const unsigned char* const src = reinterpret_cast<SimRobotCore3::SensorPort*>(cameraSensors[selectedCamera])->getValue().byteArray;
     if(simdAligned<_supportsAVX2>(src))
     {
       if(simdAligned<_supportsAVX2>(cameraImage[0]))
@@ -265,14 +293,18 @@ void SimulatedRobot3D::getImage(CameraImage& cameraImage, CameraInfo& cameraInfo
 
 void SimulatedRobot3D::getCameraInfo(CameraInfo& cameraInfo)
 {
-  if(cameraSensor)
-    cameraInfo = cameraInfos[cameraSensor == upperCameraSensor ? CameraInfo::upper : CameraInfo::lower];
+  if (selectedCamera != -1)
+    cameraInfo = cameraInfos[cameraIndexes[selectedCamera]];
 }
 
 void SimulatedRobot3D::toggleCamera()
 {
-  cameraSensor = cameraSensor == lowerCameraSensor || !lowerCameraSensor ? upperCameraSensor : lowerCameraSensor;
-  activeCameras[activeCameraIndex] = reinterpret_cast<SimRobotCore3::SensorPort*>(cameraSensor);
+  if ((selectedCamera == 1) || (!cameraSensors[1]))
+    selectedCamera = 0;
+  else
+    selectedCamera = 1;
+
+  activeCameras[activeCameraIndex] = reinterpret_cast<SimRobotCore3::SensorPort*>(cameraSensors[selectedCamera]);
 }
 
 void SimulatedRobot3D::setJointCalibration(const JointCalibration& jointCalibration)

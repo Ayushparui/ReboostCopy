@@ -1,3 +1,6 @@
+# appears in textlogging output but not console - useful for debugging
+tlog staring BoosterSingleM.con
+
 call ../Includes/BoosterNormal
 
 # direct goals are allowed, because the robot is alone

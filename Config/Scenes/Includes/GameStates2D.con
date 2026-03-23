@@ -1,6 +1,9 @@
 # Simulator provides GameController info
+
 for Cognition mr GameControllerData LogDataProvider
+
 dr module:GameStateProvider:active
+
 
 # use keyboard to set different game states
 jc press 9 gc initial # Shift+Ctrl+I
