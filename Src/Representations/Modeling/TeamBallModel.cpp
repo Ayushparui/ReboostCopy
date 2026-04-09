@@ -40,11 +40,25 @@ void TeamBallModel::draw() const
 
   DEBUG_DRAWING("representation:TeamBallModel", "drawingOnField")
   {
+    ColorRGBA teamBallColor(120,10,210); // purple
+    // ColorRGBA teamBallColor2 = teamBallColor.alpha(0.3f);
+    ColorRGBA teamBgColor = teamBallColor.alpha(0.5f);
+    ColorRGBA teamHighlight(230,210,250);
+
+    CIRCLE("representation:TeamBallModel", position.x(), position.y(), 50, 20, Drawings::solidPen, teamBallColor, Drawings::solidBrush, teamBgColor);
+    ARROW("representation:TeamBallModel", position.x(), position.y(), position.x() + velocity.x(), position.y() + velocity.y(), 5, 1, teamBallColor);
+
     if(isValid)
     {
-      ColorRGBA teamBallColor(255, 0, 200, isValid ? 240 : 70);
-      CIRCLE("representation:TeamBallModel", position.x(), position.y(), 100, 20, Drawings::solidPen, teamBallColor, Drawings::solidBrush, teamBallColor);
-      ARROW("representation:TeamBallModel", position.x(), position.y(), position.x() + velocity.x(), position.y() + velocity.y(), 5, 1, teamBallColor);
+      CIRCLE("representation:TeamBallModel", position.x(), position.y(), 70, 25, Drawings::solidPen, teamHighlight, Drawings::noBrush, teamBgColor);
+      // ARROW("representation:TeamBallModel", position.x(), position.y(), position.x() + velocity.x(), position.y() + velocity.y(), 5, 1, teamBallColor);
+    }
+    else
+    {
+      // draw like a diagonal strikethrough
+      float size = 120;
+      LINE("representation:TeamBallModel", position.x() - size, position.y() - size, position.x() + size,
+           position.y() + size, 20, Drawings::solidPen, teamBgColor);
     }
   }
 }

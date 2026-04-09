@@ -10,7 +10,7 @@
 
 #include "TextLogging/TextLogging.h"
 
-DECL_TLOGGER(tlogger, "ModuleBase", TextLogging::DEBUG);
+DECL_TLOGGER(tlogger, "ModuleBase", TextLogging::INFO);
 
 ModuleBase* ModuleBase::first = nullptr;
 

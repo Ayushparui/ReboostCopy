@@ -30,6 +30,7 @@ ConfigurationDataProvider::ConfigurationDataProvider()
   read(theKickInfo);
   read(theMassCalibration);
   read(theRelativeFieldColorsParameters);
+  read(theREGameConfig);
   read(theRobotDimensions);
   read(theStiffnessSettings);
   read(theStaticJointPoses);

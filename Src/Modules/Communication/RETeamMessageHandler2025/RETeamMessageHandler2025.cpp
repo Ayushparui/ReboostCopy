@@ -232,8 +232,9 @@ void RETeamMessageHandler2025::update(RETeamMessage2025OutputGenerator& outputGe
       // CIRCLE3D("representation:RESentTeamMessage2025", origin, 220, 1, ColorRGBA::white.alpha(alpha));
       // PARTDISC3D("representation:RESentTeamMessage2025", origin, 200, 250, -180_deg, 179_deg,
       //            ColorRGBA::violet.alpha(alpha));
-      RING_SECTOR3D("representation:RESentTeamMessage2025", Vector3f(0,0,3.f), -180_deg, 179_deg, 200, 250,
-                    ColorRGBA::violet.alpha(alpha));
+      RING_SECTOR3D("representation:RESentTeamMessage2025",
+                    Vector3f(theRobotPose.translation.x(), theRobotPose.translation.y(), 3.f), -180_deg, 179_deg,
+                    200, 250, ColorRGBA::violet.alpha(alpha));
     }
   }
 }
@@ -439,7 +440,7 @@ void RETeamMessageHandler2025::writeOutputMessageBytes(RETeamMessage2025OutputGe
   // the underlying data array, teamMessageBytes.data, is now up to date
   // so ensure the final size is correct
   // teamMessageBytes.size = messageBodySize + 2; // add 2 for the header
-  ASSERT(messageBodySize + 2 < static_cast<int>(sizeof(uint8_t)));
+  ASSERT(messageBodySize + 2 < std::numeric_limits<uint8_t>::max());
   teamMessageBytes.length = static_cast<uint8_t>(messageBodySize + 2); // add 2 for the header
 
   // TODO tmp debugging code

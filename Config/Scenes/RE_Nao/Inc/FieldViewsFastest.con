@@ -1,0 +1,32 @@
+# basic field views
+
+vf worldState
+vfd worldState fieldPolygons
+vfd worldState fieldLines
+vfd worldState goalFrame
+vfd worldState representation:RobotPose
+vfd worldState representation:RobotPose:fieldOfView
+vfd worldState representation:TeamBallModel
+vfd worldState representation:FieldBall:global
+vfd worldState representation:GlobalOpponentsModel
+vfd worldState representation:GlobalTeammatesModel
+
+# ground truth view layers
+
+vfd worldState representation:GroundTruthRobotPose
+
+
+# from now, relative to ground truth robot pose
+
+vfd worldState cognition:GroundTruthRobotPose
+vfd worldState representation:GroundTruthBallModel
+
+# views relative to robot
+# from now, relative to estimated robot pose
+
+vfd worldState cognition:RobotPose
+vfd worldState representation:BallModel:endPosition
+vfd worldState representation:BallModel
+vfd worldState representation:MotionRequest
+vfd worldState representation:FieldBall:relative
+vfd worldState cognition:Reset

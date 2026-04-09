@@ -86,9 +86,9 @@
 #if defined(TEAM_REPRESENTATIONS_MODULE) || defined(TEAM_REPRESENTATIONS_FOR_BEHAVIOUR) || defined(TEAM_REPRESENTATIONS_PROVIDED)
 
   #ifdef TEAM_REPRESENTATIONS_MODULE
-  MODULE(TeamBehaviourModule2025,
+MODULE(TeamBehaviourModule2025,
   {,
-  #endif // TEAM_REPRESENTATIONS_MODULE
+#endif // TEAM_REPRESENTATIONS_MODULE
 
     // ----------------------- begin edit representations list ----------------------------------
 
@@ -107,6 +107,8 @@
     X_REQUIRES(WalkingEngineOutput)
 
     X_REQUIRES(REGameInfo)
+    X_REQUIRES(GameState)
+
     X_REQUIRES(RETeamData)
     X_REQUIRES(RESentTeamMessage2025)
 

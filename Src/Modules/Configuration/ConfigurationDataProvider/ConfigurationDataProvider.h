@@ -22,6 +22,7 @@
 #include "Representations/Configuration/KickInfo.h"
 #include "Representations/Configuration/MassCalibration.h"
 #include "Representations/Configuration/RelativeFieldColorsParameters.h"
+#include "Representations/Configuration/REGameConfig.h"
 #include "Representations/Configuration/RobotDimensions.h"
 #include "Representations/Configuration/StaticJointPoses.h"
 #include "Representations/Infrastructure/StiffnessData.h"
@@ -48,6 +49,7 @@ MODULE(ConfigurationDataProvider,
   PROVIDES(KickInfo),
   PROVIDES(MassCalibration),
   PROVIDES(RelativeFieldColorsParameters),
+  PROVIDES(REGameConfig),
   PROVIDES(RobotDimensions),
   PROVIDES(StaticJointPoses),
   PROVIDES(StiffnessSettings),
@@ -72,6 +74,7 @@ private:
   std::unique_ptr<KickInfo> theKickInfo;
   std::unique_ptr<MassCalibration> theMassCalibration;
   std::unique_ptr<RelativeFieldColorsParameters> theRelativeFieldColorsParameters;
+  std::unique_ptr<REGameConfig> theREGameConfig;
   std::unique_ptr<RobotDimensions> theRobotDimensions;
   std::unique_ptr<StaticJointPoses> theStaticJointPoses;
   std::unique_ptr<StiffnessSettings> theStiffnessSettings;
@@ -92,6 +95,7 @@ private:
   void update(KickInfo& kickInfo) override;
   void update(MassCalibration& massCalibration) override {update(massCalibration, theMassCalibration);}
   void update(RelativeFieldColorsParameters& relativeFieldColorsParameters) override { update(relativeFieldColorsParameters, theRelativeFieldColorsParameters); }
+  void update(REGameConfig& gameConfig) override { update(gameConfig, theREGameConfig); }
   void update(RobotDimensions& robotDimensions) override;
   void update(StaticJointPoses& staticJointPoses) override { update(staticJointPoses, theStaticJointPoses); }
   void update(StiffnessSettings& stiffnessSettings) override {update(stiffnessSettings, theStiffnessSettings);}

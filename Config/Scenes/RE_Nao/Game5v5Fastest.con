@@ -1,7 +1,19 @@
-# call Includes/RE_settings
-
 call ../Includes/Fast
 call ../Includes/5vs5
 
+call Inc/FieldViewsFastest
+
 dr representation:SetupPoses:place
 dr debugDrawing3d:representation:GameState:playerNumber
+
+# RE specifics
+robot robot1
+echo dr debugDrawing3d:halfMeterGrid
+
+robot robot1 robot2 robot3 robot4 robot5
+dr debugDrawing3d:representation:RESentTeamMessage2025
+dr debugDrawing3d:behaviour:TeamBehaviourStatus:ballPlayer
+
+vfd worldState halfMeterGrid
+vfd worldState behaviour:TeamCoordination:formation
+vfd worldState representation:TeamBallModel

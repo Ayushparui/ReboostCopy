@@ -87,7 +87,8 @@ DECL_TLOGGER(tlogger, "REGameInfoProvider", TextLogging::VERBOSE);
 
 void REGameInfoProvider::update(REGameControlDataReceived& theREGameControlDataReceived)
 {
-  static_cast<RoboCup::RoboCupGameControlData&>(theREGameControlDataReceived) = theGameControllerData;
+  static_cast<RoboCup::RoboCupGameControlData &>(theREGameControlDataReceived) = theGameControllerData;
+  theREGameControlDataReceived.timeLastPacketReceived = theGameControllerData.timeLastPacketReceived;
 }
 
 
@@ -151,6 +152,8 @@ void REGameInfoProvider::updateGameInfoFromReceivedGameControlData(REGameInfo& g
   receivedGameStateTrigger.update(theREGameControlDataReceived.state);
   receivedSetPlayTrigger.update(theREGameControlDataReceived.setPlay);
 
+  // if (receivedGameStateTrigger.valueChanged())
+  //   TLOGI(tlogger, "received state changed {} --> {}", receivedGameStateTrigger.prevValue, receivedGameStateTrigger.value);
 
   if (theFrameInfo.getTimeSince(theREGameControlDataReceived.timeLastPacketReceived) < gameControllerTimeout)
   {
