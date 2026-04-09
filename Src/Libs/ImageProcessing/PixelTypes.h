@@ -17,6 +17,7 @@ namespace PixelTypes
     YUYV,             // the format the NaoCamera supplies
     YUV,              // useful for DebugImages?
     Grayscale,        // format of the gray-scaled image in ECImage
+    Depth,            // a 16-bit pixel from a depth image, usually directly in mm
     Hue,              // hue channel of a YHS image
     Binary,           //
     Edge2,            //
@@ -175,16 +176,43 @@ namespace PixelTypes
     Edge2Pixel(unsigned char filterX, unsigned char filterY) : filterX(filterX), filterY(filterY) {}
   };
 
+  using DepthPixel = unsigned short;
+
   constexpr size_t pixelSize(const PixelType type)
   {
-    return type == RGB ? sizeof(RGBPixel)
-           : (type == BGRA ? sizeof(BGRAPixel)
-              : (type == YUYV ? sizeof(YUYVPixel)
-                 : (type == YUV ? sizeof(YUVPixel)
-                    : (type == Grayscale ? sizeof(GrayscaledPixel)
-                        : (type == Hue ? sizeof(HuePixel)
-                           : ((type == Edge2 || type == Edge2MonoAvg || type == Edge2MonoAbsAvg) ? sizeof(Edge2Pixel)
-                              : (type == Binary ? sizeof(BinaryPixel)
-                                 : 0)))))));
+//     return type == RGB ? sizeof(RGBPixel)
+//            : (type == BGRA ? sizeof(BGRAPixel)
+//               : (type == YUYV ? sizeof(YUYVPixel)
+//                  : (type == YUV ? sizeof(YUVPixel)
+//                     : (type == Grayscale ? sizeof(GrayscaledPixel)
+//                         : (type == Hue ? sizeof(HuePixel)
+//                            : ((type == Edge2 || type == Edge2MonoAvg || type == Edge2MonoAbsAvg) ? sizeof(Edge2Pixel)
+//                               : (type == Binary ? sizeof(BinaryPixel)
+//                                  : 0)))))));
+    switch (type)
+    {
+    case RGB:
+      return sizeof(RGBPixel);
+    case BGRA:
+      return sizeof(BGRAPixel);
+    case YUYV:
+      return sizeof(YUYVPixel);
+    case YUV:
+      return sizeof(YUVPixel);
+    case Grayscale:
+      return sizeof(GrayscaledPixel);
+    case Depth:
+      return sizeof(DepthPixel);
+    case Hue:
+      return sizeof(HuePixel);
+    case Edge2:
+    case Edge2MonoAvg:
+    case Edge2MonoAbsAvg:
+      return sizeof(Edge2Pixel);
+    case Binary:
+      return sizeof(BinaryPixel);
+    default:
+      return 0;
+    }
   }
 }
