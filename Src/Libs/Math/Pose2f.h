@@ -1,3 +1,10 @@
+/** 
+ * @file Pose2f.h 
+ * 
+ * @author B-Human
+ * @author Rudi Villing [modfications]
+ */
+
 #pragma once
 
 #include "Math/Eigen.h"
@@ -83,7 +90,45 @@ STREAMABLE(Pose2f,
    * @param y The range for y-values of the pose.
    * @param angle The range for the rotation of the pose.
    */
-  static Pose2f random(const Rangef& angle, const Rangef& x, const Rangef& y),
+  static Pose2f random(const Rangef &angle, const Rangef &x, const Rangef &y);
+
+
+  static Pose2f speed(const float value) { return Pose2f(value, value, value); }
+
+  /** 
+   * convert point in same "world" coordinate frame as pose to local coords 
+   * (i.e. pose as coordinate frame origin) 
+   */
+  Vector2f toLocal(const Vector2f &worldPoint) const { return this->inverse() * worldPoint; }
+  
+  /** 
+   * convert a point to local coords using a precalculated inversePose for the local coordinate frame
+   */
+  static Vector2f toLocal(const Vector2f& worldPoint, const Pose2f& inversePose) { return inversePose * worldPoint; }
+
+  /** 
+   * convert pose in same "world" coordinate frame as pose to local coords 
+   * (i.e. pose as coordinate frame origin)
+   */
+  Pose2f toLocal(const Pose2f& worldPose) const { return this->inverse() + worldPose; }
+
+  /** 
+   * convert a pose to local coords using a precalculated inversePose for the local coordinate frame
+   */
+  static Pose2f toLocal(const Pose2f& worldPose, const Pose2f& inversePose) { return inversePose + worldPose; } 
+
+  /** 
+   * convert localPoint (using pose as origin) to world coords (using the same origin as the pose)
+   */
+  Vector2f toWorld(const Vector2f& localPoint) const { return (*this) * localPoint; }
+
+  /** 
+   * convert localPose (using this pose as origin) to world coords (using the same origin as the this pose)
+   */
+  Pose2f toWorld(const Pose2f& localPose) const { return (*this) + localPose; }
+
+
+  /******** streamable members follow (note comma at end of comment) ********/,
 
   (Angle)(0) rotation,
   (Vector2f)(Vector2f::Zero()) translation,

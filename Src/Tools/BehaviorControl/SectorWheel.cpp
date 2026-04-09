@@ -4,6 +4,8 @@
  * This file implements a class that represents a wheel of sectors around a center point.
  *
  * @author Arne Hasselbring
+ * @note [BH2021]: Includes functions ported from B-Human 2021 Code Release that 
+ *                 were not part of the B-Human 2025 Code Release.
  */
 
 #include "SectorWheel.h"
@@ -68,6 +70,19 @@ void SectorWheel::addSector(const Vector2f& center, float width, float distance,
   const Angle left = direction + radius;
   const Angle right = direction - radius;
   addSector(Rangea(right, left), distance, type);
+}
+
+// [BH2021] port
+void SectorWheel::addSector(const Vector2f& p1, const Vector2f& p2, Sector::Type type)
+{
+  Vector2f v1 = (p1 - positionOnField);
+  Vector2f v2 = (p2 - positionOnField);
+  const Angle a1 = v1.angle();
+  const Angle a2 = v2.angle();
+
+  float distance = (v1.norm() + v2.norm()) / 2;
+
+  addSector(a2 > a1 ? Rangea(a1, a2) : Rangea(a2, a1), distance, type);
 }
 
 void SectorWheel::addSector(const Rangea& angleRange, float distance, Sector::Type type)

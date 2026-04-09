@@ -534,6 +534,14 @@
         "configuration": "Develop",
         "program": "${workspaceFolder:B-Human}/Build/Linux/SimRobot/Develop/SimRobot"
       },
+      "compileCommands": "${workspaceFolder}/Build/Linux/CMake/Develop/compile_commands.json",
+      "browse": {
+        "path": [
+          "${workspaceFolder}/Src" //,
+          // "${workspaceFolder}/Util"
+        ],
+        "limitSymbolsToIncludedHeaders": true
+      },
       "includePath": [
         "${default}",
         "${bhumanIncludePath}",

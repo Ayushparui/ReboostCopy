@@ -115,6 +115,10 @@
 #include "Streaming/OutStreams.h"
 #include "Streaming/TypeRegistry.h"
 
+// we need to include this here because it defines a function called initial_state
+// that cabsl would turn into nonsense if it was included first
+#include <fmt/format.h>
+
 /** Reject Microsoft's traditional preprocessor. */
 #if defined _MSC_VER && (!defined _MSVC_TRADITIONAL || _MSVC_TRADITIONAL)
 #error "This code requires the standard preprocessor (/Zc:preprocessor)."

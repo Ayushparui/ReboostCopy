@@ -5,6 +5,7 @@
  *
  * @author Matthias Jüngel
  * @author Thomas Röfer
+ * @author Rudi Villing (modifications)
  */
 
 #pragma once
@@ -169,6 +170,17 @@ public:
   bool isInsideOwnHalf(const Vector2f& p) const
   {
     return p.x() <= xPosHalfwayLine && p.x() >= xPosOwnGoalLine && p.y() <= yPosLeftTouchline && p.y() >= yPosRightTouchline;
+  }
+
+  /**
+   * Returns true when p is inside the opponent goal.
+   * (Allows for optional tolerance)
+   */
+  bool isInsideOpponentGoal(const Vector2f& p, const Vector2f& tolerance = Vector2f(70.f, 100.f)) const
+  {
+    return (p.x() >= (xPosOpponentGoalLine + tolerance.x())) && // slightly inside goal (so we don't leave a ball sit on the line)
+           (p.y() < (yPosLeftGoal + tolerance.y())) && // slightly wider than real goal
+           (p.y() > (yPosRightGoal - tolerance.y()));
   }
 
   /**

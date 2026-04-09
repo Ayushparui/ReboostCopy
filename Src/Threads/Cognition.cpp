@@ -7,13 +7,15 @@
  */
 
 #include "Cognition.h"
-#include "Debugging/DebugRequest.h"
-#include "Framework/Settings.h"
 #include "Modules/Infrastructure/InterThreadProviders/PerceptionProviders.h"
 #include "Modules/Infrastructure/LogDataProvider/LogDataProvider.h"
+#include "Representations/Communication/BHumanMessageOutputGenerator.h"
+#include "Representations/Communication/RETeamMessage2025.h"
+
+#include "Debugging/DebugRequest.h"
+#include "Framework/Settings.h"
 #include "Platform/SystemCall.h"
 #include "Platform/Thread.h"
-#include "Representations/Communication/BHumanMessageOutputGenerator.h"
 #include "Streaming/Global.h"
 
 REGISTER_EXECUTION_UNIT(Cognition)
@@ -128,13 +130,26 @@ void Cognition::beforeModules()
 
 void Cognition::afterModules()
 {
-  if(Blackboard::getInstance().exists("BHumanMessageOutputGenerator")
-     && static_cast<const BHumanMessageOutputGenerator&>(Blackboard::getInstance()["BHumanMessageOutputGenerator"]).send
-     && static_cast<const BHumanMessageOutputGenerator&>(Blackboard::getInstance()["BHumanMessageOutputGenerator"]).sendThisFrame
-     && static_cast<const BHumanMessageOutputGenerator&>(Blackboard::getInstance()["BHumanMessageOutputGenerator"]).sendThisFrame())
+  Blackboard& blackboard = Blackboard::getInstance();
+
+  // NOTE: in the following it seems the representations will exist whether the
+  // module that provides them is active or not, so the second check is
+  // needed to see which module has actually filled in the representation
+  // (sendIfNeeded) in order to decide how to proceed
+
+  if (blackboard.exists("RETeamMessage2025OutputGenerator") 
+    && static_cast<const RETeamMessage2025OutputGenerator &>(blackboard["RETeamMessage2025OutputGenerator"]).sendIfNeeded)
+  {
+    BH_TRACE_MSG("before RETeamMessage2025OutputGenerator.sendIfNeeded()");
+    static_cast<const RETeamMessage2025OutputGenerator &>(blackboard["RETeamMessage2025OutputGenerator"]).sendIfNeeded();
+  }
+  else if(Blackboard::getInstance().exists("BHumanMessageOutputGenerator")
+     && static_cast<const BHumanMessageOutputGenerator&>(blackboard["BHumanMessageOutputGenerator"]).send
+     && static_cast<const BHumanMessageOutputGenerator&>(blackboard["BHumanMessageOutputGenerator"]).sendThisFrame
+     && static_cast<const BHumanMessageOutputGenerator&>(blackboard["BHumanMessageOutputGenerator"]).sendThisFrame())
   {
     BH_TRACE_MSG("before BHumanMessageOutputGenerator::send()");
-    static_cast<const BHumanMessageOutputGenerator&>(Blackboard::getInstance()["BHumanMessageOutputGenerator"]).send();
+    static_cast<const BHumanMessageOutputGenerator&>(blackboard["BHumanMessageOutputGenerator"]).send();
   }
 }
 

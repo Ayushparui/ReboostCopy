@@ -2,6 +2,7 @@
  * @file Settings.h
  * Definition of a class that provides access to settings-specific configuration directories.
  * @author Thomas Röfer
+ * @author Rudi Villing (minor modifications)
  */
 
 #pragma once
@@ -102,14 +103,26 @@ public:
   }
 
   static constexpr int lowestValidPlayerNumber = 1;  /**< No player can have a number smaller than this */
-  static constexpr int highestValidPlayerNumber = MAX_NUM_PLAYERS; /**< No player can have a number greater than this */
+  // static constexpr int highestValidPlayerNumber = MAX_NUM_PLAYERS; /**< No player can have a number greater than this */
+  // FIXME: hack to reduce the size of transmitted data since we never use numbers above 7
+  static constexpr int highestValidPlayerNumber = MAX_NUM_PLAYERS; /**< No player of ours can have a number greater than this */
+  static constexpr int numPlayerNumbers = highestValidPlayerNumber - lowestValidPlayerNumber + 1;
+
+  static_assert(highestValidPlayerNumber <= MAX_NUM_PLAYERS);
 
   std::vector<std::string> searchPath; /**< The file search path that results from these settings. */
 
   std::string headName; /**< The name of this robot's head. */
   std::string bodyName; /**< The name of this robot's body. */
   float motionCycleTime; /**< The average time between two motion cycles in seconds. */
-  RobotType robotType, /**< The robot type. */
+  RobotType robotType; /**< The robot type. */
+
+  static int toPlayerNumber(int index) { return index + lowestValidPlayerNumber; }
+  static int toPlayerIndex(int number) { return number - lowestValidPlayerNumber; }
+
+  static int isGoalkeeper(int number) { return number == 1; }
+
+  /**** separate header from streamable fields, note comma after comment ****/,
 
   (int)(-1) teamNumber, /**< The number of our team in the game controller. Use theGameState.ownTeam.number instead. */
   (TeamColor)(numOfTeamColors) fieldPlayerColor, /**< The color of our field players. Use theGameState.ownTeam.fieldPlayerColor instead. */

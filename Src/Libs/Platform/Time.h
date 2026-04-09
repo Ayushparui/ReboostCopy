@@ -1,3 +1,9 @@
+/**
+ * @file Time.h
+ *
+ * @author B-Human
+ * @author Rudi Villing (modifications)
+ */
 #pragma once
 
 class Time
@@ -34,6 +40,11 @@ public:
   /** returns the real time since aTime*/
   static int getRealTimeSince(unsigned aTime);
 
+  /** returns the deltaTime between some referenceTime and timeToCheck;
+   * negative means before reference, positive means after it.
+   */
+  static int getTimeBetween(unsigned referenceTime, unsigned timeToCheck);
+
 #ifndef TARGET_ROBOT
   /** Initializes the system time. */
   static void initialize();
@@ -64,4 +75,9 @@ inline int Time::getTimeSince(unsigned aTime)
 inline int Time::getRealTimeSince(unsigned aTime)
 {
   return static_cast<int>(getRealSystemTime() - aTime);
+}
+
+inline int Time::getTimeBetween(unsigned referenceTime, unsigned timeToCheck)
+{
+  return static_cast<int>(timeToCheck - referenceTime);
 }

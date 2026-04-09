@@ -4,6 +4,8 @@
  * This file declares a class that represents a wheel of sectors around a center point.
  *
  * @author Arne Hasselbring
+ * @note [BH2021]: Includes functions ported from B-Human 2021 Code Release that 
+ *                 were not part of the B-Human 2025 Code Release.
  */
 
 #pragma once
@@ -79,6 +81,17 @@ public:
    * @param type The type of the new sector.
    */
   void addSector(const Vector2f& center, float width, float distance, Sector::Type type);
+
+  /**
+   * Adds a sector to the wheel.
+   *
+   * This is only a wrapper around the other addSector method.
+   * @param p1 The position of one edge of the object (in the same coordinate system as the wheel center).
+   * @param p2 The position of one edge of the object (in the same coordinate system as the wheel center).
+   * @param type The type of the new sector.
+   * @note [BH2021] port
+   */
+  void addSector(const Vector2f& p1, const Vector2f& p2, Sector::Type type);
 
   /**
    * Adds a sector to the wheel.

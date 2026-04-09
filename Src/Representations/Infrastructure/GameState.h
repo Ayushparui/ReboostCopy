@@ -5,6 +5,7 @@
  * useful for behaviors etc.
  *
  * @author Arne Hasselbring
+ * @author Rudi Villing (modifications)
  */
 
 #pragma once
@@ -477,14 +478,16 @@ STREAMABLE(ExtendedGameState,
   bool wasPenalized() const
   {
     return GameState::isPenalized(playerStateLastFrame);
-  },
+  }
+  ,
 
+  (GameState::State)(GameState::beforeHalf) stateBeforeCurrent, /**< the game state before the current state - could be many frames in the past */
   (GameState::State)(GameState::beforeHalf) stateLastFrame, /**< The state of the game in the last frame. */
   (GameState::PlayerState)(GameState::unstiff) playerStateLastFrame, /**< The state of this player in the last frame. */
   (unsigned)(1200u) messageBudgetLastFrame, /**< Message budget of the own team in the last frame. */
   (bool)(false) returnFromGameControllerPenalty, /**< Is the robot returning from a GameController penalty this frame? */
   (bool)(false) returnFromManualPenalty, /**< Is the robot returning from a manual penalty this frame? */
-
+  (unsigned)(0) timeWhenLastUnpenalised, /**< when did robot last transition from penalized to unpenalized */
   (std::array<unsigned, GameState::numOfStates>)({}) timeWhenStateStarted, /**< For each state: Time when this state started last. */
   (std::array<unsigned, GameState::numOfPlayerStates>)({}) timeWhenPlayerStateStarted, /**< For each player state: Time when this state started last. */
 });
