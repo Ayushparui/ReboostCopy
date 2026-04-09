@@ -198,6 +198,11 @@ bool RoboCupCtrl::compile()
       FAIL("Location \"" << location << "\" does not exist.");
       location = "Default";
     }
+    TLOGI(tlogger, "Location set to: {}", location);
+  }
+  else
+  {
+    TLOGI(tlogger, "Location defaults to: {}", location);
   }
 
   const std::string defaultScenario = is2D ? "2D" : "Default";
@@ -216,9 +221,18 @@ bool RoboCupCtrl::compile()
         FAIL("Scenario \"" << scenarios[i] << "\" does not exist.");
         scenarios[i] = defaultScenario;
       }
+
+      TLOGI(tlogger, "Scenario for team {} set to: {}", i + 1, scenarios[i]);
     }
-    if(count != 2)
+    if (count != 2)
+    {
       scenarios[1] = scenarios[0];
+      TLOGI(tlogger, "Scenario for team 2 set to same as team 1");
+    }
+  }
+  else
+  {
+    TLOGI(tlogger, "Scenario for both teams defaults to: {}", defaultScenario);
   }
 
   // get interfaces to simulated objects
