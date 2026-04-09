@@ -187,7 +187,9 @@ public:
    * The function read text from the stream and prints it to the console.
    * @param stream The text stream.
    */
-  void echo(In& stream);
+  void echo(In &stream);
+
+  void tlog(In &stream); // for debugging
 
 private:
   /**

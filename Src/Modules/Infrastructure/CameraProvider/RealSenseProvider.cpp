@@ -234,15 +234,15 @@ bool RealSenseProvider::processResolutionRequest()
         return false;
       case CameraResolutionRequest::defaultRes:
         if(!readCameraResolution())
-          currentResolution = CameraResolutionRequest::w640h480;
+          currentResolution = CameraResolutionRequest::w640h480f30;
         return true;
-      case CameraResolutionRequest::w424h240:
-      case CameraResolutionRequest::w480x270:
-      case CameraResolutionRequest::w640h360:
-      case CameraResolutionRequest::w640h480:
-      case CameraResolutionRequest::w848h480:
-      case CameraResolutionRequest::w1280h720:
-      case CameraResolutionRequest::w1280h800:
+      case CameraResolutionRequest::w424h240f30:
+      case CameraResolutionRequest::w480h270f30:
+      case CameraResolutionRequest::w640h360f30:
+      case CameraResolutionRequest::w640h480f30:
+      case CameraResolutionRequest::w848h480f30:
+      case CameraResolutionRequest::w1280h720f30:
+      case CameraResolutionRequest::w1280h800f30:
         currentResolution = requestedResolution;
         return true;
       default:

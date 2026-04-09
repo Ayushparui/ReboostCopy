@@ -18,6 +18,7 @@
 #include "RobotParts/Joints.h"
 #include <SimRobotCore3.h>
 #include <random>
+#include <array>
 
 class SimulatedRobot3D : public SimulatedRobot
 {
@@ -56,9 +57,12 @@ private:
   SimRobot::Object* jointSensors[Joints::numOfJoints] = {nullptr}; /**< The handles to the sensor ports of the joints. */
   SimRobot::Object* jointVelocitySensors[Joints::numOfJoints] = {nullptr}; /**< The handles to the velocity sensor ports of the joints. */
   SimRobot::Object* jointActuators[Joints::numOfJoints] = {nullptr}; /**< The handles to the actuator ports of the joints. */
-  SimRobot::Object* cameraSensor = nullptr; /**< The handle to the sensor port of the selected camera. */
-  SimRobot::Object* upperCameraSensor = nullptr; /**< The handle to the sensor port of the upper camera. */
-  SimRobot::Object* lowerCameraSensor = nullptr; /**< The handle to the sensor port of the lower camera. */
+  // SimRobot::Object* cameraSensor = nullptr; /**< The handle to the sensor port of the selected camera. */
+  // SimRobot::Object* cameraSensor1 = nullptr; /**< The handle to the sensor port of the first camera (upper or color). */
+  // SimRobot::Object* cameraSensor2 = nullptr; /**< The handle to the sensor port of the second camera (lower or depth). */
+  int selectedCamera = -1;
+  std::array<SimRobot::Object *, 2> cameraSensors = {nullptr, nullptr};
+  std::array<int, 2> cameraIndexes = {0, 1};
   SimRobot::Object* accSensor = nullptr; /**< The handle to the sensor port of the virtual accelerometer. */
   SimRobot::Object* gyroSensor = nullptr; /**< The handle to the sensor port of the virtual gyroscope. */
   SimRobot::Object* leftFoot = nullptr; /**< The simulated left foot of the robot. */

@@ -186,12 +186,12 @@ bool CameraProvider::processResolutionRequest()
       case CameraResolutionRequest::defaultRes:
         if(!readCameraResolution())
           cameraResolutionRequest.resolutions[whichCamera] = whichCamera == CameraInfo::upper
-                                                             ? CameraResolutionRequest::w640h480
-                                                             : CameraResolutionRequest::w320h240;
+                                                             ? CameraResolutionRequest::w640h480f30
+                                                             : CameraResolutionRequest::w320h240f30;
         return true;
-      case CameraResolutionRequest::w320h240:
-      case CameraResolutionRequest::w640h480:
-      case CameraResolutionRequest::w1280h960:
+      case CameraResolutionRequest::w320h240f30:
+      case CameraResolutionRequest::w640h480f30:
+      case CameraResolutionRequest::w1280h960f30:
         cameraResolutionRequest.resolutions[whichCamera] = theCameraResolutionRequest.resolutions[whichCamera];
         return true;
       default:

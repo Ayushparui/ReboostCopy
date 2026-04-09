@@ -8,18 +8,27 @@
  * each string only exists once, i.e. its address is sufficient to identify it.
  *
  * @author Thomas Röfer
+ * @author Rudi Villing (modifications)
  */
 
 #pragma once
 
 #include <string>
 #include <typeinfo>
+#include <functional>
 
 struct TypeInfo;
+struct Settings;
 
 class TypeRegistry
 {
 public:
+  /** A function type for extending/modifying the TypeRegistry based on robot-specifics. */
+  using ExtensionHook = std::function<void(const Settings& settings)>;
+
+  /** The hook that will be called to apply robot-specific extensions/modifications. */
+  static ExtensionHook extensionHook;
+
   /**
    * Add the name of an enumeration to the registry.
    * Must only be called once for each enumeration type.

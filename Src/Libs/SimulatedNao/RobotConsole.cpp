@@ -28,10 +28,15 @@
 #include "Views/PlotView.h"
 #include "Views/TimeView.h"
 
+#include "TextLogging/TextLogging.h"
+
 #include <algorithm>
 #include <cctype>
 #include <iostream>
 #include <set>
+
+
+DECL_TLOGGER(tlogger, "RobotConsole", TextLogging::INFO);
 
 #define PREREQUISITE(p) pollingFor = #p; if(!poll(p)) return false;
 
@@ -43,6 +48,14 @@ RobotConsole::RobotConsole(const Settings& settings, const std::string& robotNam
   typeInfo(false),
   logExtractor(logPlayer)
 {
+  // Cache the camera names based on the robot type to avoid per-frame lookups
+  cameraTopThreadName = settings.robotType == Settings::k1 ? "Upper" : "Upper";  // FIXME for k1 later
+  cameraTopName = settings.robotType == Settings::k1 ? "CameraColor" : "CameraTop";
+  cameraBottomName = settings.robotType == Settings::k1 ? "CameraDepth" : "CameraBottom";
+
+  TLOGI(tlogger, "cameraTopThread {}, cameraTopName {}, cameraBottomName {}", cameraTopThreadName, cameraTopName,
+        cameraBottomName);
+
   FOREACH_ENUM(MessageID, i)
   {
     waitingFor[i] = 0;
@@ -328,6 +341,11 @@ bool RobotConsole::handleConsoleLine(const std::string& line)
   else if(command == "echo")
   {
     ctrl->echo(stream);
+    result = true;
+  }
+  else if(command == "tlog")
+  {
+    ctrl->tlog(stream);
     result = true;
   }
   else if(command == "for")
@@ -752,7 +770,9 @@ bool RobotConsole::handleMessage(MessageQueue::Message message)
               else if(type == "robot")
                 debugDrawing3D.parts.append("origin");
               else if(type == "camera")
-                debugDrawing3D.parts.append(threadName == "Upper" ? "CameraTop" : "CameraBottom");
+                // debugDrawing3D.parts.append(threadName == "Upper" ? "CameraTop" : "CameraBottom");
+                debugDrawing3D.parts.append(
+                    QString::fromStdString(threadName == cameraTopThreadName ? cameraTopName : cameraBottomName));
               else
                 debugDrawing3D.parts.append(type.c_str());
               newDebugDrawing3D = true;
@@ -2487,6 +2507,8 @@ bool RobotConsole::viewField(In& stream, const std::string& threadName)
     ctrl->updateCommandCompletion();
     ctrl->addView(new FieldView(QString::fromStdString(robotName) + ".field." + name.c_str(), *this, name, threadName),
                   QString::fromStdString(robotName) + ".field", SimRobot::Flag::copy | SimRobot::Flag::exportAsImage);
+
+    TLOGD(tlogger, "viewField: new field view {}.field.{}", robotName, name);
   }
   return true;
 }
@@ -2495,6 +2517,9 @@ bool RobotConsole::viewImage(In& stream, std::string threadName)
 {
   std::string buffer, buffer2;
   stream >> buffer >> buffer2;
+
+  TLOGD(tlogger, "viewImage: called buf {}, buf2 {}, threadName {}", buffer, buffer2, threadName);
+
   if(buffer == "?")
   {
     const auto threadsWithImage = ctrl->getThreadsFor(threadData, "representation:CameraImage");
@@ -2548,8 +2573,11 @@ bool RobotConsole::viewImage(In& stream, std::string threadName)
       threadName = threadsFound.front();
 
     // Check whether selected thread actually provides image (or whether a thread was specified).
-    else if(std::find(threadsFound.begin(), threadsFound.end(), threadName) == threadsFound.end())
+    else if (std::find(threadsFound.begin(), threadsFound.end(), threadName) == threadsFound.end())
+    {
+      TLOGW(tlogger, "viewImage: no thread found CameraImage/JPEGImage for {}.image", robotName);
       return false;
+    }
 
     std::string name = !buffer2.empty() ? buffer2 : static_cast<char>(threadName[0] | 0x20) + threadName.substr(1);
     if(imageViews.find(name) != imageViews.end())
@@ -2569,6 +2597,9 @@ bool RobotConsole::viewImage(In& stream, std::string threadName)
     QString path = QString::fromStdString(robotName) + ".image." + name.c_str();
     ctrl->addView(new ImageView(path, *this, "CameraImage", name, threadName, gain),
                   QString::fromStdString(robotName) + ".image", SimRobot::Flag::copy | SimRobot::Flag::exportAsImage);
+
+    TLOGD(tlogger, "viewImage: added image view {}.image.{}", robotName, name);
+
     addColorSpaceViews(path, "CameraImage", threadName);
     handleConsole("for " + threadName + " dr representation:" + buffer + " on");
     return true;
@@ -2584,7 +2615,10 @@ bool RobotConsole::viewImage(In& stream, std::string threadName)
 
     // Check whether selected thread actually provides image (or whether a thread was specified).
     else if(std::find(threadsFound.begin(), threadsFound.end(), threadName) == threadsFound.end())
+    {
+      TLOGW(tlogger, "viewImage: no thread found debugImages for {}.image", robotName);
       return false;
+    }
 
     for(const auto& [requestName, _] : threadData[threadName].debugRequestTable.slowIndex)
       if(requestName.substr(0, 13) == "debug images:" &&
@@ -2615,6 +2649,9 @@ bool RobotConsole::viewImage(In& stream, std::string threadName)
         QString path = QString::fromStdString(robotName) + ".image." + name.c_str();
         ctrl->addView(new ImageView(path, *this, requestName.substr(13), name, threadName, gain, ddScale),
                       QString::fromStdString(robotName) + ".image", SimRobot::Flag::copy | SimRobot::Flag::exportAsImage);
+
+        TLOGD(tlogger, "viewImage: added debugImages image view {}.image.{}", robotName, name);
+
         addColorSpaceViews(path, requestName.substr(13), threadName);
         handleConsole("for " + threadName + " dr " + ctrl->translate(requestName) + " on");
         return true;

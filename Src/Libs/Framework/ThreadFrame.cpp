@@ -15,6 +15,10 @@
 
 #include <asmjit/asmjit.h>
 
+
+DECL_TLOGGER(tlogger, "ThreadFrame", TextLogging::INFO);
+
+
 ThreadFrame::ThreadFrame(const Settings& settings, const std::string& robotName) :
   settings(settings),
   asmjitRuntime(new asmjit::JitRuntime()),
@@ -86,6 +90,9 @@ void ThreadFrame::threadMain()
     setPriority(getPriority());
   Thread::yield(); // always leave processing time to other threads
   setGlobals();
+
+  TLOGI(tlogger, "Initialising thread {}", getName());
+
   init();
   while(isRunning())
   {

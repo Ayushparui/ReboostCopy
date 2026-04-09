@@ -199,7 +199,10 @@ private:
   std::list<std::string> commands; /**< (Global) commands to execute in the next update step. */
   int waitingFor[numOfMessageIDs]; /**< Each entry states for how many information packets the thread waits. */
   bool polled[numOfMessageIDs]; /**< Each entry states whether certain information is up-to-date (if not waiting for). */
-  std::string threadName; /**< The thread from which messages are currently read. */
+  std::string threadName;       /**< The thread from which messages are currently read. */
+  std::string cameraTopThreadName; /**< the cached thread name for the "top" camera */
+  std::string cameraTopName;    /**< The cached name of the appropriate "top" camera in the scene graph. */
+  std::string cameraBottomName; /**< The cached name of the appropriate "bottom" camera in the scene graph. */
 
   // Flags
   bool printMessages = true; /**< Decides whether to output text messages in the console window. */
