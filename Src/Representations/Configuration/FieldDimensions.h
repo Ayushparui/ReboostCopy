@@ -229,6 +229,12 @@ public:
    */
   void drawGoalFrame() const;
 
+  /**
+   * add symbols to a map so they can be used in other config files
+   */
+  void populateSymbolMap(std::unordered_map<std::string, float>& symbols) const;
+
+
 protected:
   /**
    * Read this object from a stream.

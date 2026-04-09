@@ -1,4 +1,4 @@
-/**
+  /**
  * @file SetupPosesProvider.h
  *
  * This file declares a module that provides the poses of the robots before
@@ -39,20 +39,23 @@
 #include "Framework/Module.h"
 #include "Representations/Configuration/SetupPoses.h"
 #include "Representations/Infrastructure/GameState.h"
+#include "Representations/Configuration/FieldDimensions.h"
 
 MODULE(SetupPosesProvider,
 {,
   REQUIRES(GameState),
+  REQUIRES(FieldDimensions),
   PROVIDES(SetupPoses),
-  LOADS_PARAMETERS(
-  {,
-    (std::vector<SetupPoses::SetupPose>) poses, /**< A list of all available robot poses, not ordered by number */
-  }),
+  // LOADS_PARAMETERS(
+  // {,
+  //   (std::vector<SetupPoses::SetupPose>) poses, /**< A list of all available robot poses, not ordered by number */
+  // }),
 });
 
 class SetupPosesProvider : public SetupPosesProviderBase
 {
 private:
+  std::vector<SetupPoses::SetupPose> poses; /**< A list of all available robot poses, not ordered by number */
   std::vector<int> robotOrderFromGC;       /**< The numbers of the robots of which the GC claims that they are not substitutes. */
   bool representationHasBeenInitialized;   /**< Data has been written to the representation at least once, i.e. it is valid. */
 

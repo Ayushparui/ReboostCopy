@@ -36,8 +36,20 @@
 
 #include "SetupPosesProvider.h"
 
+#include "Streaming/InExpr.h"
+
+#include <unordered_map>
+
 SetupPosesProvider::SetupPosesProvider()
 {
+  std::unordered_map<std::string, float> fieldSymbols;
+  theFieldDimensions.populateSymbolMap(fieldSymbols);
+
+  InExprMapFile stream("setupPosesProvider.cfg", fieldSymbols, ~bit(InMap::missingAttribute));
+  ASSERT(stream.exists());
+  // stream >> poses;
+  Streaming::streamIt(stream, "poses", poses);
+
   representationHasBeenInitialized = false;
   // We assume that the default configuration is valid
   for(int i = 1; i <= 7; i++)

@@ -364,6 +364,52 @@ void FieldDimensions::LinesTable::pushCircle(const Vector2f& center, float radiu
   }
 }
 
+
+
+
+void FieldDimensions::populateSymbolMap(std::unordered_map<std::string, float> &symbols) const
+{
+#define SET_SYMBOL(member) symbols[#member] = member
+  SET_SYMBOL(xPosOwnFieldBorder);
+  SET_SYMBOL(xPosOwnGoal);
+  SET_SYMBOL(xPosOwnGoalPost);
+  SET_SYMBOL(xPosOwnGoalLine);
+  SET_SYMBOL(xPosOwnGoalArea);
+  SET_SYMBOL(xPosOwnPenaltyMark);
+  SET_SYMBOL(xPosOwnPenaltyArea);
+  SET_SYMBOL(xPosHalfwayLine);
+  SET_SYMBOL(xPosPenaltyStrikerStartPosition);
+  SET_SYMBOL(xPosOpponentPenaltyArea);
+  SET_SYMBOL(xPosOpponentPenaltyMark);
+  SET_SYMBOL(xPosOpponentGoalArea);
+  SET_SYMBOL(xPosOpponentGoalLine);
+  SET_SYMBOL(xPosOpponentGoalPost);
+  SET_SYMBOL(xPosOpponentGoal);
+  SET_SYMBOL(xPosOpponentFieldBorder);
+  SET_SYMBOL(xPosReturnFromPenalty);
+
+  SET_SYMBOL(yPosLeftFieldBorder);
+  SET_SYMBOL(yPosLeftReturnFromPenalty);
+  SET_SYMBOL(yPosLeftTouchline);
+  SET_SYMBOL(yPosLeftPenaltyArea);
+  SET_SYMBOL(yPosLeftGoal);
+  SET_SYMBOL(yPosLeftGoalArea);
+  SET_SYMBOL(yPosRightGoalArea);
+  SET_SYMBOL(yPosRightGoal);
+  SET_SYMBOL(yPosRightPenaltyArea);
+  SET_SYMBOL(yPosRightTouchline);
+  SET_SYMBOL(yPosRightReturnFromPenalty);
+  SET_SYMBOL(yPosRightFieldBorder);
+
+  SET_SYMBOL(centerCircleRadius);
+  SET_SYMBOL(fieldLinesWidth);
+  SET_SYMBOL(goalPostRadius);
+  SET_SYMBOL(penaltyMarkSize);
+#undef SET_SYMBOL
+}
+
+
+
 void FieldDimensions::read(In& stream)
 {
   In* theStream = &stream;
