@@ -6,6 +6,8 @@
 
 #include "Platform/BHAssert.h"
 
+#include "TextLogging/TextLogging.h"
+
 #include <cstdlib>
 #include <cstdio>
 #include <cstdarg>
@@ -13,6 +15,33 @@
 #ifdef WINDOWS
 #include <Windows.h>
 #endif
+
+DECL_TLOGGER(tlogger, "BHAssert", TextLogging::INFO);
+
+
+// Helper for FAIL, ASSERT, VERIFY macros
+Assert::FailHelper::FailHelper(const char *file, int line)
+    : _file(file),
+      _line(line)
+{
+}
+
+Assert::FailHelper::~FailHelper()
+{
+  std::string message = _stream.str();
+
+#if defined TARGET_ROBOT
+  Assert::logAdd(0, _file, _line, message);
+#else
+  // Using message.c_str() if your print function expects const char*
+  Assert::print(_file, _line, message);
+#endif
+
+  // only text log after the above in case text logging is the issue
+  TLOGF(tlogger, "{}:{}: {}", _file, _line, message);
+  Assert::abort();
+}
+
 
 void Assert::print(const char* file, int line, const char* format, ...)
 {
@@ -30,6 +59,7 @@ void Assert::print(const char* file, int line, const char* format, ...)
   va_end(ap);
   data[length++] = '\n';
   data[length] = '\0';
+
   fputs(data, stderr);
   fflush(stderr);
 #ifdef WINDOWS

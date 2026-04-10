@@ -3,6 +3,7 @@
  * This file contains macros for low level debugging
  * @author Thomas Röfer
  * @author Colin Graf
+ * @author Rudi Villing (modifications)
  */
 
 #pragma once
@@ -20,6 +21,20 @@
 class Assert
 {
 public:
+  /** FailHelper helps with the implementation of the FAIL, ASSERT, VERIFY macros */
+  class FailHelper
+  {
+  public:
+    FailHelper(const char *file, int line);
+    ~FailHelper(); // FAIL Logic moved to .cpp
+    std::ostream &stream() { return _stream; }
+
+  private:
+    const char *_file;
+    int _line;
+    std::stringstream _stream;
+  };
+
   /**
    * Prints a formatted message to stdout
    * @param file The name of the current file (__FILE__)
@@ -73,11 +88,11 @@ public:
  * @param c The condition to be checked.
  */
 #ifdef NDEBUG
-#define ASSERT(cond) static_cast<void>(0)
-#elif defined TARGET_ROBOT
-#define ASSERT(cond) static_cast<void>((cond) ? 0 : (Assert::logAdd(0, __FILE__, __LINE__, "ASSERT(" #cond ") failed"), Assert::abort(), 0))
+  #define ASSERT(cond) static_cast<void>(0)
 #else
-#define ASSERT(cond) static_cast<void>((cond) ? 0 : (Assert::print(__FILE__, __LINE__, "ASSERT(%s) failed", #cond), Assert::abort(), 0))
+  // ASSERT only triggers if the condition is false
+  #define ASSERT(cond) \
+    do { if (!!(cond)) ; else Assert::FailHelper(__FILE__, __LINE__).stream() << "ASSERT(" #cond ") failed"; } while(false)
 #endif
 
 /**
@@ -96,23 +111,11 @@ public:
  * This text is passed into a std::stringstream, thus FAIL("error " << 1) is a valid expression.
  */
 #ifdef NDEBUG
-#define FAIL(text) static_cast<void>(0)
+  #define FAIL(text)   static_cast<void>(0)
 #else
-#if defined TARGET_ROBOT
-#define _FAIL_OUTPUT Assert::logAdd(0, __FILE__, __LINE__, sstream.str());
-#else
-#define _FAIL_OUTPUT Assert::print(__FILE__, __LINE__, sstream.str());
+  #define FAIL(text)   Assert::FailHelper(__FILE__, __LINE__).stream() << "FAIL: " << text
 #endif
-#define FAIL(text) \
-  do \
-  { \
-    std::stringstream sstream; \
-    sstream << "FAIL: " << text; \
-    _FAIL_OUTPUT \
-    Assert::abort(); \
-  } \
-  while(false)
-#endif
+
 
 /**
  * VERIFY prints a message if \cond cond is \c false and NDEBUG is not defined.
@@ -120,11 +123,11 @@ public:
  * @param c The condition to be checked.
  */
 #ifdef NDEBUG
-#define VERIFY(cond) static_cast<void>(cond)
-#elif defined TARGET_ROBOT
-#define VERIFY(cond) static_cast<void>((cond) ? 0 : (Assert::logAdd(0, __FILE__, __LINE__, "VERIFY(" #cond ") failed"), Assert::abort(), 0))
+  #define VERIFY(cond) static_cast<void>(cond)
 #else
-#define VERIFY(cond) static_cast<void>((cond) ? 0 : (Assert::print(__FILE__, __LINE__, "VERIFY(%s) failed", #cond), Assert::abort(), 0))
+  // VERIFY behaves like ASSERT but the condition is evaluated in NDEBUG too (see above)
+  #define VERIFY(cond) \
+    do { if (!!(cond)) ; else Assert::FailHelper(__FILE__, __LINE__).stream() << "VERIFY(" #cond ") failed"; } while(false)
 #endif
 
 /**
