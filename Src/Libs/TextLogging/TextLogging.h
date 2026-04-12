@@ -315,16 +315,31 @@ private:
 
 
 // in conjunction with BHAssert stuff
-#define TLOGF_ABORT(logger_, ...)                                                                                      \
+
+/**
+ * TextLog and then always abort, regardless of the value of NDEBUG
+ */
+#define TLOG_ABORT(logger_, ...)                                                                                      \
   do                                                                                                                   \
   {                                                                                                                    \
     TLOGF(logger_, __VA_ARGS__);                                                                                       \
-    std::string s = fmt::format(__VA_ARGS__);                                                                          \
-    FAIL(s);                                                                                                           \
+    FAIL_FMT(__VA_ARGS__);                                                                                             \
+    Assert::abort();                                                                                                   \
   } while (0)
 
 
 #ifdef NDEBUG
+
+/**
+ * TextLog and then follow the semantics of FAIL which aborts only if
+ * NDEBUG is not set
+ */
+#define TLOG_FAIL(logger_, ...)                                                                                      \
+  do                                                                                                                 \
+  {                                                                                                                  \
+    TLOGE(logger_, __VA_ARGS__);                                                                                     \
+    FAIL_FMT(__VA_ARGS__);                                                                                           \
+  } while (0)
 
 #define TLOG_VERIFY(logger_, cond)                                                                                     \
   do                                                                                                                   \
@@ -337,11 +352,18 @@ private:
 
 #else // not NDEBUG
 
+#define TLOG_FAIL(logger_, ...)                                                                                      \
+  do                                                                                                                 \
+  {                                                                                                                  \
+    TLOGF(logger_, __VA_ARGS__);                                                                                     \
+    FAIL_FMT(__VA_ARGS__);                                                                                           \
+  } while (0)
+
 #define TLOG_VERIFY(logger_, cond)                                                                                     \
   do                                                                                                                   \
   {                                                                                                                    \
     if (!(cond))                                                                                                       \
-      TLOGF_ABORT(logger_, "VERIFY({}) failed", #cond);                                                                \
+      TLOG_ABORT(logger_, "VERIFY({}) failed", #cond);                                                                \
   } while (0)
 
 #define TLOG_VERIFY_ERRNO(logger_, cond)                                                                               \
@@ -350,7 +372,7 @@ private:
     if (!(cond))                                                                                                       \
     {                                                                                                                  \
       TLOGF(logger_, "VERIFY({}) failed: {}", #cond);                                                                  \
-      TLOGF_ABORT(logger_, "  error: {}", ErrorStr().str());                                                           \
+      TLOG_ABORT(logger_, "  error: {}", ErrorStr().str());                                                           \
     }                                                                                                                  \
   } while (0)
 
@@ -366,7 +388,9 @@ private:
 #define TLOGD(...) (void)0
 #define TLOGV(...) (void)0
 
-#define TLOGF_ABORT(logger_,...) static_cast<void>(logger_, FAIL(fmt::format(__VA_ARGS__), 0))
+// even if not logging, we still need to fall back to standard FAIL and VERIFY behaviour
+#define TLOG_ABORT(logger_,...) static_cast<void>(logger_, FAIL(fmt::format(__VA_ARGS__), Assert::abort(), 0))
+#define TLOG_FAIL(logger_,...) static_cast<void>(logger_, FAIL(fmt::format(__VA_ARGS__), 0))
 #define TLOG_VERIFY(logger_,cond) static_cast<void>(logger_, VERIFY(cond), 0)
 #define TLOG_VERIFY_ERRNO TLOG_VERIFY
 

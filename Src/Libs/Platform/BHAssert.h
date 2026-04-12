@@ -111,9 +111,16 @@ public:
  * This text is passed into a std::stringstream, thus FAIL("error " << 1) is a valid expression.
  */
 #ifdef NDEBUG
-  #define FAIL(text)   static_cast<void>(0)
+
+#define FAIL(text) static_cast<void>(0)
+#define FAIL_FMT(fmtString,...) static_cast<void>(0)
+
 #else
-  #define FAIL(text)   Assert::FailHelper(__FILE__, __LINE__).stream() << "FAIL: " << text
+
+#define FAIL(text) Assert::FailHelper(__FILE__, __LINE__).stream() << "FAIL: " << text
+#define FAIL_FMT(fmtString, ...)                                                                                       \
+  Assert::FailHelper(__FILE__, __LINE__).stream() << "FAIL: " << fmt::format(fmtString, ##__VA_ARGS__)
+
 #endif
 
 

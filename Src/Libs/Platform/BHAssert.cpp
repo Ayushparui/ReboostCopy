@@ -39,6 +39,7 @@ Assert::FailHelper::~FailHelper()
 
   // only text log after the above in case text logging is the issue
   TLOGF(tlogger, "{}:{}: {}", _file, _line, message);
+
   Assert::abort();
 }
 
