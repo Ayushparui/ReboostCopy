@@ -10,9 +10,14 @@
 #include "ModuleGraphCreator.h"
 #include "Streaming/TypeInfo.h"
 
+#include "TextLogging/TextLogging.h"
+
 #include <algorithm>
 #include <map>
 #include <unordered_map>
+
+
+DECL_TLOGGER(tlogger, "ModuleGraphCreator", TextLogging::INFO);
 
 ModuleGraphCreator::ModuleGraphCreator(const Configuration& config)
   : required(config().size()), received(config().size()), sent(config().size()), providers(config().size())
@@ -297,11 +302,26 @@ bool ModuleGraphCreator::update(In& stream)
   for(Configuration::Thread& thread : config())
   {
     std::sort(thread.representationProviders.begin(), thread.representationProviders.end());
-    auto duplicate = std::unique(thread.representationProviders.begin(), thread.representationProviders.end(),
-                         [](Configuration::RepresentationProvider& thread, Configuration::RepresentationProvider& thread2) { return thread.representation == thread2.representation; });
-    if(duplicate != thread.representationProviders.end())
+
+    // report duplicates, if any
+    // (duplicates are guaranteed to be adjacent after sorting)
+    for (auto it = thread.representationProviders.begin(); std::next(it) != thread.representationProviders.end(); ++it)
     {
-      OUTPUT_ERROR(thread.name << ": " << duplicate->representation << " is provided by more than one module!");
+      if (it->representation == std::next(it)->representation)
+        OUTPUT_ERROR_FMT("{}: '{}' is provided by both '{}' and '{}'", thread.name, it->representation, it->provider,
+                         std::next(it)->provider);
+    }
+
+
+    auto uniqueEnd =
+        std::unique(thread.representationProviders.begin(), thread.representationProviders.end(),
+                    [](Configuration::RepresentationProvider &thread, Configuration::RepresentationProvider &thread2)
+                    { return thread.representation == thread2.representation; });
+
+    if(uniqueEnd != thread.representationProviders.end())
+    {
+      thread.representationProviders.erase(uniqueEnd, thread.representationProviders.end());
+
       return false;
     }
   }
