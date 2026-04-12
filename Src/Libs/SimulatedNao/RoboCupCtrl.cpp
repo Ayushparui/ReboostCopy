@@ -177,7 +177,7 @@ bool RoboCupCtrl::compile()
     auto teamNumbers = gameController.getTestParameters().teamNumbers;
     if(teamNumbers[0] == teamNumbers[1])
     {
-      FAIL("Both teams have the same team number: " << teamNumbers[0]);
+      TLOG_ABORT(tlogger, "Both teams have the same team number: {}", teamNumbers[0]);
       teamNumbers[1] = (teamNumbers[0] + 1) % 256;
     }
     teamInfos[0].number = static_cast<uint8_t>(teamNumbers[0]);
@@ -195,7 +195,7 @@ bool RoboCupCtrl::compile()
     location = fullNameLocation.mid(fullNameLocation.lastIndexOf('.') + 1).toUtf8().constData();
     if(!QDir(QString(File::getBHDir()) + "/Config/Locations/" + QString::fromStdString(location)).exists())
     {
-      FAIL("Location \"" << location << "\" does not exist.");
+      TLOG_ABORT(tlogger, "Location '{}' does not exist.", location);
       location = "Default";
     }
     TLOGI(tlogger, "Location set to: {}", location);
@@ -216,9 +216,13 @@ bool RoboCupCtrl::compile()
     {
       const QString& fullNameScenario = application->getObjectChild(*scenariosObject, i)->getFullName();
       scenarios[i] = fullNameScenario.mid(fullNameScenario.lastIndexOf('.') + 1).toUtf8().constData();
+
+      TLOGI(tlogger, "fullNameScenario: {}, extracted scenario name: {}", fullNameScenario.toUtf8().constData(),
+            scenarios[i]);
+
       if(!QDir(QString(File::getBHDir()) + "/Config/Scenarios/" + QString::fromStdString(scenarios[i])).exists())
       {
-        FAIL("Scenario \"" << scenarios[i] << "\" does not exist.");
+        TLOG_ABORT(tlogger, "Scenario '{}' does not exist.", scenarios[i]);
         scenarios[i] = defaultScenario;
       }
 
@@ -383,7 +387,7 @@ Settings::RobotType RoboCupCtrl::getRobotType() const
     if(robotTypeValue != -1)
       return static_cast<Settings::RobotType>(robotTypeValue);
     else
-      FAIL("Robot type \"" << robotTypeName << "\" does not exist.");
+      TLOG_ABORT(tlogger, "Robot type '{}' does not exist.", robotTypeName);
   }
   return Settings::nao;
 }
