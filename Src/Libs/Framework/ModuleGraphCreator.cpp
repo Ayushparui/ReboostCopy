@@ -48,7 +48,7 @@ bool ModuleGraphCreator::calcShared(const Configuration& config)
 {
   if(config().empty() && !config.defaultRepresentations.empty())
   {
-    OUTPUT_ERROR("Default representation " << config.defaultRepresentations.front() << " is not required anywhere!");
+    OUTPUT_ERROR("No threads in threads.cfg, so default representation " << config.defaultRepresentations.front() << " is not required!");
     return false;
   }
   else if(config().empty())
@@ -164,9 +164,10 @@ bool ModuleGraphCreator::calcShared(const Configuration& config, std::size_t ind
                                     std::vector<std::vector<const char*>>& received) const
 {
   // Checks if the representation is not also provided by default.
-  if(std::find(config.defaultRepresentations.begin(), config.defaultRepresentations.end(), representation) != config.defaultRepresentations.end())
+  if (std::find(config.defaultRepresentations.begin(), config.defaultRepresentations.end(), representation) !=
+      config.defaultRepresentations.end())
   {
-    OUTPUT_ERROR(config()[index].name << ": " << representation << " is also provided by default!");
+    OUTPUT_ERROR(config.threads[index].name << ": " << representation << " is also provided by default!");
     return false;
   }
 
@@ -183,7 +184,7 @@ bool ModuleGraphCreator::calcShared(const Configuration& config, std::size_t ind
         if((provided = requirement.representation == representation))
           break;
         // Check if an alias is provided by default.
-        for(const Configuration::Thread& thread : config())
+        for(const Configuration::Thread& thread : config.threads)
           if((provided = requirement.representation == thread.name + representation))
             break;
         if(provided)
@@ -196,11 +197,13 @@ bool ModuleGraphCreator::calcShared(const Configuration& config, std::size_t ind
       int aliasThreadIndex = -1;
 
       // Check whether a representation may be expected from a specific thread.
-      for(size_t thread = 0; thread < config().size(); ++thread)
+      for(size_t thread = 0; thread < config.threads.size(); ++thread)
         if(thread != index)
         {
-          if(config()[thread].name.size() < std::string(requirement.representation).size() &&
-             std::mismatch(config()[thread].name.begin(), config()[thread].name.end(),  std::string(requirement.representation).begin()).first == config()[thread].name.end())
+          if (config.threads[thread].name.size() < std::string(requirement.representation).size() &&
+              std::mismatch(config.threads[thread].name.begin(), config.threads[thread].name.end(),
+                            std::string(requirement.representation).begin())
+                      .first == config.threads[thread].name.end())
           {
             maybeAlias = true;
             aliasThreadIndex = static_cast<int>(thread);
@@ -209,25 +212,27 @@ bool ModuleGraphCreator::calcShared(const Configuration& config, std::size_t ind
         }
 
       // Check if required representation is provided in own thread.
-      for(const auto& rp : config()[index].representationProviders)
+      for(const auto& rp : config.threads[index].representationProviders)
         if((provided = rp.representation == requirement.representation))
           break;
 
       if(!provided)
       {
         // Check if required representation is provided in other thread.
-        for(size_t thread = 0; thread < config().size(); ++thread)
+        for(size_t thread = 0; thread < config.threads.size(); ++thread)
           if(thread != index)
-            for(const auto& rp : config()[thread].representationProviders)
+            for(const auto& rp : config.threads[thread].representationProviders)
               if(rp.representation == requirement.representation)
               {
                 if(provided)
                 {
-                  OUTPUT_ERROR(config()[index].name << ": Representation " << rp.representation << " is provided by multiple threads!");
+                  OUTPUT_ERROR(config.threads[index].name << ": Representation " << rp.representation
+                                                          << " is provided by multiple threads!");
                   return false;
                 }
                 provided = true;
-                if(std::find(received[thread].begin(), received[thread].end(), std::string(requirement.representation)) == received[thread].end())
+                if (std::find(received[thread].begin(), received[thread].end(),
+                              std::string(requirement.representation)) == received[thread].end())
                   received[thread].emplace_back(requirement.representation);
               }
       }
@@ -235,39 +240,46 @@ bool ModuleGraphCreator::calcShared(const Configuration& config, std::size_t ind
       if(maybeAlias)
       {
         // Search representation in specific thread.
-        for(const auto& rp : config()[aliasThreadIndex].representationProviders)
+        for(const auto& rp : config.threads[aliasThreadIndex].representationProviders)
         {
-          if(config()[aliasThreadIndex].name + rp.representation == requirement.representation)
+          if(config.threads[aliasThreadIndex].name + rp.representation == requirement.representation)
           {
             if(provided)
             {
-              OUTPUT_ERROR(config()[index].name << ": Representation " << requirement.representation << " is also provided as alias!");
+              OUTPUT_ERROR(config.threads[index].name << ": Representation " << requirement.representation
+                                                      << " is also provided as alias!");
               return false;
             }
             // Check if the representation and the alias are equal.
             if(!TypeInfo::current->areTypesEqual(*TypeInfo::current, requirement.representation, rp.representation))
             {
-              OUTPUT_ERROR(config()[index].name << ": The representations " << rp.representation << " and the alias " << requirement.representation << " are not equal!");
+              OUTPUT_ERROR(config.threads[index].name << ": The representations " << rp.representation << " and the alias "
+                                                      << requirement.representation << " are not equal!");
               return false;
             }
             provided = true;
-            if(std::find(received[aliasThreadIndex].begin(), received[aliasThreadIndex].end(), std::string(requirement.representation)) == received[aliasThreadIndex].end())
+            if (std::find(received[aliasThreadIndex].begin(), received[aliasThreadIndex].end(),
+                          std::string(requirement.representation)) == received[aliasThreadIndex].end())
               received[aliasThreadIndex].emplace_back(requirement.representation);
             break;
           }
         }
         if(!provided)
         {
-          const std::string& rp(requirement.representation);
-          OUTPUT_ERROR(config()[index].name << ": The representation " << rp.substr(config()[aliasThreadIndex].name.size(), rp.size())
-                       << " that is expected from thread " << config()[aliasThreadIndex].name << " is not provided in this thread!");
+          const std::string &rp(requirement.representation);
+          OUTPUT_ERROR_FMT("{}: The representation {} (or {} from thread {}) required by {} has not been provided",
+                           config.threads[index].name, rp,
+                           rp.substr(config.threads[aliasThreadIndex].name.size(), rp.size()),
+                           config.threads[aliasThreadIndex].name,
+                           module->name);
           return false;
         }
       }
 
       if(!provided)
       {
-        OUTPUT_ERROR(config()[index].name << ": No provider for required representation " << requirement.representation << " required by " << module->name);
+        OUTPUT_ERROR(config.threads[index].name << ": No provider for required representation "
+                                                << requirement.representation << " required by " << module->name);
         return false;
       }
     }
