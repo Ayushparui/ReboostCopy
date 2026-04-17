@@ -333,7 +333,7 @@ namespace RE
      * @param directionPrecision The allowed deviation of the direction in which the ball should go. 
      *                           If default, the WalkToBallAndKickEngine uses its own precision.
      */
-      void operator()(Angle targetDirection, bool ignoreObstacles = false, float kickLength = 5.f,
+      void operator()(Angle targetDirection, bool ignoreObstacles = false, float kickLength = 500.f,
                       KickPrecision alignPrecisely = KickPrecision::notPrecise,
                       PreStepType preStepType = PreStepType::allowed, bool turnKickAllowed = true,
                       const Pose2f &speed = Pose2f(1.f, 1.f, 1.f),

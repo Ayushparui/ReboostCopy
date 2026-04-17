@@ -142,18 +142,37 @@ void FieldDimensions::drawLines() const
     CIRCLE("field lines", centerCircle.center.x(), centerCircle.center.y(), centerCircle.radius, fieldLinesWidth, Drawings::solidPen, lineColor, Drawings::noBrush, ColorRGBA::black);
   }
 
-  DEBUG_DRAWING("half meter grid", "drawingOnField")
+  DEBUG_DRAWING("halfMeterGrid", "drawingOnField")
   {
     for(int y = 0; y < yPosLeftFieldBorder; y += 500)
     {
-      LINE("half meter grid", xPosOwnFieldBorder, y, xPosOpponentFieldBorder, y, 10, Drawings::dottedPen, ColorRGBA::black);
-      LINE("half meter grid", xPosOwnFieldBorder, -y, xPosOpponentFieldBorder, -y, 10, Drawings::dottedPen, ColorRGBA::black);
+      LINE("halfMeterGrid", xPosOwnFieldBorder, y, xPosOpponentFieldBorder, y, 10, Drawings::dottedPen, ColorRGBA::green);
+      LINE("halfMeterGrid", xPosOwnFieldBorder, -y, xPosOpponentFieldBorder, -y, 10, Drawings::dottedPen, ColorRGBA::green);
     }
 
     for(int x = 0; x < xPosOpponentFieldBorder; x += 500)
     {
-      LINE("half meter grid", x, yPosLeftFieldBorder, x, yPosRightFieldBorder, 10, Drawings::dottedPen, ColorRGBA::black);
-      LINE("half meter grid", -x, yPosLeftFieldBorder, -x, yPosRightFieldBorder, 10, Drawings::dottedPen, ColorRGBA::black);
+      LINE("halfMeterGrid", x, yPosLeftFieldBorder, x, yPosRightFieldBorder, 10, Drawings::dottedPen, ColorRGBA::green);
+      LINE("halfMeterGrid", -x, yPosLeftFieldBorder, -x, yPosRightFieldBorder, 10, Drawings::dottedPen, ColorRGBA::green);
+    }
+  }
+
+  // grid on 3D field
+  DEBUG_DRAWING3D("halfMeterGrid", "field")
+  {
+    float z = 0.f;
+    ColorRGBA col = ColorRGBA::green.alpha(0.25f); // FIXME: alpha doesn't seem to work
+
+    for(int y = 0; y < yPosLeftFieldBorder; y += 500)
+    {
+      LINE3D("halfMeterGrid", xPosOwnFieldBorder, y, z, xPosOpponentFieldBorder, y, z, 1, col);
+      LINE3D("halfMeterGrid", xPosOwnFieldBorder, -y, z, xPosOpponentFieldBorder, -y, z, 1, col);
+    }
+
+    for(int x = 0; x < xPosOpponentFieldBorder; x += 500)
+    {
+      LINE3D("halfMeterGrid", x, yPosLeftFieldBorder, z, x, yPosRightFieldBorder, z, 1, col);
+      LINE3D("halfMeterGrid", -x, yPosLeftFieldBorder, z, -x, yPosRightFieldBorder, z, 1, col);
     }
   }
 }
@@ -363,6 +382,52 @@ void FieldDimensions::LinesTable::pushCircle(const Vector2f& center, float radiu
     p2 = p1;
   }
 }
+
+
+
+
+void FieldDimensions::populateSymbolMap(std::unordered_map<std::string, float> &symbols) const
+{
+#define SET_SYMBOL(member) symbols[#member] = member
+  SET_SYMBOL(xPosOwnFieldBorder);
+  SET_SYMBOL(xPosOwnGoal);
+  SET_SYMBOL(xPosOwnGoalPost);
+  SET_SYMBOL(xPosOwnGoalLine);
+  SET_SYMBOL(xPosOwnGoalArea);
+  SET_SYMBOL(xPosOwnPenaltyMark);
+  SET_SYMBOL(xPosOwnPenaltyArea);
+  SET_SYMBOL(xPosHalfwayLine);
+  SET_SYMBOL(xPosPenaltyStrikerStartPosition);
+  SET_SYMBOL(xPosOpponentPenaltyArea);
+  SET_SYMBOL(xPosOpponentPenaltyMark);
+  SET_SYMBOL(xPosOpponentGoalArea);
+  SET_SYMBOL(xPosOpponentGoalLine);
+  SET_SYMBOL(xPosOpponentGoalPost);
+  SET_SYMBOL(xPosOpponentGoal);
+  SET_SYMBOL(xPosOpponentFieldBorder);
+  SET_SYMBOL(xPosReturnFromPenalty);
+
+  SET_SYMBOL(yPosLeftFieldBorder);
+  SET_SYMBOL(yPosLeftReturnFromPenalty);
+  SET_SYMBOL(yPosLeftTouchline);
+  SET_SYMBOL(yPosLeftPenaltyArea);
+  SET_SYMBOL(yPosLeftGoal);
+  SET_SYMBOL(yPosLeftGoalArea);
+  SET_SYMBOL(yPosRightGoalArea);
+  SET_SYMBOL(yPosRightGoal);
+  SET_SYMBOL(yPosRightPenaltyArea);
+  SET_SYMBOL(yPosRightTouchline);
+  SET_SYMBOL(yPosRightReturnFromPenalty);
+  SET_SYMBOL(yPosRightFieldBorder);
+
+  SET_SYMBOL(centerCircleRadius);
+  SET_SYMBOL(fieldLinesWidth);
+  SET_SYMBOL(goalPostRadius);
+  SET_SYMBOL(penaltyMarkSize);
+#undef SET_SYMBOL
+}
+
+
 
 void FieldDimensions::read(In& stream)
 {

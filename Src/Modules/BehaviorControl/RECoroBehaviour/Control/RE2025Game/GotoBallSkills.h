@@ -483,7 +483,7 @@ namespace v2025
         else if (theREBehaviourParams.walkForwardsLongKickAtGoalRange.getSize() > 0)
           kickType = kickToLeft.state ? KickInfo::walkForwardsLeftLong : KickInfo::walkForwardsRightLong;
         else
-          TLOGF_ABORT(TextLogging::get("GotoBallAndKickBestOption"),
+          TLOG_ABORT(TextLogging::get("GotoBallAndKickBestOption"),
                      "At least one walk kick must have a valid range in behaviourParams.cfg");
       }
 

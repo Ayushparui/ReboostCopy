@@ -1,5 +1,8 @@
 /**
  * @file DebugDrawings.h
+ *
+*  @author B-Human
+ * @author Rudi Villing (modifications)
  */
 
 #pragma once
@@ -499,6 +502,25 @@ inline const char* DrawingManager::getTypeName(char id) const
   while(false)
 
 /**
+ * A macro that sends a vertical/horizontal cross (like a plus sign)
+ * @param x,y The center of the marker
+ * @param size Half of the height of the rectangle enclosing the marker
+ * @param id A drawing id
+ * @param penWidth The line width of the rectangle
+ * @param penStyle The line style, e.g. dotted
+ * @param penColor The color
+ */
+#define VERT_CROSS(id, x, y, size, penWidth, penStyle, penColor) \
+  do \
+    COMPLEX_DRAWING(id) \
+    { \
+      LINE(id, (x)+size, (y), (x)-size, (y), penWidth, penStyle, penColor); \
+      LINE(id, (x), (y)-size, (x), (y)+size, penWidth, penStyle, penColor); \
+    } \
+  while(false)
+
+
+/**
  * A macro that sends a text
  * @param id A drawing id
  * @param x The x coordinate of the upper left corner of the text
@@ -839,6 +861,7 @@ inline const char* DrawingManager::getTypeName(char id) const
 #define RECTANGLE(id, x1, y1, x2, y2, penWidth, penStyle, penColor) static_cast<void>(0)
 #define FILLED_RECTANGLE(id, x1, y1, x2, y2, penWidth, penStyle, penColor, brushStyle, brushColor) static_cast<void>(0)
 #define CROSS(id, x, y, size, penWidth, penStyle, penColor) static_cast<void>(0)
+#define VERT_CROSS(id, x, y, size, penWidth, penStyle, penColor) static_cast<void>(0)
 #define DRAW_TEXT(id, x, y, fontSize, color, txt) static_cast<void>(0)
 #define SPOT(id, x1, y1, x2, y2, action) static_cast<void>(0)
 #define TIP(id, x, y, radius, text) static_cast<void>(0)

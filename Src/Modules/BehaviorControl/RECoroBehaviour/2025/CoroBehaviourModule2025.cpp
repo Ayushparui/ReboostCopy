@@ -270,7 +270,7 @@ bool CoroBehaviourModule2025::handlePlayerState()
   }
 
   // if we get this far we didn't match the player state
-  TLOGF_ABORT(tlogger, "Unknown player state.");
+  TLOG_ABORT(tlogger, "Unknown player state.");
 }
 
 

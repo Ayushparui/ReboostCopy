@@ -204,7 +204,7 @@ namespace RE
     {
 #ifndef NDEBUG
       if (basicBehaviours.find(name) == basicBehaviours.end())
-        TLOGF_ABORT(TextLogging::get("CoroBehaviourRegistryBase"), "Could not find basic behaviour with name: {}", name);
+        TLOG_ABORT(TextLogging::get("CoroBehaviourRegistryBase"), "Could not find basic behaviour with name: {}", name);
 #endif
       
       return *(basicBehaviours[name]->createIfNeeded(env));
@@ -219,7 +219,7 @@ namespace RE
     {
 #ifndef NDEBUG
       if (basicBehaviours.find(name) == basicBehaviours.end())
-        TLOGF_ABORT(TextLogging::get("CoroBehaviourRegistryBase"), "Could not find basic behaviour with name: {}", name);
+        TLOG_ABORT(TextLogging::get("CoroBehaviourRegistryBase"), "Could not find basic behaviour with name: {}", name);
 #endif
       
       return *(dynamic_cast< Wrapper<T>* >(basicBehaviours[name])->createDelegateIfNeeded(env));

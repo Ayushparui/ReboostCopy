@@ -20,5 +20,14 @@
 
     <Compound ref="field"/>
 
+    <Compound name="location">
+      <Compound name="RE-Nao/RC2025"/>
+    </Compound>
+    <Compound name="scenarios">
+      <Compound name="RE-Nao/RC2025-Cup-5v5"/>
+      <Compound name="Default"/>
+    </Compound>
+
+
   </Scene>
 </Simulation>

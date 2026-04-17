@@ -150,8 +150,11 @@ void SectorWheel::addSectorNormalized(const Rangea& angleRange, float distance, 
     auto nextIt = std::next(it);
 
     // if the current sector begins before the new one, shrink the current to fit before it otherwise remove the current
-    if(it->angleRange.min < angleRange.min)
-      it->angleRange.max = (ASSERT(!contiguous), angleRange.min);
+    if (it->angleRange.min < angleRange.min)
+    {
+      ASSERT(!contiguous);
+      it->angleRange.max = angleRange.min;
+    }
     else
       nextIt = wheel.erase(it);
 

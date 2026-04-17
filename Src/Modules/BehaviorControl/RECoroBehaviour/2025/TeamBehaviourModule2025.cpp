@@ -131,10 +131,10 @@ void TeamBehaviourModule2025::registerEntryPointBehaviours()
   REGISTER_TEAM_CORO(MinimalTeamCoordinationTask);
   // REGISTER_TEAM_CORO(RC2023::DynamicBallHandlingTeamCoordinationTask);
   
-  REGISTER_TEAM_CORO(RE::v2025::TeamCoordinationTask);
-  REGISTER_TEAM_CORO(RE::v2025::DBHC::DynamicBallHandlingTeamCoordinationTask);
+  REGISTER_TEAM_CORO(v2025::TeamCoordinationTask);
+  REGISTER_TEAM_CORO(v2025::DBHC::DynamicBallHandlingTeamCoordinationTask);
 
-  REGISTER_TEAM_CORO(RE::v2025::Leaderboards::MostPassesTeamCoordinationTask);
+  REGISTER_TEAM_CORO(v2025::Leaderboards::MostPassesTeamCoordinationTask);
 
   //AC-New TeamBehaviourModule for look forwardwalkback
   // REGISTER_TEAM_CORO(RandomRolesTeamCoordinationTask);

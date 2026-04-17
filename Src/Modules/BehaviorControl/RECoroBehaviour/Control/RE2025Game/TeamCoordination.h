@@ -418,7 +418,7 @@ namespace v2025
       // ensure that at least the first available formation is big enough for the number of players
       if (theREFormations.formations[formationIds[iBest]].positions.size() < numPlayersOnField)
       {
-        TLOGF_ABORT(tlogger, "**** REFormations[{}] only supports {} players and we have {} players on the field",
+        TLOG_ABORT(tlogger, "**** REFormations[{}] only supports {} players and we have {} players on the field",
                     TypeRegistry::getEnumName(formationIds[iBest]),
                     theREFormations.formations[formationIds[iBest]].positions.size(), numPlayersOnField);
       }
