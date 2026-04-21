@@ -80,27 +80,27 @@ void ReboostRLWalkingEngine::compile(bool output)
 {
   if(output)
   {
-    if(!std::filesystem::exists(modelPath + walkNeuronalNetworkParameters.modelName))
+    if(!std::filesystem::exists(modelPath + reboostWalkNNParameters.modelName))
     {
-      OUTPUT_ERROR("File " << modelPath << walkNeuronalNetworkParameters.modelName << " does not exist");
+      OUTPUT_ERROR("File " << modelPath << reboostWalkNNParameters.modelName << " does not exist");
       return;
     }
   }
   else
-    ASSERT(std::filesystem::exists(modelPath + walkNeuronalNetworkParameters.modelName));
+    ASSERT(std::filesystem::exists(modelPath + reboostWalkNNParameters.modelName));
 
-  network.compile(Model(modelPath + walkNeuronalNetworkParameters.modelName));
+  network.compile(Model(modelPath + reboostWalkNNParameters.modelName));
   ASSERT(network.valid());
 
   // Input shape: (47)
   ASSERT(network.numOfInputs() == 1);
   ASSERT(network.input(0).rank() == 1); // (Batch, Time, Features)
-  ASSERT(network.input(0).dims(0) == walkNeuronalNetworkParameters.numInput);
+  ASSERT(network.input(0).dims(0) == reboostWalkNNParameters.numInput);
 
   // Output shape: (1, 11)
   ASSERT(network.numOfOutputs() == 1);
   ASSERT(network.output(0).rank() == 1); // (Batch, Time, Features)
-  ASSERT(network.output(0).dims(0) == walkNeuronalNetworkParameters.numOutput); // TODO
+  ASSERT(network.output(0).dims(0) == reboostWalkNNParameters.numOutput); // TODO
 }
 
 void ReboostRLWalkingEngine::update(WalkStepData& walkStepData)
@@ -531,7 +531,7 @@ ReboostRLWalkPhaseDummy::ReboostRLWalkPhaseDummy(ReboostRLWalkingEngine& engine,
   callBack(callBack)
 {
   step = useStepTarget;
-  slowWalkStart = engine.theFrameInfo.time > static_cast<unsigned>(engine.walkNeuronalNetworkParameters.timeLowWalkSpeedForStand) ? engine.theFrameInfo.time - engine.walkNeuronalNetworkParameters.timeLowWalkSpeedForStand : 0;
+  slowWalkStart = engine.theFrameInfo.time > static_cast<unsigned>(engine.reboostWalkNNParameters.timeLowWalkSpeedForStand) ? engine.theFrameInfo.time - engine.reboostWalkNNParameters.timeLowWalkSpeedForStand : 0;
   tBase = engine.motionCycleTime;
 
   lastTarget.angles = engine.theJointRequest.angles;
@@ -553,13 +553,13 @@ ReboostRLWalkPhaseDummy::ReboostRLWalkPhaseDummy(ReboostRLWalkingEngine& engine,
   else
     lastWalking = engine.theFrameInfo.time > 2000 ? engine.theFrameInfo.time - 2000 : 0;
 
-  if(!(std::abs(step.rotation) < engine.walkNeuronalNetworkParameters.slowWalkStepSpeed.rotation &&
-       std::abs(step.translation.x()) < engine.walkNeuronalNetworkParameters.slowWalkStepSpeed.translation.x() &&
-       std::abs(step.translation.y()) < engine.walkNeuronalNetworkParameters.slowWalkStepSpeed.translation.y()))
+  if(!(std::abs(step.rotation) < engine.reboostWalkNNParameters.slowWalkStepSpeed.rotation &&
+       std::abs(step.translation.x()) < engine.reboostWalkNNParameters.slowWalkStepSpeed.translation.x() &&
+       std::abs(step.translation.y()) < engine.reboostWalkNNParameters.slowWalkStepSpeed.translation.y()))
     slowWalkStart = engine.theFrameInfo.time;
 
   // Standing is only allowed after a short time to prevent badly falling due to leftover momentum
-  if(step == Pose2f() && engine.theFrameInfo.getTimeSince(slowWalkStart) < engine.walkNeuronalNetworkParameters.timeLowWalkSpeedForStand && slowWalkStart != 0)
+  if(step == Pose2f() && engine.theFrameInfo.getTimeSince(slowWalkStart) < engine.reboostWalkNNParameters.timeLowWalkSpeedForStand && slowWalkStart != 0)
     step = Pose2f(0.001f, 0.f);
 
   if(step == Pose2f())
@@ -631,13 +631,13 @@ void ReboostRLWalkPhaseDummy::getNextTargetRequest(JointAngles& target)
 
   // Velocities
   for(Joints::Joint j : jointList)
-    *input++ = engine.theJointAngles.velocity[j] * engine.walkNeuronalNetworkParameters.velocityFactor;
+    *input++ = engine.theJointAngles.velocity[j] * engine.reboostWalkNNParameters.velocityFactor;
 
   // Last Requests
   for(Joints::Joint j : jointList)
     *input++ = engine.theJointRequest.angles[j] - engine.offset.angles[j];
 
-  if(engine.walkNeuronalNetworkParameters.enablePhaseInputs)
+  if(engine.reboostWalkNNParameters.enablePhaseInputs)
   {
     *input++ = type == MotionPhase::walk ? std::sin(2.f * Constants::pi * tBase) : 0.f;
     *input++ = type == MotionPhase::walk ? std::cos(2.f * Constants::pi * tBase) : 0.f;
@@ -679,7 +679,7 @@ void ReboostRLWalkPhaseDummy::getNextTargetRequest(JointAngles& target)
   // Get next request
   const float* output = engine.network.output(0).data();
   for(Joints::Joint j : jointList)
-    target.angles[j] = engine.walkNeuronalNetworkParameters.actionClipRange.limit(*output++) + engine.offset.angles[j];
+    target.angles[j] = engine.reboostWalkNNParameters.actionClipRange.limit(*output++) + engine.offset.angles[j];
 
   if(engine.frequencyParameters.active)
   {
@@ -780,7 +780,7 @@ std::vector<Joints::Joint> ReboostRLWalkPhaseDummy::getBoosterLegJointSequence()
 {
   if(Global::getSettings().robotType != Settings::nao)
   {
-    if(engine.walkNeuronalNetworkParameters.useWaist)
+    if(engine.reboostWalkNNParameters.useWaist)
       return engine.boosterWaistJoints;
     return engine.boosterJoints;
   }

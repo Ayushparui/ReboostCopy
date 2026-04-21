@@ -93,7 +93,6 @@ STREAMABLE(WalkNeuronalNetworkParameters,
   (bool) useWaist, /**< Is the waist also part of the action output. */
   (unsigned) numInput, /**< Neural Network input size. */
   (unsigned) numOutput, /**< Neural Network output size. */
-  (bool) enablePhaseInputs, /**< Allows you to disable the phase inputs to the model */
   (int) timeLowWalkSpeedForStand, /**< To allow standing, the robot must walk slow for this time. */
   (Pose2f) slowWalkStepSpeed, /**< Speed values to classify slow walking. This is based on the step size. */
 });

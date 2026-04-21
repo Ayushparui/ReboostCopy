@@ -85,7 +85,7 @@ STREAMABLE(BallNetworkParameters,
   (bool) active,
 });
 
-STREAMABLE(WalkNeuronalNetworkParameters,
+STREAMABLE(ReboostWalkNNParameters,
 {,
   (std::string) modelName, /** Neural Network name. Must be .onnx or .hdf5. */
   (float) velocityFactor, /**< Factor for the joint velocities. */
@@ -120,13 +120,13 @@ MODULE(ReboostRLWalkingEngine,
   PROVIDES(WalkingEngineOutput),
   LOADS_PARAMETERS(
   {,
-    (BoosterConfiguredParameters) configuredParameters,             /**< Speed parameters */
-    (BoosterStepSizeParameters) stepSizeParameters,                 /**< Step size parameters. */
-    (BoosterCommonSpeedParameters) commonSpeedParameters,           /**< Acceleration parameters. */
-    (BoosterArmParameters) armParameters,                           /**< Arm parameters. */
-    (WalkNeuronalNetworkParameters) walkNeuronalNetworkParameters,  /**< Parameters of the walk neuroal network. */
-    (FrequencyParameters) frequencyParameters,                      /**< Frequency parameters. */
-    (BallNetworkParameters) ballNetworkParameters,                  /**< Ball parameters for the network. */
+    (BoosterConfiguredParameters) configuredParameters,     /**< Speed parameters */
+    (BoosterStepSizeParameters) stepSizeParameters,         /**< Step size parameters. */
+    (BoosterCommonSpeedParameters) commonSpeedParameters,   /**< Acceleration parameters. */
+    (BoosterArmParameters) armParameters,                   /**< Arm parameters. */
+    (ReboostWalkNNParameters) reboostWalkNNParameters,      /**< Parameters of the walk neuroal network. */
+    (FrequencyParameters) frequencyParameters,              /**< Frequency parameters. */
+    (BallNetworkParameters) ballNetworkParameters,          /**< Ball parameters for the network. */
   }),
 });
 
