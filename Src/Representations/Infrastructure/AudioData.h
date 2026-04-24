@@ -14,9 +14,10 @@
 
 STREAMABLE(AudioData,
 {
-  using Sample = float,
+  using Sample = double,
 
-  (unsigned)(2) channels,
-  (unsigned)(48000) sampleRate,
+  (unsigned)(1) channels,
+  (unsigned)(16000) sampleRate,
+  (unsigned) samplesCaptured,
   (std::vector<Sample>) samples, /**< Samples are interleaved. */
 });
