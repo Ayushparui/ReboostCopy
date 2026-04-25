@@ -20,6 +20,7 @@
 *.projectile
 *.iml
 *.opn
+compile_commands.json
 GPATH
 GRTAGS
 GTAGS
