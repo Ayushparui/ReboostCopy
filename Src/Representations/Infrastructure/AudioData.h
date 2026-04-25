@@ -13,11 +13,11 @@
 #include "Streaming/AutoStreamable.h"
 
 STREAMABLE(AudioData,
-{
-  using Sample = double,
+    {
+        using Sample = float,
 
-  (unsigned)(1) channels,
-  (unsigned)(16000) sampleRate,
-  (unsigned) samplesCaptured,
-  (std::vector<Sample>) samples, /**< Samples are interleaved. */
-});
+        (unsigned)channels,
+        (unsigned)sampleRate,
+        (unsigned)samplesCaptured,
+        (std::vector<Sample>)samples, /**< Samples are interleaved. */
+    });
