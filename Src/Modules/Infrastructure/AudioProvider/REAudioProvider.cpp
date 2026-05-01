@@ -18,7 +18,7 @@ REAudioProvider::REAudioProvider()
 {
     /* Check for whether we can open the input audio device */
     for (uint retryNumber = 0; retryNumber < retries; retryNumber++) {
-      int retVal = snd_pcm_open(&inputDevice, deviceName.c_str(), SND_PCM_STREAM_CAPTURE, 0));
+      int retVal = snd_pcm_open(&inputDevice, deviceName.c_str(), SND_PCM_STREAM_CAPTURE, 0);
       if (retVal == 0) {
           break;
       }
@@ -39,16 +39,6 @@ REAudioProvider::REAudioProvider()
 
     snd_pcm_prepare(inputDevice);
     VERIFY(!snd_pcm_start(inputDevice));
-
-    /* Create our audio buffers and clear values to 0 */
-    audioFramesInt.resize(maxFrames * numChannels);
-    theAudioData.samples.resize(maxFrames * numChannels);
-    std::fill(audioFramesInt.begin(), audioFramesInt.end(), 0);
-    std::fill(theAudioData.samples.begin(), theAudioData.samples.end(), 0);
-
-    theAudioData.channels(numChannels);
-    theAudioData.sampleRate(sampleRate);
-
     setVolume();
 }
 
@@ -74,7 +64,7 @@ bool REAudioProvider::setVolume()
     snd_mixer_selem_id_set_index(sid, 0);
     snd_mixer_selem_id_set_name(sid, mixerName.c_str());
 
-    snd_mixer_elem_t* elem = snd_mixer_find_selem(inputMixer, sid);
+    elem = snd_mixer_find_selem(inputMixer, sid);
     VERIFY(elem != 0);
 
     long min = -1, max = -1;
@@ -89,13 +79,22 @@ bool REAudioProvider::setVolume()
     return true;
 }
 
-void REAudioProvider::update(AudioData&)
+void REAudioProvider::update(AudioData& audioData)
 {
+    /* Create our audio buffers and clear values to 0 */
+    audioFramesInt.resize(maxFrames * numChannels);
+    audioData.samples.resize(maxFrames * numChannels);
+    std::fill(audioFramesInt.begin(), audioFramesInt.end(), 0);
+    std::fill(audioData.samples.begin(), audioData.samples.end(), 0);
+
+    audioData.channels = numChannels;
+    audioData.sampleRate = sampleRate;
+
     snd_pcm_sframes_t availableFrames = snd_pcm_avail(inputDevice);
 
     if (availableFrames < 0) {
-        OUTPUT_WARNING("Error fetch available frames (" << status << "), recovering...");
-        snd_pcm_recover(inputDevice, availableFrames, 0);
+        // OUTPUT_WARNING("Error fetch available frames (" << status << "), recovering...");
+        snd_pcm_recover(inputDevice, static_cast<int>(availableFrames), 0);
         return;
     }
 
@@ -104,22 +103,22 @@ void REAudioProvider::update(AudioData&)
 
     /* Try to recover the audio device */
     if (numAudioFrames < 0) {
-        OUTPUT_WARNING("Audio record rrror (" << status << "), recovering...");
+        // OUTPUT_WARNING("Audio record rrror (" << status << "), recovering...");
         numAudioFrames = snd_pcm_recover(inputDevice, numAudioFrames, 0);
     } else {
-        theAudioData.samplesCaptured = static_cast<uint>(numAudioFrames);
-        signedToFloat();
+        audioData.samplesCaptured = static_cast<uint>(numAudioFrames);
+        signedToFloat(audioData);
     }
 
     tickWatchDog = Time::getCurrentSystemTime();
     Thread::sleep(1000 / tickRate);
 }
 
-void REAudioProvider::signedToFloat()
+void REAudioProvider::signedToFloat(AudioData& audioData)
 {
-    for (uint sampleIndex = 0; sampleIndex < theAudioData.samplesCaptured; sampleIndex++) {
+    for (uint sampleIndex = 0; sampleIndex < audioData.samplesCaptured; sampleIndex++) {
         ASSERT(audioFramesInt[sampleIndex] <= INT16_MAX);
-        theAudioData.samples[sampleIndex] = static_cast<float>(audioFramesInt[sampleIndex]) / INT16_MAX;
+        audioData.samples[sampleIndex] = static_cast<float>(audioFramesInt[sampleIndex]) / INT16_MAX;
     }
 }
 

@@ -18,6 +18,7 @@
 #include "Representations/Infrastructure/FrameInfo.h"
 #include "Representations/Infrastructure/GameState.h"
 #include <string>
+#include <vector>
 
 MODULE(REAudioProvider,
     {
@@ -56,7 +57,7 @@ private:
 
     std::vector<int16_t> audioFramesInt;
     bool setVolume();
-    void signedToFloat();
+    void signedToFloat(AudioData& audioData);
 #endif
 
     unsigned tickWatchDog = 0;
