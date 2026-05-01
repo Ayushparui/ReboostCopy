@@ -26,6 +26,8 @@ REAudioProvider::REAudioProvider()
       Thread::sleep(retryDelay);
     }
 
+    currentCaptureVolume = 100.f;
+
     /* Static Allocation to reduce malloc issues */
     snd_pcm_hw_params_alloca(&params);
     snd_pcm_hw_params_any(inputDevice, params);
@@ -39,6 +41,8 @@ REAudioProvider::REAudioProvider()
 
     snd_pcm_prepare(inputDevice);
     VERIFY(!snd_pcm_start(inputDevice));
+
+    bufferInit = false;
     setVolume();
 }
 
@@ -82,13 +86,16 @@ bool REAudioProvider::setVolume()
 void REAudioProvider::update(AudioData& audioData)
 {
     /* Create our audio buffers and clear values to 0 */
-    audioFramesInt.resize(maxFrames * numChannels);
-    audioData.samples.resize(maxFrames * numChannels);
-    std::fill(audioFramesInt.begin(), audioFramesInt.end(), 0);
-    std::fill(audioData.samples.begin(), audioData.samples.end(), 0);
+    if (!bufferInit) {
+      audioFramesInt.resize(maxFrames * numChannels);
+      audioData.samples.resize(maxFrames * numChannels);
+      std::fill(audioFramesInt.begin(), audioFramesInt.end(), 0);
+      std::fill(audioData.samples.begin(), audioData.samples.end(), 0);
 
-    audioData.channels = numChannels;
-    audioData.sampleRate = sampleRate;
+      audioData.channels = numChannels;
+      audioData.sampleRate = sampleRate;
+      bufferInit = true;
+    }
 
     snd_pcm_sframes_t availableFrames = snd_pcm_avail(inputDevice);
 

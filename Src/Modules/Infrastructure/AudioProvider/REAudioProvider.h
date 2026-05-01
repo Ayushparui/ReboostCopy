@@ -39,6 +39,7 @@ MODULE(REAudioProvider,
                 (std::string)deviceName, /* The ALSA sound card to be used for audio capture. */
                 (std::string)mixerName, /* The ALSA sound card to be used for audio capture. */
                 (float)captureVolume, /* The microphone volume in percent. */
+                (float)numChannels, /* The number of input channels */
             }),
     });
 
@@ -51,9 +52,8 @@ private:
     snd_mixer_t* inputMixer;
     snd_mixer_selem_id_t* sid;
     snd_mixer_elem_t* elem;
-
-    uint numChannels = 1;
-    float currentCaptureVolume = 100.f;
+    float currentCaptureVolume;
+    bool bufferInit;
 
     std::vector<int16_t> audioFramesInt;
     bool setVolume();
