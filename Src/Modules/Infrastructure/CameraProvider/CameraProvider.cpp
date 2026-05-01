@@ -66,8 +66,12 @@ CameraProvider::~CameraProvider()
 void CameraProvider::update(CameraImage& theCameraImage)
 {
 #ifdef TARGET_ROBOT
-  if((whichCamera == CameraInfo::upper && theCameraResolutionRequest.resolutions[CameraInfo::lower] == CameraResolutionRequest::w1280h960 && theCameraResolutionRequest.resolutions[CameraInfo::upper] != CameraResolutionRequest::w1280h960) ||
-     (whichCamera == CameraInfo::lower && theCameraResolutionRequest.resolutions[CameraInfo::upper] == CameraResolutionRequest::w1280h960 && theCameraResolutionRequest.resolutions[CameraInfo::lower] != CameraResolutionRequest::w1280h960))
+  if ((whichCamera == CameraInfo::upper &&
+       theCameraResolutionRequest.resolutions[CameraInfo::lower] == CameraResolutionRequest::w1280h960f30 &&
+       theCameraResolutionRequest.resolutions[CameraInfo::upper] != CameraResolutionRequest::w1280h960f30) ||
+      (whichCamera == CameraInfo::lower &&
+       theCameraResolutionRequest.resolutions[CameraInfo::upper] == CameraResolutionRequest::w1280h960f30 &&
+       theCameraResolutionRequest.resolutions[CameraInfo::lower] != CameraResolutionRequest::w1280h960f30))
     Thread::sleep(200);
   unsigned timestamp = static_cast<long long>(camera->getTimestamp() / 1000) > static_cast<long long>(Time::getSystemTimeBase())
                        ? static_cast<unsigned>(camera->getTimestamp() / 1000 - Time::getSystemTimeBase()) : 100000;
