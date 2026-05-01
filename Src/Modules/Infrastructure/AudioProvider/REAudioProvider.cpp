@@ -9,7 +9,6 @@
 #include "REAudioProvider.h"
 #include "Platform/Thread.h"
 #include "Platform/Time.h"
-#include <climits>
 
 MAKE_MODULE(REAudioProvider);
 
@@ -126,8 +125,8 @@ void REAudioProvider::signedToFloat()
 
 #else /* NOT TARGET ROBOT */
 
-REAudioProvider::REAudioProvider() { }
-REAudioProvider::~REAudioProvider() { }
+REAudioProvider::REAudioProvider() = default;
+REAudioProvider::~REAudioProvider() = default;
 
 void REAudioProvider::update(AudioData&)
 {
