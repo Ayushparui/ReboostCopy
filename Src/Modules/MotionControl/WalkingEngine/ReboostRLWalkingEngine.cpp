@@ -115,11 +115,11 @@ void ReboostRLWalkingEngine::update(WalkStepData& walkStepData)
   {
     walkStepData.isLeftPhase = isLeftPhase;
     walkStepData.stepTarget = stepTarget;
-    walkStepData.stepDuration = 200; // static
+    walkStepData.stepDuration = configuredParameters.baseWalkPeriod;
     walkStepData.lastUpdate = theFrameInfo.time;
   };
 
-  walkStepData.yHipOffset = 100.f; /// Unknown
+  walkStepData.yHipOffset = theRobotDimensions.yHipOffset;
 }
 
 void ReboostRLWalkingEngine::update(StandGenerator& standGenerator)
@@ -758,7 +758,7 @@ void ReboostRLWalkPhaseDummy::calcJoints(const MotionRequest&, JointRequest& joi
   motionInfo.isMotionStable = true;
   motionInfo.isWalkPhaseInWalkKick = walkKickStep.currentKick != WalkKicks::none;
   const float stepDuration = engine.configuredParameters.baseWalkPeriod / 1000.f;
-  motionInfo.speed = type == MotionPhase::walk ? Pose2f(step.rotation / stepDuration, step.translation.x() / stepDuration, step.translation.x() / stepDuration) : Pose2f(); // TODO
+  motionInfo.speed = type == MotionPhase::walk ? Pose2f(step.rotation / stepDuration, step.translation.x() / stepDuration, step.translation.y() / stepDuration) : Pose2f();
 
   if(engine.theFrameInfo.getTimeSince(lastWalking) >= 2000)
     odometryOffset = Pose2f(0_deg, 0.f, 0.f);
