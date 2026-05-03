@@ -1,6 +1,6 @@
 <Simulation>
 
-  <Include href="../Includes/K1/K1.rsi3"/>
+  <Include href="../Includes/K1/K1_new.rsi3"/>
   <Include href="../Includes/BallFifa1.rsi3"/>
   <Include href="../Includes/Field2020SPL.rsi3"/>
 

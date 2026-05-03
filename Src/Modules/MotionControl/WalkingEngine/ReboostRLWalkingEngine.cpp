@@ -639,8 +639,8 @@ void ReboostRLWalkPhaseDummy::getNextTargetRequest(JointAngles& target)
 
   if(engine.reboostWalkNNParameters.enablePhaseInputs)
   {
-    *input++ = type == MotionPhase::walk ? std::sin(2.f * Constants::pi * tBase) : 0.f;
     *input++ = type == MotionPhase::walk ? std::cos(2.f * Constants::pi * tBase) : 0.f;
+    *input++ = type == MotionPhase::walk ? std::sin(2.f * Constants::pi * tBase) : 0.f;
   }
 
   if(engine.frequencyParameters.active)
