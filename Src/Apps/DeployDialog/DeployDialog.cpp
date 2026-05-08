@@ -28,14 +28,19 @@
 #define STR(x) STR2(x)
 #define STR2(x) #x
 
+
+// Note: this executable is run by a script that redirectly stderr (as used by
+// text logging). On Mac/Windows stderr and hence textlogs go to /dev/null.
+// Edit deployDialog script if you want to change that.
+// On Linux, stderr is redirected to logger (journalctl) at the info level
 DECL_TLOGGER(tlogger, "DeployDialog", TextLogging::INFO);
 
 
 DeployDialog::DeployDialog(int argc, char* argv[])
 {
-  TLOGI(tlogger, "Starting up");
+  // TLOGI(tlogger, "Starting up");
 
-  setWindowTitle("Deploy - " STR(CONFIGURATION));
+  setWindowTitle("Deploy for " STR(CONFIGURATION) " Build");
   setWindowIcon(QPixmap(":Icons/DeployDialog.png"));
 
   QSettings settings("RoboEireann", "DeployDialog");
@@ -234,20 +239,20 @@ RobotsTable* DeployDialog::createRobotsTable(const QStringList& substitutes)
 
       menu.addSeparator();
 
-      // Choose "Restart" or "Start" based on whether bhuman is currently running.
+      // Choose "Restart" or "Start" based on whether roboeireann is currently running.
       QAction* restart = new QAction(table->item(index.row(), 9) && table->item(index.row(), 9)->text() == "run" ? "Res&tart" : "S&tart", this);
       connect(restart, &QAction::triggered, [process, ip]
       {
-        process->startCommand(remoteCommand(ip, "systemctl --user restart bhuman.service </dev/null >/dev/null 2>&1 &").c_str());
+        process->startCommand(remoteCommand(ip, "systemctl --user restart roboeireann.service </dev/null >/dev/null 2>&1 &").c_str());
       });
       menu.addAction(restart);
 
-      // "Stop" is only enabled if bhuman is currently running.
+      // "Stop" is only enabled if roboeireann is currently running.
       QAction* stop = new QAction("Sto&p", this);
       stop->setEnabled(table->item(index.row(), 9) && table->item(index.row(), 9)->text() == "run");
       connect(stop, &QAction::triggered, [process, ip]
       {
-        process->startCommand(remoteCommand(ip, "systemctl --user stop bhuman.service </dev/null >/dev/null 2>&1 &").c_str());
+        process->startCommand(remoteCommand(ip, "systemctl --user stop roboeireann.service </dev/null >/dev/null 2>&1 &").c_str());
       });
       menu.addAction(stop);
 
@@ -320,7 +325,7 @@ void DeployDialog::createProcesses()
         table->setCell(name, column++, output[6].toStdString(), calibration ? warnColor : QColor(), calibration ? "New calibration present" : "");
         table->setCell(name, column++, active ? "run" : inactive ? "stop" : "fail",
                        active ? QColor() : inactive ? warnColor : Qt::red,
-                       active ? "" : inactive ? "bhuman not running" : "bhuman probably crashed (" + output[7].toStdString() + ")");
+                       active ? "" : inactive ? "roboeireann not running" : "roboeireann probably crashed (" + output[7].toStdString() + ")");
         table->setCell(name, column++, output[8].toStdString(), dump ? Qt::red : QColor(),
                        dump ? "Crash log present" : "");
       }
@@ -373,9 +378,9 @@ void DeployDialog::createProcesses()
                                                             " /home/TARGET_USER/Config/Robots/*/Body/imuCalibration.cfg 2>/dev/null"
                                                             " | xargs ls -t | head -1 | grep settings.cfg >/dev/null && echo no || echo yes; "
                                                           "echo -n ' '; "
-                                                          "systemctl --user is-failed bhuman.service; "
+                                                          "systemctl --user is-failed roboeireann.service; "
                                                           "echo -n ' '; "
-                                                          "[ -e /home/TARGET_USER/bhdump.log ] && echo yes || echo no ) | tr -d '\\n'").c_str());
+                                                          "[ -e /home/TARGET_USER/redump.log ] && echo yes || echo no ) | tr -d '\\n'").c_str());
           robot.lastStatusUpdate = Time::getRealSystemTime();
         }
       });

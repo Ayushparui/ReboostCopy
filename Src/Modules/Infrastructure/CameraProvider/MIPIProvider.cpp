@@ -8,14 +8,20 @@
 
 #include "MIPIProvider.h"
 #include "Platform/Time.h"
+#include "TextLogging/TextLogging.h"
 
 thread_local MIPIProvider* MIPIProvider::theInstance = nullptr;
 
-MIPIProvider::MIPIProvider(CameraInfo::Camera camera, [[maybe_unused]] const std::string& imageTopic, [[maybe_unused]] const std::string& cameraInfoTopic, [[maybe_unused]] const bool useSystemTime)
-:
+DECL_TLOGGER(tlogger, "MIPIProvider", TextLogging::INFO);
+
+MIPIProvider::MIPIProvider(CameraInfo::Camera camera, [[maybe_unused]] const std::string &imageTopic,
+                           [[maybe_unused]] const std::string &cameraInfoTopic, [[maybe_unused]] const bool useSystemTime)
+    :
 #ifdef TARGET_BOOSTER
-  imageSubscriber(imageTopic, [this](const void* msg)
-    {imageHandler(*reinterpret_cast<const sensor_msgs::msg::Image*>(msg));}),
+      imageSubscriber(imageTopic,
+                      [this](const void *msg)
+                      {
+                        (*reinterpret_cast<const sensor_msgs::msg::Image*>(msg));}),
   cameraInfoSubscriber(cameraInfoTopic, [this](const void* msg)
     {cameraInfoHandler(*reinterpret_cast<const sensor_msgs::msg::CameraInfo*>(msg));}),
   useSystemTime(useSystemTime),
@@ -88,6 +94,9 @@ void MIPIProvider::imageHandler(const sensor_msgs::msg::Image& image)
   else
     lastImageTimestamp = static_cast<unsigned>(image.header().stamp().sec() * 1000ll + image.header().stamp().nanosec() / 1000000 - Time::getSystemTimeBase());
   imageBuffer = image.data();
+
+  TLOGV(tlogger, "imageHandler: new image received, lastImageTimestamp={}", lastImageTimestamp);
+
   imageSignal.post();
 }
 

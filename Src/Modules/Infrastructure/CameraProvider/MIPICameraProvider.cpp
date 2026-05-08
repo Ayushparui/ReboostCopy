@@ -9,8 +9,11 @@
 #include "MIPICameraProvider.h"
 #include "Platform/SystemCall.h"
 #include "Platform/Time.h"
+#include "TextLogging/TextLogging.h"
 
 MAKE_MODULE(MIPICameraProvider);
+
+DECL_TLOGGER(tlogger, "MIPICameraProvider", TextLogging::INFO);
 
 MIPICameraProvider::MIPICameraProvider()
   : MIPIProvider(CameraInfo::color, imageTopic, cameraInfoTopic, useSystemTimeFlag) {}
@@ -41,6 +44,9 @@ void MIPICameraProvider::update(CameraImage& theCameraImage)
   }
 
   theCameraImage.timestamp = lastImageTimestamp;
+
+  TLOGV(tlogger, "Camera image received, timestamp={}", theCameraImage.timestamp);
+
 #else
   theCameraImage.setResolution(cameraInfo.width / 2, cameraInfo.height);
   theCameraImage.timestamp = Time::getCurrentSystemTime();

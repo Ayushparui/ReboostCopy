@@ -2,15 +2,22 @@
  * @file ECImageProvider.cpp
  * @author Felix Thielke
  * @author <a href="mailto:jesse@tzi.de">Jesse Richter-Klug</a>
+ * @author Rudi Villing (modifications)
  */
 
 #include "ECImageProvider.h"
 #include "Streaming/Global.h"
+#include "TextLogging/TextLogging.h"
+
 #include <asmjit/asmjit.h>
 
 MAKE_MODULE(ECImageProvider);
 
+DECL_TLOGGER(tlogger, "ECImageProvider", TextLogging::INFO);
+
+
 #if !defined __arm64__ && !defined __aarch64__
+// x86 path...
 
 void ECImageProvider::update(ECImage& ecImage)
 {
@@ -324,6 +331,7 @@ ECImageProvider::~ECImageProvider()
 }
 
 #else
+// Arm - aarch64, using sse2neon behind the scenes
 
 #include "ImageProcessing/YHSColorConversion.h"
 
@@ -332,7 +340,11 @@ void updateSSE(const PixelTypes::YUYVPixel* const srcImage, const int srcWidth, 
                Image<PixelTypes::GrayscaledPixel>& grayscaled,
                Image<PixelTypes::HuePixel>& hued, Image<PixelTypes::GrayscaledPixel>& saturated)
 {
-  ASSERT(srcWidth % 32 == 0);
+  const int requiredMultiple = avx ? 32 : 16;
+  if (srcWidth % requiredMultiple != 0)
+    TLOG_ABORT(tlogger, "srcWidth (image.width) was {}, but must be a multiple of {} (for {})",
+               srcWidth, requiredMultiple, avx ? "AVX" : "SSE/NEON");
+  // ASSERT(srcWidth % 32 == 0);
 
   __m_auto_i* grayscaledDest = reinterpret_cast<__m_auto_i*>(grayscaled[0]) - 1;
   __m_auto_i* saturatedDest = reinterpret_cast<__m_auto_i*>(saturated[0]) - 1;

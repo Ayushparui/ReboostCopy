@@ -2,11 +2,23 @@
  * @file Main.cpp
  * Implementation of the main() function for starting and stopping the module framework.
  * @author Colin Graf
+ * @author Rudi Villing (modifications)
  */
+
+#include "Framework/Robot.h"
+#include "Framework/Robots.h"
+#include "Framework/Settings.h"
+#include "Math/Constants.h"
+#include "Platform/File.h"
+#include "Platform/SystemCall.h"
+#include "Streaming/FunctionList.h"
+#include "TextLogging/TextLogging.h"
 
 #include <booster/idl/b1/LowCmd.h>
 #include <booster/robot/b1/b1_loco_client.hpp>
 #include <booster/robot/channel/channel_publisher.hpp>
+
+#include <chrono>
 #include <csignal>
 #include <cstdio>
 #include <cstring>
@@ -16,36 +28,33 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include "Framework/Robot.h"
-#include "Framework/Robots.h"
-#include "Framework/Settings.h"
-#include "Math/Constants.h"
-#include "Platform/File.h"
-#include "Platform/SystemCall.h"
-#include "Streaming/FunctionList.h"
-
-static pid_t bhumanPid = 0;
+static pid_t roboeireannPid = 0;
 static Robot* robot = nullptr;
 static bool run = true;
 static pthread_t mainThread;
 static bool shutdownBooster = false;
+
+
+DECL_TLOGGER(tlogger, "Main", TextLogging::INFO);
+
 
 SystemCall::Mode SystemCall::getMode()
 {
   return physicalRobot;
 }
 
-static void bhumanStart(const Settings& settings)
+static void roboeireannStart(const Settings& settings)
 {
-  fprintf(stderr, "B-Human: Start.\n");
+  TLOGI(tlogger, "Roboeireann: Start.");
 
   robot = new Robot(settings, std::string());
   robot->start();
 }
 
-static void bhumanStop()
+static void roboeireannStop()
 {
-  fprintf(stderr, "B-Human: Stop.\n");
+  TLOGI(tlogger, "Roboeireann: Stop.");
+
   robot->announceStop();
   robot->stop();
   delete robot;
@@ -56,13 +65,21 @@ static void sighandlerShutdown(int sig)
 {
   if(pthread_self() != mainThread)
   {
+    TLOGI(tlogger, "Caught termination/interrupt signal ({}) on non-main thread -- redirecting to main thread...",
+          Assert::getSignalName(sig));
+
     shutdownBooster = true;
     pthread_kill(mainThread, sig);
   }
   else
   {
     if(run)
-      fprintf(stderr, "Caught signal %i\nShutting down...\n", sig);
+    {
+      TLOGI(tlogger, "Caught (normal) termination/interrupt signal ({}) -- Shutting down executable...",
+            Assert::getSignalName(sig));
+      TextLogging::requestAsyncOutput(false); // output any async log messages
+      fflush(NULL);                           // flush all streams
+    }
     run = false;
   }
 }
@@ -76,8 +93,8 @@ static Settings::RobotType getRobotType(const std::string& robotName)
 {
   const std::string bhdir = File::getBHDir();
   InMapFile robotsStream(bhdir + "/Config/Robots/robots.cfg");
-  if(!robotsStream.exists())
-    fprintf(stderr, "Could not load robots.cfg\n");
+  if (!robotsStream.exists())
+    TLOGW(tlogger, "Could not load robots.cfg");
   else
   {
     Robots robots;
@@ -85,7 +102,7 @@ static Settings::RobotType getRobotType(const std::string& robotName)
     for(const Robots::RobotId& robot : robots.robotsIds)
       if(robot.name == robotName)
         return robot.robotType;
-    fprintf(stderr, "Could not find robot name \"%s\" in robots.cfg!\n", robotName.c_str());
+    TLOGW(tlogger, "Could not find robot name {} in robots.cfg!", robotName);
   }
   return Settings::nao;
 }
@@ -100,6 +117,7 @@ int main(int argc, char* argv[])
     setvbuf(stderr, nullptr, _IONBF, 0);
 
     mainThread = pthread_self();
+    Thread::nameCurrentThread("Main"); // for text logging output
 
     // parse command-line arguments
     bool watchdog = false;
@@ -112,24 +130,25 @@ int main(int argc, char* argv[])
         watchdog = true;
       else
       {
-        fprintf(stderr, "Usage: %s [-c <dir>] [-w]\n\
-    -c <dir>      used bh directory (default is /home/booster)\n\
+        TLOGI(tlogger, "\n\n\
+Usage: {} [-c <dir>] [-w]\n\
+    -c <dir>      specify a base config directory (default is /home/booster)\n\
     -w            use a watchdog for crash recovery and creating trace dumps\n", argv[0]);
         exit(EXIT_FAILURE);
       }
 
     // avoid duplicated instances
-    int fd = open("/tmp/bhuman", O_CREAT, 0600);
+    int fd = open("/tmp/roboeireann_lock", O_CREAT, 0600);
     if(fd == -1 || flock(fd, LOCK_EX | LOCK_NB) == -1)
     {
-      fprintf(stderr, "There is already an instance of this process!\n");
+      TLOGE(tlogger, "There is already an instance of this process running!");
       exit(EXIT_FAILURE);
     }
 
     // change working directory
     if(*bhDir && chdir(bhDir) != 0)
     {
-      fprintf(stderr, "chdir to config directory failed!\n");
+      TLOGE(tlogger, "chdir to base config directory failed!\n");
       exit(EXIT_FAILURE);
     }
 
@@ -138,24 +157,32 @@ int main(int argc, char* argv[])
     {
       for(;;)
       {
-        bhumanPid = fork();
-        if(bhumanPid == -1)
+        roboeireannPid = fork();
+        if(roboeireannPid == -1)
           exit(EXIT_FAILURE);
-        else if(bhumanPid == 0)
+        else if(roboeireannPid == 0) // this is the newly forked child
           break;
+
+        // this is the parent code continuing
+        Thread::nameCurrentThread("WatchdogMain");
+        TLOGI(tlogger, "Starting watchdog process");
 
         int status;
         signal(SIGTERM, sighandlerRedirect);
         signal(SIGINT, sighandlerRedirect);
-        if(waitpid(bhumanPid, &status, 0) != bhumanPid)
+        if(waitpid(roboeireannPid, &status, 0) != roboeireannPid)
         {
           exit(EXIT_FAILURE);
         }
         signal(SIGTERM, SIG_DFL);
         signal(SIGINT, SIG_DFL);
 
-        // detect requested or normal exit
+        // we only get here when the child process exited
+        // was it requested/normal exit?
         bool normalExit = !run || (WIFEXITED(status) && WEXITSTATUS(status) == EXIT_SUCCESS);
+
+        TLOGI(tlogger, "Child process has exited, requested={}, normalExit={}, exitStatus={}", !run,
+              WIFEXITED(status) == 0, WEXITSTATUS(status));
 
         // dump trace and assert trace
         if(!normalExit)
@@ -169,10 +196,11 @@ int main(int argc, char* argv[])
           booster::robot::b1::B1LocoClient client;
           client.Init();
           usleep(10000);
+          TLOGI(tlogger, "Switching robot back to damping mode");
           const int result = client.ChangeMode(booster::robot::RobotMode::kDamping);
           if(result)
           {
-            fprintf(stderr, "Switching robot back to damping mode failed with error %d!\n", result);
+            TLOGE(tlogger, "Switching robot back to damping mode failed with error {}!", result);
             return EXIT_FAILURE;
           }
         }
@@ -182,19 +210,23 @@ int main(int argc, char* argv[])
       }
     }
 
+    // =======================================================================
+    // The child process code
+    // =======================================================================
+
     // Initialize connection to robot at realtime priority.
     sched_param param;
     param.sched_priority = 21; // One more than Motion
     if(pthread_setschedparam(pthread_self(), SCHED_FIFO, &param))
     {
-      fprintf(stderr, "Raising priority failed!\n");
+      TLOGE(tlogger, "Raising priority failed!");
       return EXIT_FAILURE;
     }
     booster::robot::ChannelFactory::Instance()->Init(0);
     param.sched_priority = 0;
     if(pthread_setschedparam(pthread_self(), SCHED_OTHER, &param))
     {
-      fprintf(stderr, "Lowering priority failed!\n");
+      TLOGE(tlogger, "Lowering priority failed!");
       return EXIT_FAILURE;
     }
 
@@ -211,7 +243,7 @@ int main(int argc, char* argv[])
     lowCmdPublisher.InitChannel();
     if(!lowCmdPublisher.Write(&lowCmd))
     {
-      fprintf(stderr, "Resetting motor commands failed!\n");
+      TLOGE(tlogger, "Resetting motor commands failed!");
       return EXIT_FAILURE;
     }
 
@@ -225,15 +257,19 @@ int main(int argc, char* argv[])
     if(settings.playerNumber < 0 || settings.bodyName.empty())
       return EXIT_FAILURE;
 
+
+    TextLogging::logStartupTime(tlogger, TextLogging::INFO);
+
+
     // print status information
-    printf("Hi, I am %s.\n", settings.headName.c_str());
-    printf("teamNumber %d\n", settings.teamNumber);
-    printf("fieldPlayerColor %s\n", TypeRegistry::getEnumName(settings.fieldPlayerColor));
-    printf("goalkeeperColor %s\n", TypeRegistry::getEnumName(settings.goalkeeperColor));
-    printf("playerNumber %d\n", settings.playerNumber);
-    printf("location %s\n", settings.location.c_str());
-    printf("scenario %s\n", settings.scenario.c_str());
-    printf("magicNumber %d\n", settings.magicNumber);
+    TLOGI(tlogger, "Hi, I am {}.", settings.headName.c_str());
+    TLOGI(tlogger, "teamNumber {}", settings.teamNumber);
+    TLOGI(tlogger, "fieldPlayerColor {}", TypeRegistry::getEnumName(settings.fieldPlayerColor));
+    TLOGI(tlogger, "goalkeeperColor {}", TypeRegistry::getEnumName(settings.goalkeeperColor));
+    TLOGI(tlogger, "playerNumber {}", settings.playerNumber);
+    TLOGI(tlogger, "location {}", settings.location.c_str());
+    TLOGI(tlogger, "scenario {}", settings.scenario.c_str());
+    TLOGI(tlogger, "magicNumber {}", settings.magicNumber);
 
     // put the current body name in a file (at the moment only used in downloadCalibration)
     OutTextRawFile("/var/volatile/tmp/bodyName.txt") << settings.bodyName;
@@ -242,7 +278,7 @@ int main(int argc, char* argv[])
     signal(SIGTERM, sighandlerShutdown);
     signal(SIGINT, sighandlerShutdown);
 
-    bhumanStart(settings);
+    roboeireannStart(settings);
 
     // settings go out of scope here, but everything that needs it later makes a copy.
   }
@@ -250,14 +286,27 @@ int main(int argc, char* argv[])
   while(run)
     pause();
 
-  bhumanStop();
+  roboeireannStop();
+
+  TextLogging::requestAsyncOutput(false); // back to sync logging in the calling thread
 
   const int result = client.ChangeMode(booster::robot::RobotMode::kDamping);
   if(result)
-    fprintf(stderr, "Switching robot back to damping mode failed with error %d!\n", result);
+    TLOGE(tlogger, "Switching robot back to damping mode failed with error {}\n", result);
 
-  if(shutdownBooster)
+  if (shutdownBooster)
+  {
+    TLOGI(tlogger, "Preparing to power-off the robot");
+    fflush(NULL);
+
+    Thread::sleep(500);
+
+    // to be sure to be sure...
+    TLOGI(tlogger, "Power off now");
+    fflush(NULL);
+
     static_cast<void>(!system("sudo systemctl poweroff &"));
+  }
 
   return EXIT_SUCCESS;
 }

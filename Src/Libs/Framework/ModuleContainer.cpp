@@ -90,81 +90,87 @@ void ModuleContainer::init()
 
 bool ModuleContainer::main()
 {
-  for(Receiver<ModulePacket>& receiver : receivers)
-    if(!moduleGraphRunner.receiverEmpty(receiver.index))
-      receiver.receivePacket();
-
-  if((executionUnit->beforeFrame() || moduleGraphRunner.hasChanged() || debugRequestWaiting) && moduleGraphRunner.isValid())
+  Global::getTimingManager().signalThreadStart();
+  STOPWATCH("ModuleContainerMain")
   {
-    debugRequestWaiting = false;
-    Global::getTimingManager().signalThreadStart();
+    for (Receiver<ModulePacket> &receiver : receivers)
+      if (!moduleGraphRunner.receiverEmpty(receiver.index))
+        receiver.receivePacket();
 
-    executionUnit->beforeModules();
-    STOPWATCH("AllModules") moduleGraphRunner.execute();
-    executionUnit->afterModules();
+    if ((executionUnit->beforeFrame() || moduleGraphRunner.hasChanged() || debugRequestWaiting) &&
+        moduleGraphRunner.isValid())
+    {
+      debugRequestWaiting = false;
+      // Global::getTimingManager().signalThreadStart();
 
-    DEBUG_RESPONSE_ONCE("automated requests:DrawingManager") OUTPUT(idDrawingManager, bin, Global::getDrawingManager());
-    DEBUG_RESPONSE_ONCE("automated requests:DrawingManager3D") OUTPUT(idDrawingManager3D, bin, Global::getDrawingManager3D());
+      executionUnit->beforeModules();
+      STOPWATCH("AllModules") moduleGraphRunner.execute();
+      executionUnit->afterModules();
 
-    for(Sender<ModulePacket>& sender : senders)
-      if(!moduleGraphRunner.senderEmpty(sender.index))
+      DEBUG_RESPONSE_ONCE("automated requests:DrawingManager")
+      OUTPUT(idDrawingManager, bin, Global::getDrawingManager());
+      DEBUG_RESPONSE_ONCE("automated requests:DrawingManager3D")
+      OUTPUT(idDrawingManager3D, bin, Global::getDrawingManager3D());
+
+      for (Sender<ModulePacket> &sender : senders)
+        if (!moduleGraphRunner.senderEmpty(sender.index))
+        {
+          BH_TRACE_MSG("before sender.send() to: " + sender.receiverThreadName);
+          sender.send();
+        }
+
+      if (logger && loggingController)
+        logger->update(*loggingController);
+
+      const bool keepAnnotations = logger && !logger->execute(getName());
+
+      DEBUG_RESPONSE("timing") * debugSender << Global::getTimingManager().getData();
+
+      DEBUG_RESPONSE("annotation")
       {
-        BH_TRACE_MSG("before sender.send() to: " + sender.receiverThreadName);
-        sender.send();
+        *debugSender << Global::getAnnotationManager().getOut();
+        Global::getAnnotationManager().getOut().clear();
       }
+      // If there is a logger that is not logging now (e.g. during INITIAL),
+      // annotations should not be cleared so that they appear later in the log.
+      else if (!keepAnnotations) Global::getAnnotationManager().getOut().clear();
 
-    if(logger && loggingController)
-      logger->update(*loggingController);
+      if (debugSender->size() > sizeAfterFrameBegin)
+      {
+        // messages were sent in this frame -> send thread finished
+        OUTPUT(idFrameFinished, bin, getName());
+      }
+      else
+        debugSender->resize(originalSize);
 
-    const bool keepAnnotations = logger && !logger->execute(getName());
-
-    DEBUG_RESPONSE("timing") *debugSender << Global::getTimingManager().getData();
-
-    DEBUG_RESPONSE("annotation")
-    {
-      *debugSender << Global::getAnnotationManager().getOut();
-      Global::getAnnotationManager().getOut().clear();
-    }
-    // If there is a logger that is not logging now (e.g. during INITIAL),
-    // annotations should not be cleared so that they appear later in the log.
-    else if(!keepAnnotations)
-      Global::getAnnotationManager().getOut().clear();
-
-    if(debugSender->size() > sizeAfterFrameBegin)
-    {
-      // messages were sent in this frame -> send thread finished
-      OUTPUT(idFrameFinished, bin, getName());
-    }
-    else
-      debugSender->resize(originalSize);
-
-    BH_TRACE_MSG("debugSender->send()");
-    debugSender->send();
-
-    // Prepare next frame
-    originalSize = debugSender->size();
-    OUTPUT(idFrameBegin, bin, getName());
-    sizeAfterFrameBegin = debugSender->size();
-  }
-  else
-  {
-    // If data was not sent in the previous frame or new data was appended
-    // (idLogResponse or "pollingFinished"), try to send it now.
-    if(originalSize > 0 || debugSender->size() > sizeAfterFrameBegin)
-    {
+      BH_TRACE_MSG("debugSender->send()");
       debugSender->send();
 
-      if(debugSender->size() == 0)
-      {
-        // Prepare next frame
-        originalSize = 0;
-        OUTPUT(idFrameBegin, bin, getName());
-        sizeAfterFrameBegin = debugSender->size();
-      }
+      // Prepare next frame
+      originalSize = debugSender->size();
+      OUTPUT(idFrameBegin, bin, getName());
+      sizeAfterFrameBegin = debugSender->size();
     }
-    if(Global::getDebugRequestTable().pollCounter > 0)
-      // If the frame is not executed during polling, the poll counter should not become smaller.
-      ++Global::getDebugRequestTable().pollCounter;
+    else
+    {
+      // If data was not sent in the previous frame or new data was appended
+      // (idLogResponse or "pollingFinished"), try to send it now.
+      if (originalSize > 0 || debugSender->size() > sizeAfterFrameBegin)
+      {
+        debugSender->send();
+
+        if (debugSender->size() == 0)
+        {
+          // Prepare next frame
+          originalSize = 0;
+          OUTPUT(idFrameBegin, bin, getName());
+          sizeAfterFrameBegin = debugSender->size();
+        }
+      }
+      if (Global::getDebugRequestTable().pollCounter > 0)
+        // If the frame is not executed during polling, the poll counter should not become smaller.
+        ++Global::getDebugRequestTable().pollCounter;
+    }
   }
 
   if(executionUnit->afterFrame())

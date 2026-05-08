@@ -240,9 +240,13 @@ void RobotDetector::applyColorNetwork()
   }
 
   if(useOnnx)
+  {
     STOPWATCH("module:RobotDetector:apply") onnxConvModel.apply();
+  }
   else
+  {
     STOPWATCH("module:RobotDetector:apply") cnnConvModel.apply();
+  }
 }
 
 template<typename ConvModel>

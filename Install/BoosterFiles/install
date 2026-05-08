@@ -92,8 +92,10 @@ sudo udevadm trigger
 mkdir -p /home/booster/bin /home/booster/logs /home/booster/Profiles
 
 # Copy scripts and make them executable
-cp bin/roboeireann bin/chmod-usb bin/setprofile bin/setvolume /home/booster/bin
-chmod +x /home/booster/bin/roboeireann /home/booster/bin/chmod-usb /home/booster/bin/setprofile /home/booster/bin/setvolume
+for script in roboeireann enableRoboEireann chmod-usb setprofile setvolume; do
+	cp bin/${script} home/booster/bin
+	chmod +x /home/booster/${script}
+done
 
 # parse lan or wlan from network.cfg
 get_config_val() {

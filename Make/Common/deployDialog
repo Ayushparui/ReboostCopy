@@ -47,7 +47,7 @@ killall DeployDialog 2>/dev/null
 elif [ -e /proc/version ] && [ ! -z "$(grep Microsoft </proc/version)" ]; then
   ../../Build/Windows/DeployDialog/$CONFIGURATION/DeployDialog.exe 2>/dev/null
 else
-  ../../Build/Linux/DeployDialog/$CONFIGURATION/DeployDialog 2>/dev/null
+  ../../Build/Linux/DeployDialog/$CONFIGURATION/DeployDialog 2> >(logger -t "deployDialog" -p user.info)
 fi ) | while read ARGS; do
   ARGS="$(tr -d '\r' <<<"$ARGS")"
   if [ ! -z "$ARGS" ]; then

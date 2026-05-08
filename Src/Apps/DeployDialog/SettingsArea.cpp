@@ -371,7 +371,7 @@ QWidget* SettingsArea::createRobotsTab()
   QWidget* widget = new QWidget();
   QVBoxLayout* layout = new QVBoxLayout(widget);
 
-  QCheckBox* restartSelector = new QCheckBox("Restart bhuman");
+  QCheckBox* restartSelector = new QCheckBox("Restart roboeireann");
   restartSelector->setChecked(restart);
   restartSelector->setFocusPolicy(Qt::StrongFocus);
   connect(restartSelector, &QCheckBox::stateChanged, [&](int state) {restart = state != Qt::Unchecked;});

@@ -389,8 +389,8 @@ private:
 #define TLOGV(...) (void)0
 
 // even if not logging, we still need to fall back to standard FAIL and VERIFY behaviour
-#define TLOG_ABORT(logger_,...) static_cast<void>(logger_, FAIL(fmt::format(__VA_ARGS__), Assert::abort(), 0))
-#define TLOG_FAIL(logger_,...) static_cast<void>(logger_, FAIL(fmt::format(__VA_ARGS__), 0))
+#define TLOG_ABORT(logger_,...) static_cast<void>(logger_, FAIL(fmt::format(__VA_ARGS__)), Assert::abort(), 0)
+#define TLOG_FAIL(logger_,...) static_cast<void>(logger_, FAIL(fmt::format(__VA_ARGS__)), 0)
 #define TLOG_VERIFY(logger_,cond) static_cast<void>(logger_, VERIFY(cond), 0)
 #define TLOG_VERIFY_ERRNO TLOG_VERIFY
 

@@ -13,6 +13,7 @@
 #include "Representations/Communication/RETeamMessage2025.h"
 
 #include "Debugging/DebugRequest.h"
+#include "Debugging/Stopwatch.h"
 #include "Framework/Settings.h"
 #include "Platform/SystemCall.h"
 #include "Platform/Thread.h"
@@ -36,6 +37,8 @@ Cognition::~Cognition()
 
 bool Cognition::beforeFrame()
 {
+  STOPWATCH_START("CognitionBeforeAfterFrame");
+
   // Currently replaying a log file?
   const bool replay = (SystemCall::getMode() == SystemCall::logFileReplay || SystemCall::getMode() == SystemCall::remoteRobot)
                       && LogDataProvider::exists();
@@ -155,6 +158,8 @@ void Cognition::afterModules()
 
 bool Cognition::afterFrame()
 {
+  STOPWATCH_STOP("CognitionBeforeAfterFrame");
+
   // If there is already a frame waiting to be processed, do not wait for the next one to arrive.
   return !acceptNext && !delayedLogCounter;
 }

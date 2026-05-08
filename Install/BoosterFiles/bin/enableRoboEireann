@@ -1,0 +1,47 @@
+#!/bin/bash
+
+ACTION=$1
+BOOSTER_SERVICES=("daemon-perception" "battery-daemon" "rtc-speech")
+RE_SERVICE="roboeireann"
+
+manage_booster() {
+	local action=$1
+	for svc in "${BOOSTER_SERVICES[@]}"; do
+		echo "Performing [system] $action on booster-$svc..."
+		sudo systemctl "$action" "booster-$svc"
+	done
+}
+
+manage_roboeireann() {
+	local action=$1
+	echo "Performing [user] $action on $RE_SERVICE..."
+	# Note: No sudo here.
+	systemctl --user "$action" "$RE_SERVICE"
+}
+
+case "$1" in
+true)
+	# Stop booster system services and start the roboeireann user service
+	manage_booster "stop"
+	manage_booster "disable"
+	manage_roboeireann "enable"
+	manage_roboeireann "start"
+	;;
+false)
+	# Stop roboeireann user service and restore booster system services
+	manage_roboeireann "stop"
+	manage_roboeireann "disable"
+	manage_booster "enable"
+	manage_booster "start"
+	;;
+status)
+	echo "--- Booster System Services ---"
+	systemctl list-units --type=service | grep "booster" || echo "None active"
+	echo "--- RoboEireann User Service ---"
+	systemctl --user status "$RE_SERVICE"
+	;;
+*)
+	echo "Usage: $0 {true|false|status}"
+	exit 1
+	;;
+esac

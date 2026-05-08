@@ -222,9 +222,9 @@ void TextLogging::logStartupTime(TextLogger& tloggerClient, Level level)
 {
   auto now = std::chrono::system_clock::now();
 
-  TLOG_IMPL(tloggerClient, level, "----------------------------------------------------------");
+  TLOG_IMPL(tloggerClient, level, "----------------------------------------------------------------------------");
   TLOG_IMPL(tloggerClient, level, ">>>>>      Startup time is: {:%F %T}       <<<<<", now);
-  TLOG_IMPL(tloggerClient, level, "----------------------------------------------------------");
+  TLOG_IMPL(tloggerClient, level, "----------------------------------------------------------------------------");
 }
 
 TextLogger& TextLogging::registerLogger(const std::string& name)
