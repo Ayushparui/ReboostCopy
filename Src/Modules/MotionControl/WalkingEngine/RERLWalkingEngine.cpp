@@ -1,5 +1,5 @@
 /**
- * @file ReboostRLWalkingEngine.h
+ * @file RERLWalkingEngine.h
  *
  * Walking engine implementation for an RL model trained in IsaacLab.
  * This file utilizes the custom inputs and outputs from the Reboost locomotion
@@ -9,13 +9,13 @@
  * @Author James Florin Petri, Philip Reichenberg
  */
 
-#include "ReboostRLWalkingEngine.h"
+#include "RERLWalkingEngine.h"
 #include "Platform/SystemCall.h"
 #include <filesystem>
 
-MAKE_MODULE(ReboostRLWalkingEngine);
+MAKE_MODULE(RERLWalkingEngine);
 
-ReboostRLWalkingEngine::ReboostRLWalkingEngine():
+RERLWalkingEngine::RERLWalkingEngine():
   network(&Global::getAsmjitRuntime())
 {
   compile(false);
@@ -30,7 +30,7 @@ ReboostRLWalkingEngine::ReboostRLWalkingEngine():
     lastMeasurements.push_front(JointAngles());
 
   const DummyPhase dummy(MotionPhase::playDead);
-  ReboostRLWalkPhaseDummy phase(*this, Pose2f(), dummy);
+  RERLWalkPhaseDummy phase(*this, Pose2f(), dummy);
 
   const float stepDuration = configuredParameters.baseWalkPeriod / 1000.f;
   translationPolygon.emplace_back(stepDuration * Vector2f(configuredParameters.maxSpeed.translation.x() / 2.f, configuredParameters.maxSpeed.translation.y()));
@@ -76,7 +76,7 @@ ReboostRLWalkingEngine::ReboostRLWalkingEngine():
   };
 }
 
-void ReboostRLWalkingEngine::compile(bool output)
+void RERLWalkingEngine::compile(bool output)
 {
   if(output)
   {
@@ -103,7 +103,7 @@ void ReboostRLWalkingEngine::compile(bool output)
   ASSERT(network.output(0).dims(0) == reboostWalkNNParameters.numOutput); // TODO
 }
 
-void ReboostRLWalkingEngine::update(WalkStepData& walkStepData)
+void RERLWalkingEngine::update(WalkStepData& walkStepData)
 {
   lastMeasurements.push_front(theJointAngles);
 
@@ -122,15 +122,15 @@ void ReboostRLWalkingEngine::update(WalkStepData& walkStepData)
   walkStepData.yHipOffset = theRobotDimensions.yHipOffset;
 }
 
-void ReboostRLWalkingEngine::update(StandGenerator& standGenerator)
+void RERLWalkingEngine::update(StandGenerator& standGenerator)
 {
   standGenerator.createPhase = [this](const MotionRequest&, const MotionPhase& lastPhase)
   {
-    return std::make_unique<ReboostRLWalkPhaseDummy>(*this, Pose2f(), lastPhase);
+    return std::make_unique<RERLWalkPhaseDummy>(*this, Pose2f(), lastPhase);
   };
 }
 
-void ReboostRLWalkingEngine::update(WalkingEngineOutput& walkingEngineOutput)
+void RERLWalkingEngine::update(WalkingEngineOutput& walkingEngineOutput)
 {
   Pose2f useSpeed;
   useSpeed.rotation = configuredParameters.maxSpeed.rotation;
@@ -157,16 +157,16 @@ void ReboostRLWalkingEngine::update(WalkingEngineOutput& walkingEngineOutput)
   walkingEngineOutput.noEfficientWalkSpeed = configuredParameters.maxSpeed;
 }
 
-void ReboostRLWalkingEngine::update(WalkGenerator& walkGenerator)
+void RERLWalkingEngine::update(WalkGenerator& walkGenerator)
 {
   walkGenerator.createPhase = [this](const Pose2f& step, const MotionPhase& lastPhase, float)->std::unique_ptr<MotionPhase>
   {
-    return std::make_unique<ReboostRLWalkPhaseDummy>(*this, step, lastPhase);
+    return std::make_unique<RERLWalkPhaseDummy>(*this, step, lastPhase);
   };
 
   walkGenerator.createPhaseWithNextPhase = [this](const WalkKickStep& walkKickStep, const MotionPhase& lastPhase, const WalkGenerator::CreateNextPhaseCallback& createNextPhaseCallback, float)->std::unique_ptr<MotionPhase>
   {
-    return std::make_unique<ReboostRLWalkPhaseDummy>(*this, walkKickStep.keyframe[walkKickStep.keyframe.size() - 1].stepTarget, lastPhase, false, createNextPhaseCallback, walkKickStep);
+    return std::make_unique<RERLWalkPhaseDummy>(*this, walkKickStep.keyframe[walkKickStep.keyframe.size() - 1].stepTarget, lastPhase, false, createNextPhaseCallback, walkKickStep);
   };
 
   walkGenerator.isNextLeftPhase = [this](const MotionPhase& lastPhase, const Pose2f& stepTarget)
@@ -175,7 +175,7 @@ void ReboostRLWalkingEngine::update(WalkGenerator& walkGenerator)
     {
       case MotionPhase::walk:
       {
-        const auto& lastWalkPhase = static_cast<const ReboostRLWalkPhaseDummy&>(lastPhase);
+        const auto& lastWalkPhase = static_cast<const RERLWalkPhaseDummy&>(lastPhase);
         return lastWalkPhase.tBase < 0.44f || lastWalkPhase.tBase > 0.94f;
       }
       case MotionPhase::kick:
@@ -196,7 +196,7 @@ void ReboostRLWalkingEngine::update(WalkGenerator& walkGenerator)
     if(lastPhase.type != MotionPhase::walk)
       return theFootSupport.support > 0.f;
 
-    const auto& lastWalkPhase = static_cast<const ReboostRLWalkPhaseDummy&>(lastPhase);
+    const auto& lastWalkPhase = static_cast<const RERLWalkPhaseDummy&>(lastPhase);
     return lastWalkPhase.isLeftPhase;
   };
 
@@ -208,7 +208,7 @@ void ReboostRLWalkingEngine::update(WalkGenerator& walkGenerator)
       walkKickStep = WalkKickStep();
       return;
     }
-    const auto& lastWalkPhase = static_cast<const ReboostRLWalkPhaseDummy&>(lastPhase);
+    const auto& lastWalkPhase = static_cast<const RERLWalkPhaseDummy&>(lastPhase);
     step = lastWalkPhase.step;
     walkKickStep = lastWalkPhase.walkKickStep;
   };
@@ -312,7 +312,7 @@ void ReboostRLWalkingEngine::update(WalkGenerator& walkGenerator)
     Pose2f useWalkSpeedRatio = walkSpeedRatio;
 
     Vector2f frontLeft, backRight;
-    const Pose2f lastStep = lastPhase.type == MotionPhase::walk ? static_cast<const ReboostRLWalkPhaseDummy&>(lastPhase).step : Pose2f();
+    const Pose2f lastStep = lastPhase.type == MotionPhase::walk ? static_cast<const RERLWalkPhaseDummy&>(lastPhase).step : Pose2f();
     const Vector2f maxStepSizeChange = commonSpeedParameters.maxAcceleration * configuredParameters.baseWalkPeriod / 1000.f;
     const Vector2f maxStepSizeChangeToZero = commonSpeedParameters.maxDeceleration * configuredParameters.baseWalkPeriod / 1000.f;
     if(lastStep.translation.x() > 0.f)
@@ -418,14 +418,14 @@ void ReboostRLWalkingEngine::update(WalkGenerator& walkGenerator)
   {
     if(lastPhase.type == MotionPhase::walk)
     {
-      const auto& lastWalkPhase = static_cast<const ReboostRLWalkPhaseDummy&>(lastPhase);
+      const auto& lastWalkPhase = static_cast<const RERLWalkPhaseDummy&>(lastPhase);
       return lastWalkPhase.walkKickStep.currentKick != WalkKicks::none;
     }
     return false;
   };
 }
 
-Rangea ReboostRLWalkingEngine::getMaxRotationToStepFactor(const bool isFastWalk, const bool isLeftPhase, const Angle customReduceOffset, const Vector2f& stepRatio)
+Rangea RERLWalkingEngine::getMaxRotationToStepFactor(const bool isFastWalk, const bool isLeftPhase, const Angle customReduceOffset, const Vector2f& stepRatio)
 {
   // rotation based on y-translation
   const float useReduceTranslationFromRotation = !isFastWalk ? stepSizeParameters.reduceTranslationFromRotation.y() : stepSizeParameters.reduceTranslationYFromRotationFast;
@@ -441,7 +441,7 @@ Rangea ReboostRLWalkingEngine::getMaxRotationToStepFactor(const bool isFastWalk,
   return Rangea(std::max(minRotY, -rotX), std::min(maxRotY, rotX));
 }
 
-Vector2f ReboostRLWalkingEngine::getStepSizeFactor(const Angle rotation, const bool isFastWalk, const bool isLeftPhase, const Angle customReduceOffset, const Vector2f& walkSpeedRatio)
+Vector2f RERLWalkingEngine::getStepSizeFactor(const Angle rotation, const bool isFastWalk, const bool isLeftPhase, const Angle customReduceOffset, const Vector2f& walkSpeedRatio)
 {
   const Angle useReduceFactor = std::max(customReduceOffset, stepSizeParameters.reduceTranslationFromRotation.x());
   const float tFactorX = std::max(0.f, 1.f - sqr(std::max(0.f, (std::abs(rotation) - useReduceFactor) / (stepSizeParameters.noTranslationFromRotation.x() - useReduceFactor))));
@@ -451,7 +451,7 @@ Vector2f ReboostRLWalkingEngine::getStepSizeFactor(const Angle rotation, const b
   return Vector2f(std::min(tFactorX, std::abs(walkSpeedRatio.x())), std::min(tFactorY, std::abs(walkSpeedRatio.y())));
 }
 
-void ReboostRLWalkingEngine::filterTranslationPolygon(std::vector<Vector2f>& polygonOut, std::vector<Vector2f>& polygonIn, const std::vector<Vector2f>& polygonOriginal)
+void RERLWalkingEngine::filterTranslationPolygon(std::vector<Vector2f>& polygonOut, std::vector<Vector2f>& polygonIn, const std::vector<Vector2f>& polygonOriginal)
 {
   // adjust y forward
   Geometry::Line lineForwardAdjusted(polygonIn[1], (polygonIn[1] - polygonIn[2]).normalized());
@@ -481,7 +481,7 @@ void ReboostRLWalkingEngine::filterTranslationPolygon(std::vector<Vector2f>& pol
   }
 }
 
-void ReboostRLWalkingEngine::generateTranslationPolygon(std::vector<Vector2f>& polygon, const Vector2f& backRight, const Vector2f& frontLeft, const bool)
+void RERLWalkingEngine::generateTranslationPolygon(std::vector<Vector2f>& polygon, const Vector2f& backRight, const Vector2f& frontLeft, const bool)
 {
   ASSERT(!translationPolygon.empty());
   const std::vector<Vector2f>& original = translationPolygon;
@@ -522,7 +522,7 @@ void ReboostRLWalkingEngine::generateTranslationPolygon(std::vector<Vector2f>& p
   filterTranslationPolygon(polygon, translationPolygonTemp, original);
 }
 
-ReboostRLWalkPhaseDummy::ReboostRLWalkPhaseDummy(ReboostRLWalkingEngine& engine, Pose2f useStepTarget, const MotionPhase& lastPhase, const bool,
+RERLWalkPhaseDummy::RERLWalkPhaseDummy(RERLWalkingEngine& engine, Pose2f useStepTarget, const MotionPhase& lastPhase, const bool,
                          const WalkGenerator::CreateNextPhaseCallback& callBack,
                          const WalkKickStep& walkKickStep):
   MotionPhase(MotionPhase::walk),
@@ -538,7 +538,7 @@ ReboostRLWalkPhaseDummy::ReboostRLWalkPhaseDummy(ReboostRLWalkingEngine& engine,
   lastModelRequest = engine.theFrameInfo.time;
   if(lastPhase.type == MotionPhase::walk || lastPhase.type == MotionPhase::stand)
   {
-    const auto& lastWalkPhase = static_cast<const ReboostRLWalkPhaseDummy&>(lastPhase);
+    const auto& lastWalkPhase = static_cast<const RERLWalkPhaseDummy&>(lastPhase);
     tBase = lastWalkPhase.tBase;
     lastTarget = lastWalkPhase.lastTarget;
     lastModelRequest = lastWalkPhase.lastModelRequest;
@@ -592,7 +592,7 @@ ReboostRLWalkPhaseDummy::ReboostRLWalkPhaseDummy(ReboostRLWalkingEngine& engine,
   frequency = rawFrequency = engine.frequencyParameters.base;
 }
 
-void ReboostRLWalkPhaseDummy::getNextTargetRequest(JointAngles& target)
+void RERLWalkPhaseDummy::getNextTargetRequest(JointAngles& target)
 {
   float* input = engine.network.input(0).data();
 
@@ -673,7 +673,7 @@ void ReboostRLWalkPhaseDummy::getNextTargetRequest(JointAngles& target)
   }
 
   // Run network.
-  STOPWATCH("module:ReboostRLWalkingEngine:apply")
+  STOPWATCH("module:RERLWalkingEngine:apply")
     engine.network.apply();
 
   // Get next request
@@ -688,7 +688,7 @@ void ReboostRLWalkPhaseDummy::getNextTargetRequest(JointAngles& target)
   }
 }
 
-void ReboostRLWalkPhaseDummy::update()
+void RERLWalkPhaseDummy::update()
 {
   if(lastModelRequest > engine.theFrameInfo.time)
     lastModelRequest = engine.theFrameInfo.time;
@@ -702,14 +702,14 @@ void ReboostRLWalkPhaseDummy::update()
   }
 }
 
-bool ReboostRLWalkPhaseDummy::isDone(const MotionRequest& motionRequest) const
+bool RERLWalkPhaseDummy::isDone(const MotionRequest& motionRequest) const
 {
   // Does not work with WalkKickEngine
   return type == MotionPhase::stand ? motionRequest.motion != MotionRequest::stand // switch from stand to walk
          : engine.theFrameInfo.getTimeSince(lastModelRequest) >= 20 && tWalk > engine.motionCycleTime;
 }
 
-void ReboostRLWalkPhaseDummy::calcJoints(const MotionRequest&, JointRequest& jointRequest, Pose2f& odometryOffset, MotionInfo& motionInfo)
+void RERLWalkPhaseDummy::calcJoints(const MotionRequest&, JointRequest& jointRequest, Pose2f& odometryOffset, MotionInfo& motionInfo)
 {
   jointRequest.stiffnessData.stiffnesses.fill(100);
 
@@ -766,17 +766,17 @@ void ReboostRLWalkPhaseDummy::calcJoints(const MotionRequest&, JointRequest& joi
     odometryOffset = engine.theOdometryDataPreview.odometryChange;
 }
 
-std::unique_ptr<MotionPhase> ReboostRLWalkPhaseDummy::createNextPhase(const MotionPhase& defaultNextPhase) const
+std::unique_ptr<MotionPhase> RERLWalkPhaseDummy::createNextPhase(const MotionPhase& defaultNextPhase) const
 {
   // There must be another walk phase if the robot should transition into something other than walking and the feet are not next to each other.
   if(defaultNextPhase.type != MotionPhase::walk && type != MotionPhase::stand)
-    return std::make_unique<ReboostRLWalkPhaseDummy>(engine, Pose2f(), *this);
+    return std::make_unique<RERLWalkPhaseDummy>(engine, Pose2f(), *this);
   if(std::unique_ptr<MotionPhase> nextPhase; callBack && (nextPhase = callBack(*this, this->walkKickStep)))
     return nextPhase;
   return std::unique_ptr<MotionPhase>();
 }
 
-std::vector<Joints::Joint> ReboostRLWalkPhaseDummy::getBoosterLegJointSequence()
+std::vector<Joints::Joint> RERLWalkPhaseDummy::getBoosterLegJointSequence()
 {
   if(Global::getSettings().robotType != Settings::nao)
   {

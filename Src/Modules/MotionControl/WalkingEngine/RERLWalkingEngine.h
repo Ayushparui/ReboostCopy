@@ -1,5 +1,5 @@
 /**
- * @file ReboostRLWalkingEngine.h
+ * @file RERLWalkingEngine.h
  *
  * @Author Philip Reichenberg
  */
@@ -98,7 +98,7 @@ STREAMABLE(ReboostWalkNNParameters,
   (Pose2f) slowWalkStepSpeed, /**< Speed values to classify slow walking. This is based on the step size. */
 });
 
-MODULE(ReboostRLWalkingEngine,
+MODULE(RERLWalkingEngine,
 {,
   REQUIRES(FootSupport),
   REQUIRES(FrameInfo),
@@ -130,11 +130,11 @@ MODULE(ReboostRLWalkingEngine,
   }),
 });
 
-class ReboostRLWalkingEngine : public ReboostRLWalkingEngineBase
+class RERLWalkingEngine : public RERLWalkingEngineBase
 {
 public:
   /** Constructor */
-  ReboostRLWalkingEngine();
+  RERLWalkingEngine();
   const float motionCycleTime = Global::getSettings().motionCycleTime;
   RingBuffer<JointAngles, 10> lastMeasurements;
   CompiledNN network; /**< The compiled neural network. */
@@ -174,9 +174,9 @@ struct DummyPhase : MotionPhase
   void calcJoints(const MotionRequest&, JointRequest&, Pose2f&, MotionInfo&) override {}
 };
 
-struct ReboostRLWalkPhaseDummy : MotionPhase
+struct RERLWalkPhaseDummy : MotionPhase
 {
-  ReboostRLWalkPhaseDummy(ReboostRLWalkingEngine& engine, Pose2f stepTarget, const MotionPhase& lastPhase, const bool isDelay = false,
+  RERLWalkPhaseDummy(RERLWalkingEngine& engine, Pose2f stepTarget, const MotionPhase& lastPhase, const bool isDelay = false,
               const WalkGenerator::CreateNextPhaseCallback& createNextPhaseCallback = WalkGenerator::CreateNextPhaseCallback(),
               const WalkKickStep& walkKickStep = WalkKickStep());
 
@@ -198,7 +198,7 @@ private:
   void getNextTargetRequest(JointAngles& target);
   std::vector<Joints::Joint> getBoosterLegJointSequence();
 
-  ReboostRLWalkingEngine& engine; /**< A reference to the running motion engine. */
+  RERLWalkingEngine& engine; /**< A reference to the running motion engine. */
   unsigned lastModelRequest = 0;
   JointAngles nextTarget;
   JointAngles lastTarget;
