@@ -121,11 +121,11 @@ int main(int argc, char* argv[])
 
     // parse command-line arguments
     bool watchdog = false;
-    const char* bhDir = "/home/booster";
+    const char* runtimeDataRootDir = "/home/booster";
 
     for(int i = 1; i < argc; ++i)
       if(!strcmp(argv[i], "-c") && i + 1 < argc)
-        bhDir = argv[++i];
+        runtimeDataRootDir = argv[++i];
       else if(!strcmp(argv[i], "-w"))
         watchdog = true;
       else
@@ -146,7 +146,7 @@ Usage: {} [-c <dir>] [-w]\n\
     }
 
     // change working directory
-    if(*bhDir && chdir(bhDir) != 0)
+    if(*runtimeDataRootDir && chdir(runtimeDataRootDir) != 0)
     {
       TLOGE(tlogger, "chdir to base config directory failed!\n");
       exit(EXIT_FAILURE);

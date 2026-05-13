@@ -208,7 +208,7 @@ size_t File::getPosition()
   }
 }
 
-const char* File::getBHDir()
+const char* File::getRuntimeDataRoot()
 {
 #ifdef WINDOWS
   static char dir[MAX_PATH] = {0};
@@ -305,6 +305,12 @@ const char* File::getBHDir()
   }
 #endif
   return dir;
+}
+
+const std::string& File::getConfigDir()
+{
+  static std::string configDir = std::string(getRuntimeDataRoot()) + "/Config";
+  return configDir;
 }
 
 bool File::isAbsolute(const std::string& path)

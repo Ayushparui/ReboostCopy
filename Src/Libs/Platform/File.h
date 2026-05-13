@@ -135,9 +135,26 @@ public:
   /**
    * The function returns the current BH directory,
    * e.g. /home/nao or <..>/B-Human
+   *
+   * DEPRECATED going forward
+   *
    * @return The current BHDir
    */
-  static const char* getBHDir();
+  static const char *getBHDir() { return getRuntimeDataRoot(); }
+
+  /**
+   * The function returns the base directory, the parent of the 'Config' directory
+   * whether on the robot or in simulation
+   * @return The base directory (the parent of the Config dir).
+   */
+  static const char *getRuntimeDataRoot();
+
+  /**
+   * get the Config directory under which all parts of the robot configuration are stored.
+   * 
+   * The configDir is the immediate child of the runtimeDataRoot dir
+   */
+  static const std::string& getConfigDir();
 
   /**
    * Checks whether a path is an absolute path.
