@@ -93,8 +93,8 @@ mkdir -p /home/booster/bin /home/booster/logs /home/booster/Profiles
 
 # Copy scripts and make them executable
 for script in roboeireann enableRoboEireann chmod-usb setprofile setvolume; do
-	cp bin/${script} home/booster/bin
-	chmod +x /home/booster/${script}
+	cp bin/${script} /home/booster/bin/
+	chmod +x /home/booster/bin/${script}
 done
 
 # parse lan or wlan from network.cfg
