@@ -23,6 +23,7 @@ STREAMABLE(MotionRequest,
   ENUM(Motion,
   {,
     playDead, /**< Set all joints to zero stiffness. */
+    prepare, ///< prepare the robot by transitioning to a stable pose prior to autonomous operation
     stand, /**< Stand. */
     walkAtAbsoluteSpeed, /**< Walk at a given speed. */
     walkAtRelativeSpeed, /**< Walk at a given speed, given as a ratio of the maximum. */

@@ -4,6 +4,7 @@
  * This file declares skills that directly set the behavior's output.
  *
  * @author Thomas Röfer
+ * @author Rudi Villing (modifications)
  */
 
 /**
@@ -152,6 +153,9 @@ option(PhotoMode);
 
 /** This skill turns off the joints of the robot. */
 option(PlayDead);
+
+/** This skill requests the robot to enter the prepare motion. */
+option(Prepare);
 
 /**
  * This skill plays a sound file if it differs from the one that has been played in the last frame.

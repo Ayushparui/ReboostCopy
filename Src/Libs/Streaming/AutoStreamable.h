@@ -59,6 +59,7 @@
  * In this example, all attributes except from anInt and aLetter would be initialized.
  *
  * @author Thomas Röfer
+ * @author Rudi Villing (modifications)
  */
 
 #pragma once
@@ -338,6 +339,12 @@
  * inside the header of a streamable class.
  */
 #define COMMA ,
+
+/**
+ * Use this macro to wrap a construct (e.g. a bare enum) that contains multiple
+ * commas that are not enclosed by parentheses in the header of the streamable class
+ */
+#define HIDE_COMMAS(...) __VA_ARGS__
 
 namespace Streaming
 {

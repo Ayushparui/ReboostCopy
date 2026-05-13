@@ -21,6 +21,7 @@ struct MotionPhase
   ENUM(Type,
   {,
     playDead,
+    prepare,
     stand,
     walk,
     kick,

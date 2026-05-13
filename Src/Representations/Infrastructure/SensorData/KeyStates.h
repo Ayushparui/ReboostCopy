@@ -19,8 +19,9 @@ STREAMABLE(KeyStates,
 {
   ENUM(Key,
   {,
-    // touch sensors:
-    headFront,
+    // Nao touch sensors:
+    nao_firstKey,
+    headFront = nao_firstKey,
     headMiddle,
     headRear,
     lHandBack,
@@ -30,15 +31,26 @@ STREAMABLE(KeyStates,
     rHandLeft,
     rHandRight,
 
-    // bumpers:
+    // Nao bumpers:
     lFootLeft,
     lFootRight,
     rFootLeft,
     rFootRight,
     chest,
+
+    nao_lastKey = chest,
+
+    // BoosterK1
+    k1_firstKey,
+    k1_f1 = k1_firstKey,
+    k1_stand,
+    k1_walk,
+    k1_lastKey = k1_walk
   });
 
-  KeyStates(),
+  KeyStates();
+
+  /**** separate header from streamable fields, note comma after comment ****/,
 
   (ENUM_INDEXED_ARRAY(bool, Key)) pressed,
 });

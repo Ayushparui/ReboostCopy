@@ -8,6 +8,8 @@ option((SkillBehaviorControl) HandlePlayerState)
     {
       case GameState::unstiff:
         goto unstiff;
+      case GameState::prepare:
+        goto prepare;
       case GameState::calibration:
         goto calibration;
       case GameState::active:
@@ -35,9 +37,17 @@ option((SkillBehaviorControl) HandlePlayerState)
   {
     action
     {
-      LookAtAngles({.pan = JointAngles::off,
-                    .tilt = JointAngles::off});
+      LookAtAngles({.pan = JointAngles::off, .tilt = JointAngles::off});
       PlayDead();
+    }
+  }
+
+  state(prepare)
+  {
+    action 
+    { 
+      LookAtAngles({.pan = theJointAngles.angles[Joints::headYaw], .tilt = theJointAngles.angles[Joints::headPitch]}); 
+      Prepare();
     }
   }
 

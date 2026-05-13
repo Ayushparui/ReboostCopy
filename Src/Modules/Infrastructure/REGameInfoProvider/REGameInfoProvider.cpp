@@ -746,137 +746,137 @@ void REGameInfoProvider::updateGuessedKickingTeam(REGameInfo& gameInfo)
 
 void REGameInfoProvider::handlePlayerModeButtons(REGameInfo& gameInfo)
 {
-  // when true, ignoreChestButton will suppress the chest button in handleManualStateButtons
-  ignoreChestButton = false;
-
-  if (!(theREGameControlDataReceived.gamePhase != GAME_PHASE_PENALTYSHOOT && theREGameControlDataReceived.state == STATE_FINISHED))
-    whenNotInFinishedState = theFrameInfo.time;
-
-  switch (gameInfo.playerMode)
-  {
-    default:
-    case REGameInfo::unstiff: // check for UNSTIFF --> ACTIVE
-      if(theEnhancedKeyStates.hitStreak[KeyStates::chest] == 1)
-      { 
-        resetGameInfo(gameInfo);
-        TLOGI_ANNOTATION("Chestbutton pressed => mode UNSTIFF --> ACTIVE, GC state {}", gameInfo.getStateString());       
-        gameInfo.playerMode = REGameInfo::active;
-        ignoreChestButton = true; // suppress the chest button in this cognition cycle -- see handleManualStateButtons
-      }
-      break;
-
-    case REGameInfo::active: // check for ACTIVE --> UNSTIFF or CALIBRATION
-      if((theEnhancedKeyStates.pressedDuration[KeyStates::headFront] > unstiffHeadButtonPressDuration &&
-          theEnhancedKeyStates.pressedDuration[KeyStates::headMiddle] > unstiffHeadButtonPressDuration &&
-          theEnhancedKeyStates.pressedDuration[KeyStates::headRear] > unstiffHeadButtonPressDuration) ||
-         theFrameInfo.getTimeSince(whenNotInFinishedState) > finishedToUnstiffDuration)
-      {
-        if (theFrameInfo.getTimeSince(whenNotInFinishedState) > finishedToUnstiffDuration)
-          TLOGI_ANNOTATION("in FINISHED state for long enough => mode ACTIVE --> UNSTIFF");
-        else      
-          TLOGI_ANNOTATION("head buttons pressed => mode ACTIVE --> UNSTIFF");
-
-        resetGameInfo(gameInfo);
-        gameInfo.playerMode = REGameInfo::unstiff;
-      }
-      else if(theREGameControlDataReceived.state == STATE_INITIAL &&
-              !theREGameControlDataReceived.playerInfo().isPenalized() &&
-              theEnhancedKeyStates.pressedDuration[KeyStates::headFront] > calibrationHeadButtonPressDuration &&
-              theEnhancedKeyStates.isPressedFor(KeyStates::chest, 1000u))
-      {
-        TLOGI_ANNOTATION("front head and chest buttons pressed => mode ACTIVE --> CALIBRATION");
-
-        resetGameInfo(gameInfo);
-        gameInfo.playerMode = REGameInfo::calibration;
-        gameInfo.state = STATE_PLAYING;
-      }
-      break;
-
-    case REGameInfo::calibration: // check for CALIBRATION --> UNSTIFF
-      if((theEnhancedKeyStates.pressedDuration[KeyStates::headFront] > unstiffHeadButtonPressDuration &&
-          theEnhancedKeyStates.pressedDuration[KeyStates::headMiddle] > unstiffHeadButtonPressDuration &&
-          theEnhancedKeyStates.pressedDuration[KeyStates::headRear] > unstiffHeadButtonPressDuration) ||
-         theBehaviorStatus.calibrationFinished)
-      {
-        TLOGI_ANNOTATION("head buttons pressed => mode CALIBRATION --> UNSTIFF");
-        
-        resetGameInfo(gameInfo);
-        gameInfo.playerMode = REGameInfo::unstiff;
-      }
-      break;
-  }
+//   // when true, ignoreChestButton will suppress the chest button in handleManualStateButtons
+//   ignoreChestButton = false;
+// 
+//   if (!(theREGameControlDataReceived.gamePhase != GAME_PHASE_PENALTYSHOOT && theREGameControlDataReceived.state == STATE_FINISHED))
+//     whenNotInFinishedState = theFrameInfo.time;
+// 
+//   switch (gameInfo.playerMode)
+//   {
+//     default:
+//     case REGameInfo::unstiff: // check for UNSTIFF --> ACTIVE
+//       if(theEnhancedKeyStates.hitStreak[KeyStates::chest] == 1)
+//       { 
+//         resetGameInfo(gameInfo);
+//         TLOGI_ANNOTATION("Chestbutton pressed => mode UNSTIFF --> ACTIVE, GC state {}", gameInfo.getStateString());       
+//         gameInfo.playerMode = REGameInfo::active;
+//         ignoreChestButton = true; // suppress the chest button in this cognition cycle -- see handleManualStateButtons
+//       }
+//       break;
+// 
+//     case REGameInfo::active: // check for ACTIVE --> UNSTIFF or CALIBRATION
+//       if((theEnhancedKeyStates.pressedDuration[KeyStates::headFront] > unstiffHeadButtonPressDuration &&
+//           theEnhancedKeyStates.pressedDuration[KeyStates::headMiddle] > unstiffHeadButtonPressDuration &&
+//           theEnhancedKeyStates.pressedDuration[KeyStates::headRear] > unstiffHeadButtonPressDuration) ||
+//          theFrameInfo.getTimeSince(whenNotInFinishedState) > finishedToUnstiffDuration)
+//       {
+//         if (theFrameInfo.getTimeSince(whenNotInFinishedState) > finishedToUnstiffDuration)
+//           TLOGI_ANNOTATION("in FINISHED state for long enough => mode ACTIVE --> UNSTIFF");
+//         else      
+//           TLOGI_ANNOTATION("head buttons pressed => mode ACTIVE --> UNSTIFF");
+// 
+//         resetGameInfo(gameInfo);
+//         gameInfo.playerMode = REGameInfo::unstiff;
+//       }
+//       else if(theREGameControlDataReceived.state == STATE_INITIAL &&
+//               !theREGameControlDataReceived.playerInfo().isPenalized() &&
+//               theEnhancedKeyStates.pressedDuration[KeyStates::headFront] > calibrationHeadButtonPressDuration &&
+//               theEnhancedKeyStates.isPressedFor(KeyStates::chest, 1000u))
+//       {
+//         TLOGI_ANNOTATION("front head and chest buttons pressed => mode ACTIVE --> CALIBRATION");
+// 
+//         resetGameInfo(gameInfo);
+//         gameInfo.playerMode = REGameInfo::calibration;
+//         gameInfo.state = STATE_PLAYING;
+//       }
+//       break;
+// 
+//     case REGameInfo::calibration: // check for CALIBRATION --> UNSTIFF
+//       if((theEnhancedKeyStates.pressedDuration[KeyStates::headFront] > unstiffHeadButtonPressDuration &&
+//           theEnhancedKeyStates.pressedDuration[KeyStates::headMiddle] > unstiffHeadButtonPressDuration &&
+//           theEnhancedKeyStates.pressedDuration[KeyStates::headRear] > unstiffHeadButtonPressDuration) ||
+//          theBehaviorStatus.calibrationFinished)
+//       {
+//         TLOGI_ANNOTATION("head buttons pressed => mode CALIBRATION --> UNSTIFF");
+//         
+//         resetGameInfo(gameInfo);
+//         gameInfo.playerMode = REGameInfo::unstiff;
+//       }
+//       break;
+//   }
 }
 
 
 void REGameInfoProvider::handleManualStateButtons(REGameInfo& gameInfo)
 {
-  // this function only runs when the playerMode is active
-  ASSERT(gameInfo.playerMode == REGameInfo::active);
-  
-  REGameControlDataReceived::TeamInfo& ourTeam = gameInfo.ourTeam();
-  REGameControlDataReceived::RobotInfo& playerInfo = ourTeam.getPlayer(gameInfo.playerIndex());
-
-  // update config (but only in INITIAL)
-
-  if (gameInfo.state == STATE_INITIAL && !playerInfo.isPenalized())
-  {
-    if (theEnhancedKeyStates.hitStreak[KeyStates::lFootLeft] == 1)
-    {
-      ourTeam.fieldPlayerColor = (ourTeam.fieldPlayerColor + 1) % (TEAM_GRAY + 1); // cycle between TEAM_BLUE .. TEAM_GRAY
-
-      switch (ourTeam.fieldPlayerColor)
-      {
-        case TEAM_BLUE: SystemCall::say("Team blue"); break;
-        case TEAM_RED: SystemCall::say("Team red"); break;
-        case TEAM_YELLOW: SystemCall::say("Team yellow"); break;
-        case TEAM_BLACK: SystemCall::say("Team black"); break;
-        case TEAM_WHITE: SystemCall::say("Team white"); break;
-        case TEAM_ORANGE: SystemCall::say("Team orange"); break;
-        case TEAM_PURPLE: SystemCall::say("Team purple"); break;
-        case TEAM_BROWN: SystemCall::say("Team brown"); break;
-        case TEAM_GRAY: SystemCall::say("Team gray"); break;
-        default:
-        case TEAM_GREEN: SystemCall::say("Team green"); break;
-      }
-    }
-
-    if (theEnhancedKeyStates.hitStreak[KeyStates::rFootRight] == 1)
-    {
-      if (gameInfo.gamePhase == GAME_PHASE_NORMAL)
-      {
-        gameInfo.gamePhase   = GAME_PHASE_PENALTYSHOOT;
-        gameInfo.kickingTeam = ourTeam.teamNumber;
-        SystemCall::say("Penalty striker");
-      }
-      else if ((gameInfo.gamePhase == GAME_PHASE_PENALTYSHOOT) && (gameInfo.kickingTeam == ourTeam.teamNumber))
-      {
-        gameInfo.kickingTeam = 0; // the opponent team but we don't know their team number
-        SystemCall::say("Penalty keeper");
-      }
-      else
-        gameInfo.gamePhase = GAME_PHASE_NORMAL;
-    }
-  }
-
-  // update manual player state
-
-  if (!ignoreChestButton && theEnhancedKeyStates.hitStreak[KeyStates::chest] == 1)
-  {
-    if (playerInfo.penalty == PENALTY_NONE)
-    {
-      playerInfo.penalty = PENALTY_MANUAL; // Note that the first manual penalty doesn't yet switch the robot 
-                                       // out of INITIAL state (if there is no GC)
-
-      TLOGI(tlogger, "Chestbutton pressed => PENALTY_MANUAL, GC state {}", gameInfo.getStateString());
-    }
-    else
-    {
-      playerInfo.penalty = PENALTY_NONE;
-      gameInfo.state = STATE_PLAYING;
-
-      TLOGI(tlogger, "Chestbutton pressed => PENALTY_NONE, GC state {}", gameInfo.getStateString());
-    }
-  }
+//   // this function only runs when the playerMode is active
+//   ASSERT(gameInfo.playerMode == REGameInfo::active);
+//   
+//   REGameControlDataReceived::TeamInfo& ourTeam = gameInfo.ourTeam();
+//   REGameControlDataReceived::RobotInfo& playerInfo = ourTeam.getPlayer(gameInfo.playerIndex());
+// 
+//   // update config (but only in INITIAL)
+// 
+//   if (gameInfo.state == STATE_INITIAL && !playerInfo.isPenalized())
+//   {
+//     if (theEnhancedKeyStates.hitStreak[KeyStates::lFootLeft] == 1)
+//     {
+//       ourTeam.fieldPlayerColor = (ourTeam.fieldPlayerColor + 1) % (TEAM_GRAY + 1); // cycle between TEAM_BLUE .. TEAM_GRAY
+// 
+//       switch (ourTeam.fieldPlayerColor)
+//       {
+//         case TEAM_BLUE: SystemCall::say("Team blue"); break;
+//         case TEAM_RED: SystemCall::say("Team red"); break;
+//         case TEAM_YELLOW: SystemCall::say("Team yellow"); break;
+//         case TEAM_BLACK: SystemCall::say("Team black"); break;
+//         case TEAM_WHITE: SystemCall::say("Team white"); break;
+//         case TEAM_ORANGE: SystemCall::say("Team orange"); break;
+//         case TEAM_PURPLE: SystemCall::say("Team purple"); break;
+//         case TEAM_BROWN: SystemCall::say("Team brown"); break;
+//         case TEAM_GRAY: SystemCall::say("Team gray"); break;
+//         default:
+//         case TEAM_GREEN: SystemCall::say("Team green"); break;
+//       }
+//     }
+// 
+//     if (theEnhancedKeyStates.hitStreak[KeyStates::rFootRight] == 1)
+//     {
+//       if (gameInfo.gamePhase == GAME_PHASE_NORMAL)
+//       {
+//         gameInfo.gamePhase   = GAME_PHASE_PENALTYSHOOT;
+//         gameInfo.kickingTeam = ourTeam.teamNumber;
+//         SystemCall::say("Penalty striker");
+//       }
+//       else if ((gameInfo.gamePhase == GAME_PHASE_PENALTYSHOOT) && (gameInfo.kickingTeam == ourTeam.teamNumber))
+//       {
+//         gameInfo.kickingTeam = 0; // the opponent team but we don't know their team number
+//         SystemCall::say("Penalty keeper");
+//       }
+//       else
+//         gameInfo.gamePhase = GAME_PHASE_NORMAL;
+//     }
+//   }
+// 
+//   // update manual player state
+// 
+//   if (!ignoreChestButton && theEnhancedKeyStates.hitStreak[KeyStates::chest] == 1)
+//   {
+//     if (playerInfo.penalty == PENALTY_NONE)
+//     {
+//       playerInfo.penalty = PENALTY_MANUAL; // Note that the first manual penalty doesn't yet switch the robot 
+//                                        // out of INITIAL state (if there is no GC)
+// 
+//       TLOGI(tlogger, "Chestbutton pressed => PENALTY_MANUAL, GC state {}", gameInfo.getStateString());
+//     }
+//     else
+//     {
+//       playerInfo.penalty = PENALTY_NONE;
+//       gameInfo.state = STATE_PLAYING;
+// 
+//       TLOGI(tlogger, "Chestbutton pressed => PENALTY_NONE, GC state {}", gameInfo.getStateString());
+//     }
+//   }
 }
 
 

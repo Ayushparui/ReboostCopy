@@ -46,6 +46,7 @@
 #include "Representations/MotionControl/MotionRequest.h"
 #include "Representations/MotionControl/OdometryData.h"
 #include "Representations/MotionControl/PointAtGenerator.h"
+#include "Representations/MotionControl/PrepareGenerator.h"
 #include "Representations/MotionControl/ReplayWalkRequestGenerator.h"
 #include "Representations/MotionControl/SpecialGenerator.h"
 #include "Representations/MotionControl/StandGenerator.h"
@@ -97,6 +98,7 @@ MODULE(MotionEngine,
   REQUIRES(OdometryDataPreview),
   REQUIRES(OdometryTranslationRequest),
   REQUIRES(PointAtGenerator),
+  REQUIRES(PrepareGenerator),
   REQUIRES(ReplayWalkRequestGenerator),
   REQUIRES(SpecialGenerator),
   REQUIRES(StandGenerator),

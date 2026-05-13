@@ -39,6 +39,7 @@ MotionEngine::MotionEngine()
   };
 
   generators[MotionRequest::playDead] = &playDeadGenerator;
+  generators[MotionRequest::prepare] = &thePrepareGenerator;
   generators[MotionRequest::stand] = &theStandGenerator;
   generators[MotionRequest::walkAtAbsoluteSpeed] = &theWalkAtAbsoluteSpeedGenerator;
   generators[MotionRequest::walkAtRelativeSpeed] = &theWalkAtRelativeSpeedGenerator;

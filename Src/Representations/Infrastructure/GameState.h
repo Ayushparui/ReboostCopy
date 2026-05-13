@@ -71,6 +71,7 @@ STREAMABLE(GameState,
   ENUM(PlayerState,
   {,
     unstiff, /**< The robot is unstiff. */
+    prepare, ///< added for the BoosterK1 - this mode must be entered before handing over control to our motion code
     calibration, /**< The robot is in calibration mode. */
     penalizedManual, /**< The robot has been penalized using the chest button (no GameController is active). */
     penalizedIllegalBallContact, /**< The robot is penalized for an illegal ball contact (at the touchline, at least 45s). */

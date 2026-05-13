@@ -78,10 +78,15 @@
 #include "Tools/BehaviorControl/Strategy/PositionRole.h"
 #include "Tools/Motion/ReduceWalkSpeedType.h"
 #include "Tools/BehaviorControl/SideWalkingRequest.h"
+
+#include "Tools/RECommon/OnceFlag.h"
+
 #include "Debugging/Annotation.h"
 #include "Framework/Module.h"
 #include "Platform/SystemCall.h"
+
 #include <regex> // not needed in header, but would otherwise be broken by CABSL
+
 #include "Tools/BehaviorControl/Cabsl.h"
 
 #ifndef FULL_HEADER
@@ -153,6 +158,7 @@ MODULE(SkillBehaviorControl,
   REQUIRES(TeamData),
   REQUIRES(TeamBallModel),
   REQUIRES(WalkingEngineOutput),
+
   PROVIDES(ActivationGraph),
   REQUIRES(ActivationGraph),
   PROVIDES(ArmMotionRequest),
@@ -227,6 +233,7 @@ protected:
   /** Executes the skill request. */
   void executeRequest();
 
+  OnceFlag startupAnnouncement;
   unsigned timeWhenAnnouncedEmptySkillRequest = 0; /**< The last time when the robot said that its skill request is empty. */
 
   ArmMotionRequest theArmMotionRequest; /**< The arm motion request that is modified by the behavior. */

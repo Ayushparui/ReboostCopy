@@ -85,6 +85,9 @@ void SkillBehaviorControl::update(ActivationGraph&)
 
   theRefereeDetectionRequest.detectReferee = false;
 
+  if (startupAnnouncement.once())
+    SystemCall::playSound("startup_chord3.wav");
+
   // On request, tell the user whether a USB drive is mounted.
   if(theEnhancedKeyStates.hitStreak[KeyStates::headMiddle] == 3)
   {
