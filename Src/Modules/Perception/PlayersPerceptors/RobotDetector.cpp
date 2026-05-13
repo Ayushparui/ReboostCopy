@@ -134,10 +134,14 @@ void RobotDetector::extractImageObstaclesFromNetwork(std::vector<ObstaclesImageP
   else
     applyColorNetwork();
 
-  if(useOnnx)
+  if (useOnnx)
+  {
     STOPWATCH("module:RobotDetector:boundingBoxes") boundingBoxes(labelImage, onnxConvModel);
+  }
   else
+  {
     STOPWATCH("module:RobotDetector:boundingBoxes") boundingBoxes(labelImage, cnnConvModel);
+  }
 
   STOPWATCH("module:RobotDetector:nonMaximumSuppression") labelImage.nonMaximumSuppression(nonMaximumSuppressionIoUThreshold);
   STOPWATCH("module:RobotDetector:bigBoxSuppression") labelImage.bigBoxSuppression();
