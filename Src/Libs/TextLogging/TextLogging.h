@@ -17,6 +17,7 @@
 #pragma once
 
 #include "Platform/BHAssert.h"
+#include "Platform/Time.h"
 
 #include <fmt/format.h>
 
@@ -291,7 +292,6 @@ private:
   friend class TextLogging;
 };
 
-
 // ============================================================================
 // the macros...
 // ============================================================================
@@ -395,6 +395,45 @@ private:
 #define TLOG_VERIFY_ERRNO TLOG_VERIFY
 
 #endif // TLOG_DISABLED
+
+
+/**
+ * A simple stopwatch class to support text logging
+ * (distinct from the stopwatches associated with debug streaming and SimRobot)
+ */
+class TextLogStopwatch
+{
+#ifndef TLOG_DISABLED
+public:
+  explicit TextLogStopwatch(TextLogger& logger, TextLogging::Level level, const std::string& name)
+      : mLogger(logger), mLevel(level), mName(name)
+  {
+    mStartMicros = Time::getCurrentThreadTime();
+  }
+
+  ~TextLogStopwatch()
+  {
+    unsigned long durationMicros = mStartMicros - Time::getCurrentThreadTime();
+    TLOG_IMPL(mLogger, mLevel, "Stopwatch: {} took {}.{:03d} ms", mName, durationMicros/1000, durationMicros%1000);
+  }
+
+private:
+  TextLogger &mLogger;
+  TextLogging::Level mLevel;
+  std::string mName;
+  unsigned long long mStartMicros;
+#endif // TLOG_DISABLED
+};
+
+#ifndef TLOG_DISABLED
+#define TLOG_STOPWATCH(logger_, lvl_, name_) if (TextLogStopwatch(logger_, lvl_, name_), true)
+#else
+#define TLOG_STOPWATCH(logger_, lvl_, name_) if (true)
+#endif // TLOG_DISABLED
+
+
+
+
 
 /**
  * Use this macro to declare access to a logger in a .cpp file
