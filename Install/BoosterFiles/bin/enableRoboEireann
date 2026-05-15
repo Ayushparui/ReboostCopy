@@ -1,14 +1,26 @@
 #!/bin/bash
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 ACTION=$1
-BOOSTER_SERVICES=("daemon-perception" "battery-daemon" "rtc-speech")
+BOOSTER_SERVICES=("booster-btmon" "booster-lui" "booster-agent-manager" 
+									"booster-daemon-perception" "booster-battery-daemon" "booster-rtc-speech")
 RE_SERVICE="roboeireann"
+BUTTON_BINARY="/opt/booster/bin/container/device_gateway"
+GAMEPAD_BINARY="/opt/booster/RemoteController/bin/booster-remote-controller"
+
 
 manage_booster() {
 	local action=$1
+	local svc=$2
+	echo "Performing [system] $action on $svc..."
+	sudo systemctl "$action" "$svc"
+}
+
+manage_all_booster() {
+	local action=$1
 	for svc in "${BOOSTER_SERVICES[@]}"; do
-		echo "Performing [system] $action on booster-$svc..."
-		sudo systemctl "$action" "booster-$svc"
+	  manage_booster "$action" "$svc"
 	done
 }
 
@@ -22,8 +34,18 @@ manage_roboeireann() {
 case "$1" in
 true)
 	# Stop booster system services and start the roboeireann user service
-	manage_booster "stop"
-	manage_booster "disable"
+	manage_all_booster "stop"
+	manage_all_booster "disable"
+	#manage_all_booster "mask"
+	#sudo systemctl daemon-reload
+
+	manage_booster "stop" "booster-daemon"
+	sudo python3 "$SCRIPT_DIR/patchTopicNames.py" patch $BUTTON_BINARY ${BUTTON_BINARY}.orig \
+			"rt/button_event" "rt/button_re"
+	sudo python3 "$SCRIPT_DIR/patchTopicNames.py" patch $GAMEPAD_BINARY ${GAMEPAD_BINARY}.orig \
+			"rt/remote_controller_state" "rt/remote_controller_re"
+	manage_booster "start" "booster-daemon"
+
 	manage_roboeireann "enable"
 	manage_roboeireann "start"
 	;;
@@ -31,8 +53,18 @@ false)
 	# Stop roboeireann user service and restore booster system services
 	manage_roboeireann "stop"
 	manage_roboeireann "disable"
-	manage_booster "enable"
-	manage_booster "start"
+
+	manage_booster "stop" "booster-daemon"
+	sudo python3 "$SCRIPT_DIR/patchTopicNames.py" restore $BUTTON_BINARY ${BUTTON_BINARY}.orig \
+			"rt/button_event" "rt/button_re"
+	sudo python3 "$SCRIPT_DIR/patchTopicNames.py" restore $GAMEPAD_BINARY ${GAMEPAD_BINARY}.orig \
+			"rt/remote_controller_state" "rt/remote_controller_re"
+	manage_booster "start" "booster-daemon"
+
+	#manage_all_booster "unmask"
+	#sudo systemctl daemon-reload
+	manage_all_booster "enable"
+	manage_all_booster "start"
 	;;
 status)
 	echo "--- Booster System Services ---"
