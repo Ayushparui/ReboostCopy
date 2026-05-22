@@ -16,6 +16,7 @@ MAKE_MODULE(REAudioProvider);
 
 REAudioProvider::REAudioProvider()
 {
+    OUTPUT_TEXT("Initializing audio capture device...");
     /* Check for whether we can open the input audio device */
     for (uint retryNumber = 0; retryNumber < retries; retryNumber++) {
       int retVal = snd_pcm_open(&inputDevice, deviceName.c_str(), SND_PCM_STREAM_CAPTURE, 0);
@@ -39,6 +40,7 @@ REAudioProvider::REAudioProvider()
 
     VERIFY(!snd_pcm_hw_params(inputDevice, params));
 
+    OUTPUT_TEXT("Starting audio device...");
     snd_pcm_prepare(inputDevice);
     VERIFY(!snd_pcm_start(inputDevice));
 
@@ -87,6 +89,7 @@ void REAudioProvider::update(AudioData& audioData)
 {
     /* Create our audio buffers and clear values to 0 */
     if (!bufferInit) {
+      OUTPUT_TEXT("Initializing audio buffers...");
       audioFramesInt.resize(maxFrames * numChannels);
       audioData.samples.resize(maxFrames * numChannels);
       std::fill(audioFramesInt.begin(), audioFramesInt.end(), 0);
@@ -97,10 +100,12 @@ void REAudioProvider::update(AudioData& audioData)
       bufferInit = true;
     }
 
+    const unsigned cycleMs = 1000 / tickRate;
+    const unsigned timeMs = Time::getCurrentSystemTime();
     snd_pcm_sframes_t availableFrames = snd_pcm_avail(inputDevice);
 
     if (availableFrames < 0) {
-        // OUTPUT_WARNING("Error fetch available frames (" << status << "), recovering...");
+        OUTPUT_WARNING("Error fetch available frames, recovering...");
         snd_pcm_recover(inputDevice, static_cast<int>(availableFrames), 0);
         return;
     }
@@ -110,21 +115,24 @@ void REAudioProvider::update(AudioData& audioData)
 
     /* Try to recover the audio device */
     if (numAudioFrames < 0) {
-        // OUTPUT_WARNING("Audio record rrror (" << status << "), recovering...");
+        OUTPUT_WARNING("Audio record error, recovering...");
         numAudioFrames = snd_pcm_recover(inputDevice, numAudioFrames, 0);
     } else {
         audioData.samplesCaptured = static_cast<uint>(numAudioFrames);
         signedToFloat(audioData);
     }
 
-    tickWatchDog = Time::getCurrentSystemTime();
-    Thread::sleep(1000 / tickRate);
+
+  const unsigned workTimeMs = Time::getCurrentSystemTime() - timeMs;
+  tickWatchDog = Time::getCurrentSystemTime();
+  if (workTimeMs < cycleMs) {
+    Thread::sleep(cycleMs - workTimeMs);
+  }
 }
 
 void REAudioProvider::signedToFloat(AudioData& audioData)
 {
-    for (uint sampleIndex = 0; sampleIndex < audioData.samplesCaptured; sampleIndex++) {
-        ASSERT(audioFramesInt[sampleIndex] <= INT16_MAX);
+    for (uint sampleIndex = 0; sampleIndex < audioData.samplesCaptured * numChannels; sampleIndex++) {
         audioData.samples[sampleIndex] = static_cast<float>(audioFramesInt[sampleIndex]) / INT16_MAX;
     }
 }

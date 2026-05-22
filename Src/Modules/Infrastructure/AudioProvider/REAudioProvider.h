@@ -39,7 +39,7 @@ MODULE(REAudioProvider,
                 (std::string)deviceName, /* The ALSA sound card to be used for audio capture. */
                 (std::string)mixerName, /* The ALSA sound card to be used for audio capture. */
                 (float)captureVolume, /* The microphone volume in percent. */
-                (float)numChannels, /* The number of input channels */
+                (unsigned)numChannels, /* The number of input channels */
             }),
     });
 

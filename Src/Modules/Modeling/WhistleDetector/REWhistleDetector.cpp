@@ -25,6 +25,7 @@ static DECLARE_SYNC;
 
 REWhistleDetector::REWhistleDetector()
 {
+    OUTPUT_TEXT("Loading whistle detector model...");
     /* Obtain location for Whistle Detector model */
     const std::string baseDir = std::string(File::getBHDir()) + "/Config/NeuralNets/WhistleDetector/";
     model = std::make_unique<NeuralNetworkONNX::Model>(baseDir + whistleDetName);
@@ -86,9 +87,9 @@ REWhistleDetector::~REWhistleDetector()
 void REWhistleDetector::update(Whistle& theWhistle) {
     DECLARE_PLOT("module:REWhistleDetector:audioBuffer");
     DECLARE_PLOT("module:REWhistleDetector:whistleConfidence");
-    DECLARE_PLOT("module:WhistleDetectorRE2023:whistleConfidenceThresh");
+    DECLARE_PLOT("module:REWhistleDetector:whistleConfidenceThresh");
 
-    bool validAudio = (!theAudioData.samples.empty() && (theAudioData.channels >= 1));
+    bool validAudio = (!theAudioData.samples.empty() && (theAudioData.channels >= numChannels));
 
     /* If not receiving audio input */
     if (!validAudio) {
@@ -130,7 +131,7 @@ void REWhistleDetector::processAudio(Whistle& theWhistle, bool detectWhistle) {
         float monoSum = 0;
 
         /* For each channel */
-        for (std::size_t channel = 0; channel < theAudioData.channels; ++channel) {
+        for (std::size_t channel = 0; channel < numChannels; ++channel) {
             /* Obtain desired audio sample and perform clamping checks before
              * pushing to buffers.
              */
@@ -142,12 +143,12 @@ void REWhistleDetector::processAudio(Whistle& theWhistle, bool detectWhistle) {
         }
 
         /* normalize the mono sample level and add to the mono mix buffer */
-        monoBuffer.push_front(std::clamp(monoSum / theAudioData.channels * sampleGain, -1.f , 1.f));
+        monoBuffer.push_front(std::clamp(monoSum / numChannels * sampleGain, -1.f , 1.f));
 
         /* Plot monoBuffer Data
          * TODO: Check whether this is the right way for indexing through monoBuffer.
          */
-        PLOT("module:WhistleDetectorRE2023:audioBuffer", monoBuffer[i]);
+        PLOT("module:REWhistleDetector:audioBuffer", monoBuffer[i]);
     }
 
     /* We process our buffer as multiple FFT windows.
@@ -208,7 +209,7 @@ float REWhistleDetector::inferenceCheck() {
         {
             /* calculate the magnitude spectrum with usual FFT normalization */
             magSpectrums.front()[j] =
-                std::clamp((spectrum[j][0] * spectrum[j][0] + spectrum[j][1] * spectrum[j][0]) / fftSize , -1.f, 1.f);
+                std::clamp((spectrum[j][0] * spectrum[j][0] + spectrum[j][1] * spectrum[j][1]) / fftSize , -1.f, 1.f);
         }
 
         /* Use the next set of samples */
@@ -219,7 +220,7 @@ float REWhistleDetector::inferenceCheck() {
      * Make assertions to determine if there are samples to hold for next cycle.
      * Then determine the number of samples left over.
      */
-    std::size_t leftOverSize = monoBuffer.size() + fftStep - (numFFTs * fftStep);
+    std::size_t leftOverSize = monoBuffer.size() - (numFFTs * fftStep);
     ASSERT(leftOverSize > 0);
 
     leftOverBuffer.reserve(leftOverSize);
@@ -240,7 +241,7 @@ float REWhistleDetector::inferenceCheck() {
     /* Adapted for loop to gurantee taking from the back of RingBuffer */
     for (std::size_t magSpectInd = 0; magSpectInd < magSpectrums.size(); magSpectInd++) {
         memcpy(fftDest, magSpectrums.from_back(magSpectInd).data(), spectrumSize * sizeof(float));
-        fftDest += spectrumSize * sizeof(float);
+        fftDest += spectrumSize;
     }
 
     /* Comparison of FFT and NN */
@@ -248,8 +249,8 @@ float REWhistleDetector::inferenceCheck() {
     const float whistleConfidence = whistleDetector.output(0).data()[0];
 
     /* Prints values of the whistleConfidence. Debugging. */
-    PLOT("module:WhistleDetectorRE2023:whistleConfidence", whistleConfidence);
-    PLOT("module:WhistleDetectorRE2023:whistleConfidenceThresh", whistleConfidenceThresh);
+    PLOT("module:REWhistleDetector:whistleConfidence", whistleConfidence);
+    PLOT("module:REWhistleDetector:whistleConfidenceThresh", whistleConfidenceThresh);
 
     return whistleConfidence;
 
