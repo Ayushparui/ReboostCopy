@@ -44,18 +44,19 @@ RLKickEngine::RLKickEngine() :
 
   boosterLegJoints = { 
     Joints::lHipPitch,
-    Joints::lHipRoll,
-    Joints::lHipYaw,
-    Joints::lKneePitch,
-    Joints::lAnklePitch,
-    Joints::lAnkleRoll,
     Joints::rHipPitch,
+    Joints::lHipRoll,
     Joints::rHipRoll,
+    Joints::lHipYaw,
     Joints::rHipYaw,
+    Joints::lKneePitch,
     Joints::rKneePitch,
+    Joints::lAnklePitch,
     Joints::rAnklePitch,
+    Joints::lAnkleRoll,
     Joints::rAnkleRoll
   };
+
 }
 
 void RLKickEngine::compile()
