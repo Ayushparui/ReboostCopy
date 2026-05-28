@@ -744,7 +744,7 @@ void REGameInfoProvider::updateGuessedKickingTeam(REGameInfo& gameInfo)
 
 
 
-void REGameInfoProvider::handlePlayerModeButtons(REGameInfo& gameInfo)
+void REGameInfoProvider::handlePlayerModeButtons([[maybe_unused]] REGameInfo& gameInfo)
 {
 //   // when true, ignoreChestButton will suppress the chest button in handleManualStateButtons
 //   ignoreChestButton = false;
@@ -808,7 +808,7 @@ void REGameInfoProvider::handlePlayerModeButtons(REGameInfo& gameInfo)
 }
 
 
-void REGameInfoProvider::handleManualStateButtons(REGameInfo& gameInfo)
+void REGameInfoProvider::handleManualStateButtons([[maybe_unused]] REGameInfo& gameInfo)
 {
 //   // this function only runs when the playerMode is active
 //   ASSERT(gameInfo.playerMode == REGameInfo::active);
