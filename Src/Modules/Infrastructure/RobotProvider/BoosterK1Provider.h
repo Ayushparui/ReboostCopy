@@ -30,6 +30,7 @@
 #include "Representations/Infrastructure/LedRequestK1.h"
 #include "Tools/RECommon/OnceFlag.h"
 #include "Tools/RECommon/EdgeTrigger.h"
+#include "Tools/RECommon/IntervalTrigger.h"
 
 #include <atomic>
 
@@ -88,31 +89,6 @@ MODULE(BoosterK1Provider,
 
 class BoosterK1Provider : public BoosterK1ProviderBase
 {
-  struct TimeTrigger
-  {
-    unsigned lastTrigger = 0;
-    unsigned triggerInterval;
-
-    TimeTrigger(unsigned interval = 2000)
-        : triggerInterval(interval)
-    {
-    }
-
-    // rarely needed
-    void reset() { lastTrigger = 0; }
-
-    bool triggered(unsigned time, unsigned interval)
-    {
-      if ((time > lastTrigger) && ((time - lastTrigger) >= interval))
-      {
-        lastTrigger = time;
-        return true;
-      }
-      return false;
-    }
-    bool triggered(unsigned time) { return triggered(time, triggerInterval); }
-  };
-
   DECLARE_SYNC; /**< Data is received in a different thread, so synchronize access. */
 
 #ifndef TARGET_BOOSTER
@@ -160,10 +136,10 @@ class BoosterK1Provider : public BoosterK1ProviderBase
   size_t connectedJoints;             /**< How many joints are connected? */
   EdgeTrigger<MotionRequest::Motion> motionRequestMotion {MotionRequest::playDead};
 
-  TimeTrigger timeTriggerLowStateRx;
-  TimeTrigger timeTriggerRobotStatus;
-  TimeTrigger timeTriggerUpdateHardwareDataAvailable;
-  TimeTrigger timeTriggerWaitForFrameData;
+  IntervalTriggerMs intervalLowStateRx;
+  IntervalTriggerMs intervalRobotStatus;
+  IntervalTriggerMs intervalUpdateHardwareDataAvailable;
+  IntervalTriggerMs intervalWaitForFrameData;
   float lastReportedStateOfCharge = 1.f;
 
   // what booster reported in RobotStatesMsg subscription (updated when it changes)

@@ -244,7 +244,7 @@ void BoosterK1Provider::handleLowStateMsg(const booster_interface::msg::LowState
     frameDataSignal.post();
   }
 
-  if (timeTriggerLowStateRx.triggered(jointSensorData.timestamp, 20000u))
+  if (intervalLowStateRx.triggered(jointSensorData.timestamp, 20000u))
     TLOGI(tlogger, "handleLowStateMsg - received low state ({}/{} joints and inertial data)",
           lowState.motor_state_serial().size(), jointMapping.size());
 
@@ -311,7 +311,7 @@ void BoosterK1Provider::handleRobotStatusMsg(const booster_interface::msg::Robot
   if (reportStateOfCharge)
     TLOGI(tlogger, "Battery stateOfCharge={:.2f}", stateOfCharge);
 
-  if (timeTriggerRobotStatus.triggered(theFrameInfo.time, 20000u))
+  if (intervalRobotStatus.triggered(theFrameInfo.time, 20000u))
     TLOGI(tlogger, "handleRobotStatusMsg: connectedJoints={}", tmpConnectedJoints);
 }
 
@@ -521,10 +521,16 @@ void BoosterK1Provider::handleRemoteControllerMsg(const booster_interface::msg::
   
   SYNC;
 
-  gamePad.buttons = (GamePad::a * rc.a()) | (GamePad::b * rc.b()) | (GamePad::x * rc.x()) | (GamePad::y * rc.y()) |
-                    (GamePad::lb * rc.lb()) | (GamePad::rb * rc.rb()) | (GamePad::lt * rc.lt()) |
-                    (GamePad::rt * rc.rt()) | (GamePad::ls * rc.ls()) | (GamePad::rs * rc.rs()) |
-                    (GamePad::back * rc.back()) | (GamePad::start * rc.start());
+  // gamePad.buttons = ((1 << GamePad::a) * rc.a()) | ((1 << GamePad::b) * rc.b()) | ((1 << GamePad::x) * rc.x()) |
+  //                   ((1 << GamePad::y) * rc.y()) | ((1 << GamePad::lb) * rc.lb()) | ((1 << GamePad::rb) * rc.rb()) |
+  //                   ((1 << GamePad::lt) * rc.lt()) | ((1 << GamePad::rt) * rc.rt()) | ((1 << GamePad::ls) * rc.ls()) |
+  //                   ((1 << GamePad::rs) * rc.rs()) | ((1 << GamePad::back) * rc.back()) |
+  //                   ((1 << GamePad::start) * rc.start());
+
+  gamePad.buttons = (GamePad::maskA * rc.a()) | (GamePad::maskB * rc.b()) | (GamePad::maskX * rc.x()) |
+                    (GamePad::maskY * rc.y()) | (GamePad::maskLB * rc.lb()) | (GamePad::maskRB * rc.rb()) |
+                    (GamePad::maskLT * rc.lt()) | (GamePad::maskRT * rc.rt()) | (GamePad::maskLS * rc.ls()) |
+                    (GamePad::maskRS * rc.rs()) | (GamePad::maskBack * rc.back()) | (GamePad::maskStart * rc.start());
 
   if (rc.hat_c())
     gamePad.hat = GamePad::centered;
@@ -715,7 +721,7 @@ bool BoosterK1Provider::updateHardwareDataAvailable(bool jointDataReceived, size
       SystemCall::say("Body disconnected", true);
     }
 
-    if (timeTriggerUpdateHardwareDataAvailable.triggered(theFrameInfo.time, 20000u))
+    if (intervalUpdateHardwareDataAvailable.triggered(theFrameInfo.time, 20000u))
       TLOGI(tlogger, "updateHardwareDataAvailable: hardwareData is NOT available: jointDataReceived={}, numJoints={}",
             jointDataReceived, numConnectedJoints);
 
@@ -915,7 +921,7 @@ void BoosterK1Provider::waitForFrameData2()
     numConnectedJoints = connectedJoints; // thread safe read
   }
 
-  if (timeTriggerWaitForFrameData.triggered(theFrameInfo.time, 10000u))
+  if (intervalWaitForFrameData.triggered(theFrameInfo.time, 10000u))
     TLOGI(tlogger, "waitForFrameData2: jointDataReceived={}, connectedJoints={}", jointDataReceived, numConnectedJoints);
 
   updateHardwareDataAvailable(jointDataReceived, numConnectedJoints);
@@ -1014,7 +1020,7 @@ void BoosterK1Provider::finishFrame2()
     //   else
     //     motorCmd.tau(0);
     // }
-    else if (index == Joints::lAnkleRoll || index == Joints.lAnklePitch) // RV TMP TESTING with limited joints only
+    else if (index == Joints::lAnkleRoll || index == Joints::lAnklePitch) // RV TMP TESTING with limited joints only
     {
       motorCmd.q(theJointRequest.angles[index] + theJointCalibration.offsets[index]);
       const float stiffness = Rangef::ZeroOneRange().limit(theJointRequest.stiffnessData.stiffnesses[index] * 0.01f);
