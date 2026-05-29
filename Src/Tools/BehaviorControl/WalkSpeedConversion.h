@@ -91,4 +91,38 @@ namespace WalkSpeedConversion
     walkingSpeedRatio.translation.y() = Rangef::ZeroOneRange().limit(std::min(speed.translation.y(), walkingSpeedRatio.translation.y()));
     return walkingSpeedRatio;
   }
+
+
+  inline Pose2f applyBrakingCap(const Pose2f& walkingSpeedRatio, float targetDistanceMm,
+                                const WalkingEngineOutput& walkingEngineOutput)
+  {
+    const BrakingModelParameters& bm = walkingEngineOutput.brakingModel;
+    if(bm.quadA <= 0.f)
+      return walkingSpeedRatio;     // Use model as-is
+
+    const float vCmdX = walkingSpeedRatio.translation.x() * walkingEngineOutput.maxSpeed.translation.x();
+    const float vCmdY = walkingSpeedRatio.translation.y() * walkingEngineOutput.maxSpeed.translation.y();
+    const float vCmdMag = std::sqrt(vCmdX * vCmdX + vCmdY * vCmdY);
+    if(vCmdMag <= bm.minCappedSpeed * 1000.f)
+      return walkingSpeedRatio;
+
+    const float dMeters = std::max(targetDistanceMm, 0.f) * 0.001f * bm.distanceSafetyFactor;
+    const float discriminant = bm.quadB * bm.quadB - 4.f * bm.quadA * (bm.quadC - dMeters);
+    float vMaxSafeMm = 0.f;
+    if(discriminant > 0.f)
+    {
+      const float numerator = -bm.quadB + std::sqrt(discriminant);
+      if(numerator > 0.f)
+        vMaxSafeMm = (numerator / (2.f * bm.quadA)) * 1000.f;
+    }
+
+    Pose2f result = walkingSpeedRatio;
+    if(vCmdMag > vMaxSafeMm && vCmdMag > 1e-3f)
+    {
+      const float scale = vMaxSafeMm / vCmdMag;
+      result.translation.x() *= scale;
+      result.translation.y() *= scale;
+    }
+    return result;
+  }
 }

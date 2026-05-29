@@ -49,7 +49,8 @@ option((SkillBehaviorControl) WalkToPoint,
   const float targetDistance = target.translation.norm();
   disableObstacleAvoidance |= theGameState.isPenaltyShootout();
 
-  const Pose2f walkingSpeedRatio = WalkSpeedConversion::convertSpeedRatio(reduceWalkSpeedType, speed, target, theFrameInfo, theGameState, theFieldBall, theWalkingEngineOutput);
+  Pose2f walkingSpeedRatio = WalkSpeedConversion::convertSpeedRatio(reduceWalkSpeedType, speed, target, theFrameInfo, theGameState, theFieldBall, theWalkingEngineOutput);
+  walkingSpeedRatio = WalkSpeedConversion::applyBrakingCap(walkingSpeedRatio, targetDistance, theWalkingEngineOutput);
   const bool energySavingWalk = !disableEnergySavingWalk && reduceWalkSpeedType == ReduceWalkSpeedType::slow;
 
   common_transition

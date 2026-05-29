@@ -127,6 +127,7 @@ MODULE(RERLWalkingEngine,
     (ReboostWalkNNParameters) reboostWalkNNParameters,      /**< Parameters of the walk neuroal network. */
     (FrequencyParameters) frequencyParameters,              /**< Frequency parameters. */
     (BallNetworkParameters) ballNetworkParameters,          /**< Ball parameters for the network. */
+    (BrakingModelParameters) brakingModelParameters,        /**< Empirical braking-distance model (forwarded to WalkingEngineOutput). */
   }),
 });
 
