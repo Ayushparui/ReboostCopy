@@ -155,6 +155,8 @@ void RERLWalkingEngine::update(WalkingEngineOutput& walkingEngineOutput)
   walkingEngineOutput.energyEfficientWalkSpeed.rotation *= 0.9f; // prevent possible divisions by 0 in behavior
   walkingEngineOutput.energyEfficientWalkSpeed.translation *= 0.9f;
   walkingEngineOutput.noEfficientWalkSpeed = configuredParameters.maxSpeed;
+
+  walkingEngineOutput.brakingModel = brakingModelParameters;
 }
 
 void RERLWalkingEngine::update(WalkGenerator& walkGenerator)

@@ -11,6 +11,16 @@
 #include "Math/Pose2f.h"
 #include "Streaming/AutoStreamable.h"
 
+
+STREAMABLE(BrakingModelParameters,
+{,    // d[m] = (quadA * v^2) + (quadB * v) + quadC
+  (float)(0.f) quadA, /**< Quadratic coefficient (s^2/m). */
+  (float)(0.f) quadB, /**< Linear coefficient (s). */
+  (float)(0.f) quadC, /**< Constant term (m); accounts for the zero-speed brake distance floor. */
+  (float)(1.f) distanceSafetyFactor, /**< Scales available braking distance; 1.0 = use model as-is, 0.5 = assume only half the actual distance is usable. */
+  (float)(0.f) minCappedSpeed, /**< Commanded body-speed magnitude [m/s] below which the cap is skipped (fine-positioning escape). */
+});
+
 STREAMABLE(WalkingEngineOutput,
 {,
   (Pose2f)(45_deg, 100.f, 100.f) maxSpeed, /**< The maximum speed possible. */
@@ -26,4 +36,6 @@ STREAMABLE(WalkingEngineOutput,
 
   (Pose2f)(45_deg, 50.f, 50.f) energyEfficientWalkSpeed, /**< In this walk speed the robot can walk higher and the knees heat up slower. */
   (Pose2f)(45_deg, 50.f, 50.f) noEfficientWalkSpeed, /**< In this walk speed the robot can only walk at the normal height. */
+
+  (BrakingModelParameters) brakingModel, /**< Empirical braking-distance model used to cap approach speed by distance to target. */
 });
