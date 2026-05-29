@@ -40,6 +40,8 @@ MODULE(OdometryDataPreviewProvider,
     (unsigned int) usePlannedIsLeftPhaseAfterThisSwitchTime, /**< If last support foot switch took more than this time, use the planned left phase flag. */
     (Vector2f) odometryWalkScaling, /**< While walking scale the odometry with these factors. */
     (bool) filterSupportSwitch, /**< When switching the support foot, filter which sole to use as supporting one. */
+    (bool) useAnalyticalSupportDetection, /**< If true, pick the support sole by lowest sole-edge height instead of FootSupport/MotionInfo. */
+    (float) ambiguousSupportHeightThreshold, /**< [mm] If |minZ_left - minZ_right| < threshold, assume zero odometry this frame. */
   }),
 });
 
@@ -55,6 +57,14 @@ private:
   void update(OdometryTranslationRequest& theOdometryTranslationRequest) override { theOdometryTranslationRequest = internalOdometryTranslationRequest; };
 
   Pose2f getOdometryOffset(const RobotModel& theRobotModel, const Pose2f& lastOdometry, const bool overrideRotation, Pose2f& lastLeftSole, Pose2f& lastRightSole);
+
+  /**
+   * Decide which sole is the support sole based on the minimum height of its four edge corners (in ground frame).
+   * @param robotModel        The robot model to use (measured or requested).
+   * @param leftIsSupport     [out] True iff left sole is the support foot.
+   * @param ambiguous         [out] True iff |minZ_left - minZ_right| < ambiguousSupportHeightThreshold.
+   */
+  void detectSupportSoleAnalytically(const RobotModel& robotModel, bool& leftIsSupport, bool& ambiguous) const;
 
   Pose2f lastSoleLeft; /**< Last frame left sole in last frame torso. */
   Pose2f lastSoleRight; /**< Last frame right sole in last frame torso. */
