@@ -106,14 +106,14 @@ STREAMABLE(LedRequestK1,
   // Bit 0 (LSB, rightmost) = [0,50ms); Bit 31 (MSB, leftmost) = [1550,1600ms).
   static constexpr uint32_t OFF         = 0b00000000'00000000'00000000'00000000;
   static constexpr uint32_t ON          = 0b11111111'11111111'11111111'11111111;
-  static constexpr uint32_t BLINK       = 0b11111111'00000000'11111111'00000000;
-  static constexpr uint32_t BLINK2      = 0b00000000'11111111'00000000'11111111; // antiphase to blink
+  static constexpr uint32_t BLINK       = 0b00000000'11111111'00000000'11111111;
+  static constexpr uint32_t BLINK2      = 0b11111111'00000000'11111111'00000000; // antiphase to blink
   static constexpr uint32_t FAST_BLINK  = 0b00110011'00110011'00110011'00110011;
   static constexpr uint32_t FAST_BLINK2 = 0b11001100'11001100'11001100'11001100; // antiphase to fast blink
-  static constexpr uint32_t SLOW_DOUBLE = 0b00000000'00000000'11110000'11110000; // double blink, gap
-  static constexpr uint32_t FAST_DOUBLE = 0b00000000'11001100'00000000'11001100; // fast double blink, gap
-  static constexpr uint32_t TRIPLE      = 0b00000000'00101010'00000000'00101010; // triple blink, gap
-  static constexpr uint32_t TRIPLE2     = 0b00101010'00000000'00101010'00000000; // antiphase to triple
+  static constexpr uint32_t SLOW_DOUBLE = 0b00000000'00000000'00001111'00001111; // double blink, gap
+  static constexpr uint32_t FAST_DOUBLE = 0b00000000'00110011'00000000'00110011; // fast double blink, gap
+  static constexpr uint32_t TRIPLE      = 0b00000000'00010101'00000000'00010101; // triple blink, gap
+  static constexpr uint32_t TRIPLE2     = 0b00010101'00000000'00010101'00000000; // antiphase to triple
 
 
   bool operator==(const LedRequestK1 &other) const

@@ -65,10 +65,10 @@ void LedProviderK1::updateFromGameState(LedRequestK1 &ledRequest)
     ledRequest.setBgPattern(LedColorK1::GREEN, LedRequestK1::ON);
 }
 
-void LedProviderK1::updateFromGroundState(LedRequestK1 &ledRequest)
+void LedProviderK1::updateFromGroundState([[maybe_unused]] LedRequestK1 &ledRequest)
 {
   if (!theGroundContactState.contact)
-    ledRequest.setFgPattern(LedColorK1::ORANGE_YELLOW, LedRequestK1::FAST_DOUBLE);
+    ledRequest.setFgPattern(LedColorK1::ORANGE_YELLOW, 0b00000000'00010000'00000000'00010000);
 }
 
 void LedProviderK1::updateFromTeammates(LedRequestK1 &ledRequest)
