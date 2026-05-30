@@ -80,10 +80,12 @@
 #include "Tools/BehaviorControl/SideWalkingRequest.h"
 
 #include "Tools/RECommon/OnceFlag.h"
+#include "Tools/RECommon/EdgeTrigger.h"
 
 #include "Debugging/Annotation.h"
 #include "Framework/Module.h"
 #include "Platform/SystemCall.h"
+#include "TextLogging/TextLogging.h"
 
 #include <regex> // not needed in header, but would otherwise be broken by CABSL
 
@@ -228,7 +230,6 @@ private:
   unsigned lastReceivePassRequestTimestamp = 0;
   int receivePassPlayerNumber = -1;
   bool isSlowingDownLookActive = false;
-
 protected:
   /** Executes the skill request. */
   void executeRequest();
@@ -253,3 +254,13 @@ protected:
 #include "Skills/Support/Support.h"
 #include "Skills/Walk/Walk.h"
 };
+
+
+
+#define DECL_OPTION_TLOGGER(ident_, lvl_) DECL_TLOGGER(tlogger, #ident_, lvl_); static EdgeTriggeri stateChanged{0}
+#define TLOGD_STATE_ENTRY(state_)                                                                                      \
+  do                                                                                                                   \
+  {                                                                                                                    \
+    if (stateChanged.update(__LINE__))                                                                                 \
+      TLOGD(tlogger, "Entered state: {}", #state_);                                                                    \
+  } while (0)

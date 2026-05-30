@@ -1,5 +1,9 @@
 #include "SkillBehaviorControl.h"
 
+
+DECL_OPTION_TLOGGER(HandlePhysicalRobot, TextLogging::DEBUG);
+
+
 option((SkillBehaviorControl) HandlePhysicalRobot)
 {
   common_transition
@@ -15,12 +19,15 @@ option((SkillBehaviorControl) HandlePhysicalRobot)
   }
 
   initial_state(working)
-  {}
+  {
+    TLOGD_STATE_ENTRY(working);
+  }
 
   state(cameraBroken)
   {
     action
     {
+      TLOGD_STATE_ENTRY(cameraBroken);
       LookAtAngles({.pan = JointAngles::off,
                     .tilt = JointAngles::off});
       PlayDead();
@@ -32,6 +39,7 @@ option((SkillBehaviorControl) HandlePhysicalRobot)
   {
     action
     {
+      TLOGD_STATE_ENTRY(lowBattery);
       LookAtAngles({.pan = JointAngles::off,
                     .tilt = JointAngles::off});
       PlayDead();
