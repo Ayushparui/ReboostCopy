@@ -16,8 +16,11 @@
 #include "Math/Rotation.h"
 #include "Tools/Motion/MotionUtilities.h"
 #include "Modules/Infrastructure/InterThreadProviders/PerceptionProviders.h"
+#include "TextLogging/TextLogging.h"
 
 MAKE_MODULE(MotionEngine);
+
+DECL_TLOGGER(tlogger, "MotionEngine", TextLogging::DEBUG);
 
 MotionEngine::MotionEngine()
 {
@@ -314,7 +317,8 @@ bool PlayDeadPhase::isDone(const MotionRequest& motionRequest) const
   return motionRequest.motion != MotionRequest::playDead &&
          (SystemCall::getMode() == SystemCall::simulatedRobot
           || Global::getSettings().robotType == Settings::nao
-          || engine.theGameState.playerState == GameState::PlayerState::penalizedManual);
+          || engine.theGameState.playerState == GameState::PlayerState::penalizedManual
+          || ((Global::getSettings().robotType == Settings::k1) && (motionRequest.motion == MotionRequest::prepare)));
 }
 
 void PlayDeadPhase::calcJoints(const MotionRequest&, JointRequest& jointRequest, Pose2f&, MotionInfo& motionInfo)
@@ -326,19 +330,47 @@ void PlayDeadPhase::calcJoints(const MotionRequest&, JointRequest& jointRequest,
 
 std::unique_ptr<MotionPhase> PlayDeadPhase::createNextPhase(const MotionPhase& defaultNextPhase) const
 {
-  if(!(std::abs(engine.theInertialData.angle.y()) < engine.uprightAngle.y() && std::abs(engine.theInertialData.angle.x()) < engine.uprightAngle.x()))
+  if (Global::getSettings().robotType == Settings::nao)
   {
-    if(engine.theFrameInfo.getTimeSince(uprightWarningTimestamp) > engine.uprightWarningTime)
-      SystemCall::say("Please hold my upper! body! upright");
-    return std::make_unique<PlayDeadPhase>(*this, engine);
-  }
+    if (!(std::abs(engine.theInertialData.angle.y()) < engine.uprightAngle.y() &&
+          std::abs(engine.theInertialData.angle.x()) < engine.uprightAngle.x()))
+    {
+      if (engine.theFrameInfo.getTimeSince(uprightWarningTimestamp) > engine.uprightWarningTime)
+        SystemCall::say("Please hold my upper! body! upright");
+      return std::make_unique<PlayDeadPhase>(*this, engine);
+    }
 
-  if(defaultNextPhase.type == MotionPhase::stand)
-    return std::unique_ptr<MotionPhase>();
-  MotionRequest request = engine.theMotionRequest;
-  request.motion = MotionRequest::stand;
-  request.standHigh = false;
-  return engine.theStandGenerator.createPhase(request, *this);
+    if (defaultNextPhase.type == MotionPhase::stand)
+      return std::unique_ptr<MotionPhase>(); // I guess this means we're happy with the defaultNextPhase
+
+    MotionRequest request = engine.theMotionRequest;
+    request.motion = MotionRequest::stand;
+    request.standHigh = false;
+    return engine.theStandGenerator.createPhase(request, *this);
+  }
+  else // K1 etc
+  {
+    if (engine.theRobotSafetyState.state != RobotSafetyState::operational)
+    {
+      TLOGD(tlogger, "createPhase: K1, not operational, priorityNewPhase=PlayDead");
+      return std::make_unique<PlayDeadPhase>(*this, engine);
+    }
+    else
+    {
+      if (defaultNextPhase.type == MotionPhase::prepare)
+      {
+        TLOGD(tlogger, "createPhase: K1, defaultNextPhase=prepare");
+        return std::unique_ptr<MotionPhase>(); // I guess this means we're happy with the defaultNextPhase
+      } 
+
+      MotionRequest request = engine.theMotionRequest;
+      request.motion = MotionRequest::prepare;
+      request.standHigh = true;
+      request.energySavingWalk = false;
+      TLOGD(tlogger, "createPhase: K1, priorityNewPhase=prepare");
+      return engine.thePrepareGenerator.createPhase(request, *this);
+    }
+  }
 }
 
 void PlayDeadPhase::update()

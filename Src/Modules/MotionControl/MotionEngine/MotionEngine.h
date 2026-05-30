@@ -28,6 +28,7 @@
 #include "Representations/Infrastructure/JointAngles.h"
 #include "Representations/Infrastructure/JointRequest.h"
 #include "Representations/Infrastructure/StiffnessData.h"
+#include "Representations/Infrastructure/RobotSafetyState.h"
 #include "Representations/MotionControl/ArmKeyFrameGenerator.h"
 #include "Representations/MotionControl/ArmMotionInfo.h"
 #include "Representations/MotionControl/ArmMotionRequest.h"
@@ -100,6 +101,7 @@ MODULE(MotionEngine,
   REQUIRES(PointAtGenerator),
   REQUIRES(PrepareGenerator),
   REQUIRES(ReplayWalkRequestGenerator),
+  REQUIRES(RobotSafetyState),
   REQUIRES(SpecialGenerator),
   REQUIRES(StandGenerator),
   REQUIRES(StiffnessSettings),
