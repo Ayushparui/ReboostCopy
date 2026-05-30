@@ -308,8 +308,8 @@ void REGameInfoProvider::updateBallMotion(REGameInfo& gameInfo)
     }
     else if (!gameInfo.isOurKick() && !isPenaltyKick &&
              //  ((theBallModel.timeWhenLastSeen > timeWhenStateChanged) ||
-             ((kickoffStartTime && (Time::getTimeBetween(theBallModel.timeWhenLastSeen, kickoffStartTime) > 0)) ||
-              (setPlayStartTime && (Time::getTimeBetween(theBallModel.timeWhenLastSeen, setPlayStartTime) > 0))) &&
+             ((kickoffStartTime && (Time::getTimeBetween(kickoffStartTime, theBallModel.timeWhenLastSeen) > 0)) ||
+              (setPlayStartTime && (Time::getTimeBetween(setPlayStartTime, theBallModel.timeWhenLastSeen) > 0))) &&
              (theBallModel.estimate.position.squaredNorm() < sqr(closeToRobotDistance)))
     {
       ballMoved = true;
