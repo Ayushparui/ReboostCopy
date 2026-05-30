@@ -160,13 +160,13 @@ BoosterK1Provider::BoosterK1Provider()
   buttonEventSubscriber.InitChannel();
   remoteControllerSubscriber.InitChannel();
   robotStatesSubscriber.InitChannel();
-
+}
 #else
 BoosterK1Provider::BoosterK1Provider()
 {
   theInstance = this;
-#endif
 }
+#endif
 
 BoosterK1Provider::~BoosterK1Provider()
 {
@@ -340,9 +340,9 @@ void BoosterK1Provider::triggerSafetyTrip(const char *reason)
   //   to reapply the change.
   
   if (res == 0)
-    TLOGW(tlogger, "{} ==> safetyTripped, entered DAMPing mode", reason);
+    TLOGW(tlogger, "******* {} ==> safetyTripped, entered DAMPing mode", reason);
   else
-    TLOGE(tlogger, "{} ==> safetyTripped but FAILED ({}) to enter DAMPing mode", reason, res);
+    TLOGE(tlogger, "******* {} ==> safetyTripped but FAILED ({}) to enter DAMPing mode", reason, res);
 }
 
 
@@ -356,8 +356,10 @@ void BoosterK1Provider::handleButtonEventMsg(const booster_interface::msg::Butto
   ASSERT(static_cast<size_t>(buttonEvent.button()) < buttonNames.size());
   ASSERT(static_cast<size_t>(buttonEvent.event()) < eventNames.size());
 
-  TLOGD(tlogger, "button {} ({}), event {} ({})", buttonEvent.button(), buttonNames[buttonEvent.button()],
-        static_cast<uint32_t>(buttonEvent.event()), eventNames[buttonEvent.event()]);
+  TextLogging::Level level =
+      (buttonEvent.event() == booster_interface::msg::LONG_PRESS_HOLD) ? TextLogging::VERBOSE : TextLogging::DEBUG;
+  TLOG_IMPL(tlogger, level, "button {} ({}), event {} ({})", buttonEvent.button(), buttonNames[buttonEvent.button()],
+            static_cast<uint32_t>(buttonEvent.event()), eventNames[buttonEvent.event()]);
 
   // -------------------------------------------------------------------------
   // top level safety handling
@@ -406,7 +408,7 @@ void BoosterK1Provider::handleButtonEventMsg(const booster_interface::msg::Butto
 //               buttonNames[buttonEvent.button()], hardwareDataAvailableLocal, robotModeString(robotModeLocal));
 //       }
       robotSafetyState.store(RobotSafetyState::resetPending); // checks will happen in waitForFrameData2 + delegates
-      TLOGI(tlogger, "safetyTripped: {} long press detected ==> resetPending", buttonNames[buttonEvent.button()]);
+      TLOGI(tlogger, "**** from safetyTripped: {} long press detected ==> resetPending", buttonNames[buttonEvent.button()]);
     }
     break;
 
@@ -482,7 +484,7 @@ void BoosterK1Provider::handleButtonEventMsg(const booster_interface::msg::Butto
 //       }
       RobotSafetyState::State expected = RobotSafetyState::resetPending;
       if (robotSafetyState.compare_exchange_strong(expected, RobotSafetyState::operational))
-        TLOGI(tlogger, "resetPending: {} press released ==> operational", buttonNames[buttonEvent.button()]);
+        TLOGI(tlogger, "**** from resetPending: {} press released ==> operational", buttonNames[buttonEvent.button()]);
 
       // the CAS will only fail in case of a concurrent switch to safetyTripped which will already
       // be logged. Other checks also take place in waitForFrameData2 + delegates.
@@ -557,6 +559,9 @@ void BoosterK1Provider::handleRemoteControllerMsg(const booster_interface::msg::
   gamePad.rStickY = -rc.ry(); // we want forward to be +1
 }
 
+// It seems that this message arrives with a delay of anything between 100
+// and 500 ms after the robot mode was actually changed, so not very
+// useful.
 void BoosterK1Provider::handleRobotStatesMsg(const booster_interface::msg::RobotStatesMsg &rs)
 {
   auto bodyControlString = [](int32_t bodyControl)
@@ -710,8 +715,8 @@ bool BoosterK1Provider::updateHardwareDataAvailable(bool jointDataReceived, size
   {
     if (waitingForJointDataAnnouncement.once())
     {
-      SystemCall::say("Waiting for initial joint data");
       TLOGI(tlogger, "updateHardwareConnectedState: awaiting initial joint data");
+      SystemCall::say("Waiting for initial body connection");
     }
     // if we think the robot is connected, then this is a new disconnection
     else if (wasDataAvailable)
@@ -721,15 +726,23 @@ bool BoosterK1Provider::updateHardwareDataAvailable(bool jointDataReceived, size
       SystemCall::say("Body disconnected", true);
     }
 
-    if (intervalUpdateHardwareDataAvailable.triggered(theFrameInfo.time, 20000u))
+    if (intervalUpdateHardwareDataAvailable.triggered(theFrameInfo.time, 5000u))
       TLOGI(tlogger, "updateHardwareDataAvailable: hardwareData is NOT available: jointDataReceived={}, numJoints={}",
             jointDataReceived, numConnectedJoints);
 
-    ASSERT(robotSafetyState.load() != RobotSafetyState::operational);
+    if (robotSafetyState.load() == RobotSafetyState::operational)
+    {
+      TLOGE(tlogger, "****** Pseudo-assert failure: hardware isDataAvailable={}, wasDataAvailable={}, safetyState=operational",
+            isDataAvailable, wasDataAvailable);
+      triggerSafetyTrip("Joint data unavailable (SHOULD HAVE BEEN HANDLED ALREADY)");
+      SystemCall::playSound("siren", true);
+      SystemCall::say("Body disconnected", true);
+    }
   }
   else if (!wasDataAvailable)
   {
     TLOGI(tlogger, "updateHardwareDataAvailable: hardwareData now available");
+    SystemCall::say("Body connected", true);
   }
 
   return isDataAvailable;
@@ -795,7 +808,7 @@ void BoosterK1Provider::updateRobotModeFromMotionRequest()
 {
   // has the motionRequest motion changed?
   if (motionRequestMotion.update(theMotionRequest.motion))
-    TLOGI(tlogger, "updateRobotModeFromMotionRequest: requested motion is now {}",
+    TLOGI(tlogger, "updateRobotModeFromMotionRequest: requested motion = MotionRequest::{}",
           TypeRegistry::getEnumName(theMotionRequest.motion));
 
   // decide the appropriate booster mode for the requested motion
@@ -1020,7 +1033,7 @@ void BoosterK1Provider::finishFrame2()
     //   else
     //     motorCmd.tau(0);
     // }
-    else if (index == Joints::lAnkleRoll || index == Joints::lAnklePitch) // RV TMP TESTING with limited joints only
+    else if (index != Joints::headPitch && index != Joints::headYaw) // RV TMP TESTING with limited joints only
     {
       motorCmd.q(theJointRequest.angles[index] + theJointCalibration.offsets[index]);
       const float stiffness = Rangef::ZeroOneRange().limit(theJointRequest.stiffnessData.stiffnesses[index] * 0.01f);

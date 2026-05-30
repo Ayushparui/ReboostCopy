@@ -107,10 +107,11 @@ class BoosterK1Provider : public BoosterK1ProviderBase
   static_assert(std::atomic<RobotSafetyState::State>::is_always_lock_free,
                 "robotSafetyState must be lock-free for e-stop safety guarantee");
 
-  EdgeTrigger<RobotSafetyState::State> robotSafetyStateEdge {RobotSafetyState::safetyTripped}; // for detecting transitions
+#ifdef TARGET_BOOSTER
+  // remember safetyState from last cycle - an EdgeTrigger instance doesn't work here 
+  // because there can sometimes be more than one transition per cycle
   RobotSafetyState::State lastRobotSafetyState = RobotSafetyState::safetyTripped;
   
-#ifdef TARGET_BOOSTER
   /// the hardware API client - mainly used to change the robotMode
   booster::robot::b1::B1LocoClient client;
 
