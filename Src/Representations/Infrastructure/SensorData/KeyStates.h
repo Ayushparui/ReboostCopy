@@ -66,12 +66,12 @@ STREAMABLE_WITH_BASE(EnhancedKeyStates, KeyStates,
    * calculates the 'current' hit streak for a given key state sensor
    *
    * @param key the sensor
-   * @param timeOut is if the sensor is triggered longer than this, the trigger state gets rejected
-   * @param allowedTimeBetweenHitStreak allowed time between to hits to be considered as streak
+   * @param maxPressDuration is if the sensor is triggered longer than this, the hit streak ends
+   * @param allowedTimeBetweenHits max allowed time between to hits to be considered part of a hit streak
    *
    * @return the size of the current finished hit streak recently
    */
-  FUNCTION(unsigned(KeyStates::Key key, unsigned timeOut, unsigned allowedTimeBetweenHitStreak)) getHitStreakFor;
+  FUNCTION(unsigned(KeyStates::Key key, unsigned maxPressDuration, unsigned allowedTimeBetweenHits)) getHitStreakFor;
 
   /*
    * checks whether a button press just reached a certain duration in this frame
@@ -81,9 +81,12 @@ STREAMABLE_WITH_BASE(EnhancedKeyStates, KeyStates,
    *
    * @return whether a button press just reached a certain duration in this frame
    */
-  FUNCTION(bool(KeyStates::Key key, unsigned duration)) isPressedFor,
+  FUNCTION(bool(KeyStates::Key key, unsigned duration)) isPressedFor;
 
-  (ENUM_INDEXED_ARRAY(unsigned, Key)) hitStreak,       ///< hit streak per key calculated with default parameters of the provider (finished recently)
-  (ENUM_INDEXED_ARRAY(unsigned, Key)) pressedDuration, ///< duration per key since this one is pressed
-                                                       ///<     (0 == pressed[key] for the first time this frame || !pressed[key]) -> True
+  /**** separate header from streamable fields - comma at end of comment ****/,
+
+  (ENUM_INDEXED_ARRAY(unsigned, Key)) hitStreak,       ///< hit streak per key calculated with default parameters of 
+                                                       ///< the provider. Valid for just one tick, shortly after key last released.
+  (ENUM_INDEXED_ARRAY(unsigned, Key)) pressedDuration, ///< duration per key while the key is pressed.
+                                                       ///< Zero if the key is just pressed this frame, or has been released.
 });
