@@ -103,8 +103,9 @@ void FilteredCurrentProvider::checkMotorMalfunction(FilteredCurrent& theFiltered
       {
         soundTimestamp = theFrameInfo.time;
         SystemCall::playSound("siren", true);
-        SystemCall::say("Motor malfunction! Upper body!", true);
-        SystemCall::say((std::string(TypeRegistry::getEnumName(theGameState.color())) + " " + std::to_string(theGameState.playerNumber)).c_str(), true);
+        SystemCall::say(fmt::format("Motor malfunction! Upper body! {} {}.",
+                                    TypeRegistry::getEnumName(theGameState.color()), theGameState.playerNumber),
+                        true);
         OUTPUT_TEXT("hee" << " " << theFrameInfo.time);
       }
     }
@@ -136,8 +137,9 @@ void FilteredCurrentProvider::checkMotorMalfunction(FilteredCurrent& theFiltered
             if(!playedSound)
             {
               SystemCall::playSound("siren", true);
-              SystemCall::say("Motor malfunction!", true);
-              SystemCall::say((std::string(TypeRegistry::getEnumName(theGameState.color())) + " " + std::to_string(theGameState.playerNumber) + " " + TypeRegistry::getEnumName(Joints::Joint(i))).c_str(), true);
+              SystemCall::say(fmt::format("Motor malfunction! {} {}.", TypeRegistry::getEnumName(theGameState.color()),
+                                          theGameState.playerNumber),
+                              true);
             }
             playedSound = true;
             if(!theGyroOffset.bodyDisconnect && SystemCall::getMode() != SystemCall::logFileReplay)

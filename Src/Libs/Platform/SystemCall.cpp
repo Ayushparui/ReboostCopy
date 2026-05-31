@@ -160,7 +160,8 @@ void SystemCall::mute(bool isMuted)
   SystemCall::isMuted = isMuted;
 }
 
-int SystemCall::playSound(const char* name, bool force)
+// int SystemCall::playSound(const char* name, bool force)
+int SystemCall::playSound(const std::string& name, bool force)
 {
 #ifdef LINUX
   return SoundPlayer::play(name, isMuted && !force);
@@ -169,12 +170,12 @@ int SystemCall::playSound(const char* name, bool force)
 #endif
 }
 
-int SystemCall::say(const char* text, bool force, float stretchFactor)
+// int SystemCall::say(const char* text, bool force, [[maybe_unused]] float stretchFactor)
+int SystemCall::say(const std::string& text, bool force, [[maybe_unused]] float stretchFactor)
 {
 #ifdef LINUX
   return SoundPlayer::say(text, isMuted && !force, stretchFactor);
 #else
-  static_cast<void>(stretchFactor);
   return isMuted && !force  ? 0 : SoundPlayer::say(text);
 #endif
 }

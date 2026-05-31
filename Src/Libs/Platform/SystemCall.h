@@ -56,8 +56,7 @@ public:
    * @param force Play sound even if muted.
    * @return The amount of files in play sound queue.
    */
-  static int playSound(const char* name, bool force = false);
-  static int playSound(const std::string& name) { return playSound(name.c_str()); }
+  static int playSound(const std::string& name, bool force = false);
 
   /**
    * Put a string to be synthesized to speech into play sound queue.
@@ -66,11 +65,7 @@ public:
    * @param force Talk even if muted.
    * @return The amount of elements in the play sound queue.
    */
-  static int say(const char* text, bool force = false, float speed = 1.f);
-  static int say(const std::string &text, bool force = false, float speed = 1.f)
-  {
-    return say(text.c_str(), force, speed);
-  }
+  static int say(const std::string &text, bool force = false, float speed = 1.f);
 
   /**
    * Is the sound player currently playing a file?

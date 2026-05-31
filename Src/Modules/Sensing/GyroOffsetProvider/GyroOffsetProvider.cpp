@@ -30,7 +30,9 @@ void GyroOffsetProvider::update(GyroOffset& gyroOffset)
     const Angle maxOffset = gyroOffset.offset.maxCoeff();
     gyroOffsetSoundTimestamp = theFrameInfo.time;
     SystemCall::playSound("siren", true);
-    SystemCall::say((std::string("Please reboot me. My gyros have an offset of ") + std::to_string(static_cast<int>(maxOffset.toDegrees())) + " degrees!").c_str(), true);
+    SystemCall::say(fmt::format("Please reboot me. My gyros have an offset of {} degrees!",
+                                static_cast<int>(maxOffset.toDegrees())),
+                    true);
   }
   if(gyroOffset.offsetCheckFinished)
     return;
@@ -106,7 +108,10 @@ void GyroOffsetProvider::update(GyroOffset& gyroOffset)
         {
           const Angle maxOffset = gyroOffset.offset.maxCoeff();
           SystemCall::playSound("siren", true);
-          SystemCall::say((std::string("Gyro has Offset ") + TypeRegistry::getEnumName(theGameState.color()) + " " + std::to_string(theGameState.playerNumber) + " with an offset of " + std::to_string(static_cast<int>(maxOffset.toDegrees())) + " degrees").c_str(), true);
+          SystemCall::say(fmt::format("Gyro has Offset {} {}. Offset is {} degrees",
+                                      TypeRegistry::getEnumName(theGameState.color()), theGameState.playerNumber,
+                                      static_cast<int>(maxOffset.toDegrees())),
+                          true);
           ANNOTATION("GyroOffsetProvider", "Added Offset " << gyroOffset.offset);
           OUTPUT_ERROR("GyroOffsetProvider - Added an Offset for the Gyros."); // Error, so we write it into the bhumand.log
           gyroOffsetSoundTimestamp = theFrameInfo.time;
@@ -161,7 +166,9 @@ void GyroOffsetProvider::checkBodyDisconnection(GyroOffset& gyroOffset)
       {
         ANNOTATION("GyroOffsetProvider", "Module detected a body disconnect that MotionRobotHealth did not detect!");
         SystemCall::playSound("siren", true);
-        SystemCall::say((std::string("GyroOffsetProvider Body disconnect ") + TypeRegistry::getEnumName(theGameState.color()) + " " + std::to_string(theGameState.playerNumber)).c_str(), true);
+        SystemCall::say(fmt::format("GyroOffsetProvider Body disconnect {} {}",
+                                    TypeRegistry::getEnumName(theGameState.color()), theGameState.playerNumber),
+                        true);
         OUTPUT_ERROR("GyroOffsetProvider Body Disconnect!");
       }
     }

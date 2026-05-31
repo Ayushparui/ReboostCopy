@@ -155,6 +155,7 @@ void watchdogMain()
 
       client.Init();
       usleep(10000);
+      
       TLOGI(tlogger, "Switching robot back to damping mode");
       const int result = client.ChangeMode(booster::robot::RobotMode::kDamping);
       if (result != 0)
@@ -270,13 +271,13 @@ Usage: {} [-c <dir>] [-w]\n\
 
 
     // print status information
-    TLOGI(tlogger, "Hi, I am {}.", settings.headName.c_str());
+    TLOGI(tlogger, "Hi, I am {}.", settings.headName);
     TLOGI(tlogger, "teamNumber {}", settings.teamNumber);
     TLOGI(tlogger, "fieldPlayerColor {}", TypeRegistry::getEnumName(settings.fieldPlayerColor));
     TLOGI(tlogger, "goalkeeperColor {}", TypeRegistry::getEnumName(settings.goalkeeperColor));
     TLOGI(tlogger, "playerNumber {}", settings.playerNumber);
-    TLOGI(tlogger, "location {}", settings.location.c_str());
-    TLOGI(tlogger, "scenario {}", settings.scenario.c_str());
+    TLOGI(tlogger, "location {}", settings.location);
+    TLOGI(tlogger, "scenario {}", settings.scenario);
     TLOGI(tlogger, "magicNumber {}", settings.magicNumber);
 
     // put the current body name in a file (at the moment only used in downloadCalibration)
