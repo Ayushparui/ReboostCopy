@@ -20,12 +20,12 @@ MODULE(MotionRobotHealthProvider,
   REQUIRES(GameState),
   REQUIRES(RawInertialSensorData),
   PROVIDES(MotionRobotHealth),
-  DEFINES_PARAMETERS(
+  LOADS_PARAMETERS(
   {,
     (float)(1.5f) droppedFactorThreshold, /**< Factor that the time between motion frames must be higher than the expected value to assume a frame was dropped in between. */
-    (int)(10000) bodyDisconnectWarningTime, /**< Repeat the sound every 10secs. */
+    (int)(15000) bodyDisconnectWarningTimeMs, /**< Repeat the sound every specified ms. */
     (unsigned)(3) multipleFramesDroppedThreshold, /**< Number of frames that must be dropped in a row to consider it as multiple frames. */
-    (float)(0.1) bodyDisconnectThreshold, /**< If the time between the last motion frame and the current is more then this (in seconds) we consider it a body disconnect. 100ms*/
+    (float)(0.1) bodyDisconnectThresholdSecs, /**< If the time between the last motion frame and the current is more then this (in seconds) we consider it a body disconnect. 100ms*/
     (unsigned)(1) executionTimesThreshold, /**< Only after this number of executions body disconnect will be detected. */
   }),
 });
