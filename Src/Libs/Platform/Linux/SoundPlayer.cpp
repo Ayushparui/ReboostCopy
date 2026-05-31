@@ -7,6 +7,7 @@
  * @author Thomas Röfer
  * @author Jan Blumenkamp
  * @author Lukas Plecher
+ * @author Rudi Villing (modifications)
  */
 
 #ifdef HAVE_ALSA
@@ -14,17 +15,21 @@
 #include "SoundPlayer.h"
 #include "Platform/File.h"
 #include "Platform/BHAssert.h"
+#include "TextLogging/TextLogging.h"
 
 #include <unistd.h>
 
 #include <string>
 #include <cstring>
 
+
+DECL_TLOGGER(tlogger, "SoundPlayer", TextLogging::INFO);
+
 #if false
 #include "Streaming/Output.h"
-#define PRINT_ERROR(expr) OUTPUT_ERROR(expr)
+#define PRINT_ERROR(...) do { OUTPUT_ERROR_FMT(__VA_ARGS__); TLOGE(tlogger, __VA_ARGS__); } while(0)
 #else
-#define PRINT_ERROR(expr)
+#define PRINT_ERROR(...) TLOGE(tlogger, __VA_ARGS__)
 #endif
 
 extern "C" cst_voice* register_cmu_us_slt(const char*);
@@ -67,7 +72,8 @@ bool WaveFile::parse()
   const unsigned long remainingDataBytes = buffer.size() - (reinterpret_cast<const char*>(&data->chunkSize) - buffer.data());
   if(data->chunkSize > remainingDataBytes)
   {
-    PRINT_ERROR("Wave file data chunk claims it is " << data->chunkSize << " bytes big, but there are only " << remainingDataBytes << " bytes remaining.");
+    PRINT_ERROR("Wave file data chunk claims it is {} bytes big, but there are only {} bytes remaining.",
+                data->chunkSize, remainingDataBytes);
     return false;
   }
 
@@ -230,9 +236,11 @@ void SoundPlayer::flush()
     {
       const bool isStretched = first.ttsDurationStretchFactor != 1.f;
       const std::string& text = first.fileOrText;
-#ifdef TARGET_ROBOT
-      fprintf(stderr, "Saying %s\n", text.c_str());
-#endif
+      // #ifdef TARGET_ROBOT
+      //       fprintf(stderr, "Saying %s\n", text.c_str());
+      // #endif
+      TLOGI(tlogger, "saying: \"{}\"", text);
+      
       if(!first.mute)
       {
         flite_feat_set_float(soundPlayer.voice->features, "duration_stretch", first.ttsDurationStretchFactor);
@@ -263,18 +271,30 @@ void SoundPlayer::flush()
     }
     else
     {
-#ifdef TARGET_ROBOT
-      if(first.fileOrText == "DerShredder.wav" && (random() & 1))
-        first.fileOrText = "Sabine.wav";
-      fprintf(stderr, "Playing %s\n", first.fileOrText.c_str());
-#endif
-      if(!first.mute)
-      {
-        File file(soundPlayer.filePrefix + first.fileOrText, "rb");
+      // #ifdef TARGET_ROBOT
+      //       if(first.fileOrText == "DerShredder.wav" && (random() & 1))
+      //         first.fileOrText = "Sabine.wav";
+      //       fprintf(stderr, "Playing %s\n", first.fileOrText.c_str());
+      // #endif
+      TLOGI(tlogger, "Playing \"{}\"", first.fileOrText);
+      if (!first.mute)
+      { 
+        const std::string primary = soundPlayer.filePrefix + first.fileOrText;
+        const std::string fallback = primary + ".wav";
+        std::string path = primary;
+        if (!File::exists(path))
+          path = fallback;
+
+        File file(path, "rb", true, true);
+        
         if(file.exists())
         {
           Wave wave(file);
           soundPlayer.playWave(wave);
+        }
+        else
+        {
+          TLOGE(tlogger, "Couldn't find {} or {}.wav", primary, fallback);
         }
       }
     }

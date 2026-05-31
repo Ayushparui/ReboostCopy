@@ -11,6 +11,8 @@
 #include <cstdarg>
 #include <cstdio>
 
+#include <sys/stat.h>
+
 #ifdef WINDOWS
 #include <Windows.h>
 #define ftell _ftelli64
@@ -19,7 +21,6 @@
 #include <cstring>
 #ifndef TARGET_ROBOT
 #include <unistd.h>
-#include <sys/stat.h>
 #endif
 #endif
 
@@ -67,7 +68,7 @@ File::File(const std::string& name, const char* mode, bool tryAlternatives, bool
     if (tlogger.isEnabled(TextLogging::VERBOSE))
     {
       for ([[maybe_unused]] auto& nm : names)
-        TLOGD(tlogger, "  not at '{}'", nm);
+        TLOGV(tlogger, "  not at '{}'", nm);
     }
   }
   else if (tlogger.isEnabled(TextLogging::INFO))
@@ -85,6 +86,24 @@ File::~File()
 {
   if(stream != 0)
     fclose(static_cast<FILE*>(stream));
+}
+
+
+bool File::exists(const std::string& name, bool tryAlternatives)
+{
+  struct stat buf;
+  std::list<std::string> fullPaths = getFullNames(name);
+
+  if (tryAlternatives)
+  {
+    for (const auto &path : fullPaths) // name relative to all directories in the search pth
+      if (stat(path.c_str(), &buf) == 0)
+        return true;
+  }
+  else if (stat(fullPaths.back().c_str(), &buf) == 0) // name relative to base config dir only
+    return true;
+  
+  return false;
 }
 
 std::list<std::string> File::getFullNames(const std::string& name)

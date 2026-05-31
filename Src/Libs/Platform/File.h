@@ -32,15 +32,6 @@ public:
   ~File();
 
   /**
-   * The method returns a list of full file names that should be searched
-   * to find the file with a given name.
-   * @param name The name of the file to search for.
-   * @return The list of candidate full names. The caller has to check whether
-   *         these files exist in the sequence of the list.
-   */
-  static std::list<std::string> getFullNames(const std::string& name);
-
-  /**
    * The function read a number of bytes from the file to a certain
    * memory location.
    * @param p The start of the memory space the data is written to.
@@ -120,6 +111,26 @@ public:
    * @return The native file handle.
    */
   void* getNativeFile() const { return stream; }
+
+  /**
+   * Checks whether a file exists in the search path without opening it.
+   * Equivalent to constructing File with tryAlternatives=true and checking
+   * exists(), but without the overhead of opening and closing a file handle.
+   * @param name File name or path, resolved the same way as the constructor.
+   * @param tryAlternatives Try alternative paths or not (as per constructor)
+   * @return true if the file exists in any candidate location.
+   */
+  static bool exists(const std::string &name, bool tryAlternatives = true);
+
+  /**
+   * The method returns a list of full file names that should be searched
+   * to find the file with a given name.
+   * @param name The name of the file to search for.
+   * @return The list of candidate full names. The caller has to check whether
+   *         these files exist in the sequence of the list.
+   */
+  static std::list<std::string> getFullNames(const std::string& name);
+
 
   /**
    * The function returns the current BH directory,

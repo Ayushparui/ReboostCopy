@@ -7,6 +7,7 @@
 
 #include "Module.h"
 #include "Streaming/InStreams.h"
+#include "Platform/File.h"
 
 #include "TextLogging/TextLogging.h"
 
@@ -25,6 +26,7 @@ void loadModuleParameters(Streamable& parameters, const char* moduleName, const 
   std::string name;
   if (!fileName)
   {
+    ASSERT(moduleName);
     name = moduleName;
     name[0] = static_cast<char>(tolower(name[0]));
     if (name.size() > 1 && isupper(name[1]))
@@ -35,32 +37,29 @@ void loadModuleParameters(Streamable& parameters, const char* moduleName, const 
   else
     name = pfx + fileName;
 
-  // Try primary name (scope block makes RAII lifetime explicit)
+  // if no explicit filename given, try alternative name based on unmodified module name
+  // (rather than B-Human convention of lowercasing the first word)
+  std::string primaryName = name;
+  std::string fallbackName;
+  if (!fileName && !File::exists(name))
   {
-    InMapFile stream(name);
-    if (stream.exists())
-    {
-      TLOGD(tlogger, "Loading config '{}'", name);
-      stream >> parameters;
-      return;
-    }
+    fallbackName = pfx + moduleName + ".cfg";
+    if (fallbackName == primaryName) // would be very unusual, but is possible I guess
+      fallbackName.clear();
+    else
+      name = fallbackName;
   }
 
-  // If no explicit fileName was given, also try the module name without lowercase mod
-  if (!fileName)
+  // try to open the primary name if it existed or else the fallback (if there is one)
+  InMapFile stream(name);
+  if (stream.exists())
   {
-    const std::string fallback = pfx + moduleName + ".cfg";
-    InMapFile stream(fallback);
-    if (stream.exists())
-    {
-      TLOGD(tlogger, "Loading config '{}'", fallback);
-      stream >> parameters;
-      return;
-    }
-    TLOG_ABORT(tlogger, "File '{}' (alt: '{}') does not exist in search path", name, fallback);
+    TLOGD(tlogger, "Loading config '{}'", name);
+    stream >> parameters;
+    return;
   }
+  else if (!fallbackName.empty())
+    TLOG_ABORT(tlogger, "File '{}' (alt: '{}') does not exist in search path", primaryName, fallbackName);
   else
-  {
     TLOG_ABORT(tlogger, "File '{}' does not exist in search path", name);
-  }
 }
