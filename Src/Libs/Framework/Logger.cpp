@@ -22,6 +22,8 @@
 #include "Platform/SystemCall.h"
 #include "Streaming/Global.h"
 #include "Streaming/TypeInfo.h"
+#include "TextLogging/TextLogging.h"
+
 #include <cstdio>
 #include <cstring>
 #ifdef LINUX
@@ -43,6 +45,8 @@
 #else
 #define PRINT(message) FAIL(message)
 #endif
+
+DECL_TLOGGER(tlogger, "Logger", TextLogging::INFO);
 
 Logger::Logger(const Configuration& config) :
   typeInfo(200000),
@@ -119,6 +123,8 @@ void Logger::update(const LoggingController& controller)
   {
     if(shouldLog)
     {
+      TLOGI(tlogger, "Prepare to start logging to log file");
+
       // Tell the writer thread to start a new logging period.
       SYNC;
       if(!buffersAvailable.empty())
@@ -266,26 +272,78 @@ void Logger::writer()
       buffer->clear();
 
       // find next free log filename
-      for(int i = 0; i < 100; ++i)
+      // for(int i = 0; i < 100; ++i)
+      // {
+      //   completeFilename = filename + (i ? "_(" + ((i < 10 ? "0" : "") + std::to_string(i)) + ")" : "") + ".log";
+      //   InBinaryFile stream(completeFilename);
+      //   if(!stream.exists())
+      //     break;
+      // }
+
+      // find the next free log filename
+      auto findFreeLogFilename = [&]() -> bool
       {
-        completeFilename = filename + (i ? "_(" + ((i < 10 ? "0" : "") + std::to_string(i)) + ")" : "") + ".log";
-        InBinaryFile stream(completeFilename);
-        if(!stream.exists())
-          break;
-      }
+        // We only write the new RoboEireann style log file names now. These won't
+        // duplicate old style names and any old style names clearly refer
+        // to older log files so there shouldn't be any ambiguity
+
+        // we base part of the number (suffix1) on the nnn suffix to roboeireannd_nnn.tlog so that
+        // we can easily match text logs to corresponding log files
+
+        // find the current primary suffix for the log filename
+        int suffix1 = 0;
+        for (; suffix1 < 300; ++suffix1)
+        {
+          std::string tlogName = fmt::format("{}roboeireannd_{:03d}.tlog", path, suffix1 + 1);
+          if (!File::exists(tlogName)) // have we found an unused suffix1?
+            break;
+        }
+
+        if (suffix1 == 300)
+        {
+          OUTPUT_WARNING(fmt::format("Logger: Could not find the last used {}roboeireannd suffix", path));
+          return false;
+        }
+        else
+        {
+          TLOGD(tlogger, "writer: found available suffix1 {}", suffix1);
+        }
+
+        // find the next free secondary suffix for the log filename
+        int suffix2 = 0;
+        for (; suffix2 < 100; ++suffix2)
+        {
+          completeFilename = fmt::format("{}__{:03d}_{:02d}.log", filename, suffix1, suffix2);
+          if (!File::exists(completeFilename)) // have we found an available suffix2
+            break;
+        }
+
+        if (suffix2 == 100)
+        {
+          OUTPUT_WARNING(
+              fmt::format("Logger: Could not find an available secondary suffix for {}__{:03d}", filename, suffix1));
+          return false;
+        }
+        else
+        {
+          TLOGD(tlogger, "writer: found available suffix2 {}", suffix2);
+        }
+
+        return true;
+      };
 
       ASSERT(!file);
-      file = new OutBinaryFile(completeFilename);
-      if(!file->exists())
+      if (findFreeLogFilename())
+        file = new OutBinaryFile(completeFilename);
+
+      if (!file || !file->exists())
       {
         OUTPUT_WARNING("Logger: File " << completeFilename << " could not be created!");
         break;
       }
 
       // On the robot, we want this to end up in bhumand.log.
-#ifdef TARGET_ROBOT
-      std::printf("Logging to %s\n", completeFilename.c_str());
-#endif
+      TLOGI(tlogger, "writer: Start logging to \"{}\"", completeFilename);
 
       *file << LoggingTools::logFileSettings;
       file->write(settings.data(), settings.size());

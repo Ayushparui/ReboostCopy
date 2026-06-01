@@ -28,7 +28,8 @@ download()
   local IP=$1
 
   source "$BASEPATH/setupTarget" "$IP"
-  LOGPATH=/home/$TARGET_USER/logs/
+  LOGPATH=/home/$TARGET_USER/logs
+	DUMPPATH=/home/$TARGET_USER
 
   if $DOWNLOAD; then
     local NAME="$(ssh $SSHOPTIONS -o ConnectTimeout=2 $TARGET_USER@$IP "hostname")"
@@ -45,12 +46,12 @@ download()
       return
     fi
 
-    if [ -z "$(ssh $SSHOPTIONS $TARGET_USER@$IP "ls $LOGPATH | grep .log")" ]; then
+    if [ -z "$(ssh $SSHOPTIONS $TARGET_USER@$IP "ls $LOGPATH | grep -E '\.(t)?log$'")" ]; then
       echo "no log files on robot"
       return # No error
     fi
 
-    local LOCALPATH="$BASEPATH/../../Config/Logs"/$(date +%F-%H-%M)/$NAME
+    local LOCALPATH="$BASEPATH/../../Config/Logs"/$(date +%Y-%m-%d_%Hh%M)/$NAME
     mkdir -p "$LOCALPATH"
   fi
 
@@ -65,29 +66,54 @@ download()
   if $DOWNLOAD; then
     echo "downloading log files..."
 
-    SIZE=$(ssh $SSHOPTIONS $TARGET_USER@$IP "du $DUOPTIONS_LINUX $LOGPATH/*.log" | tail -n 1 | awk '{print $1}')
+    SIZE=$(ssh $SSHOPTIONS $TARGET_USER@$IP \
+							"du $DUOPTIONS_LINUX $LOGPATH/*.log $LOGPATH/*.tlog 2>/dev/null" \
+					| tail -n 1 \
+					| awk '{print $1}')
 
+		# copy the logfiles (and any dump files that might optionally be present)
     # -p = preserve original date and time
-    scp $SSHOPTIONS -p $TARGET_USER@$IP:$LOGPATH*.log "$LOCALPATH" >/dev/null &
-    SCPPID=$!
 
-    while true; do
-      LC_ALL=C echo "downloaded: $(( LC_ALL=C du $DUOPTIONS "$LOCALPATH/"*.log 2>/dev/null ) | tail -n 1 | awk '{print $1}') / $SIZE"
-      ps -p$SCPPID 2>&1 >/dev/null || break
-      sleep 2
-    done
+# 		( scp $SSHOPTIONS -p "$TARGET_USER@$IP:$LOGPATH/*.log" "$TARGET_USER@$IP:$LOGPATH/*.tlog" "$LOCALPATH" >/dev/null \
+# 			&& { scp $SSHOPTIONS -p $TARGET_USER@$IP:"$DUMPPATH/redump_*.trace" "$LOCALPATH" >/dev/null 2>/dev/null || true; } ) &		
+#     SCPPID=$!
+# 
+# 		while true; do
+# 			DOWNLOADED=$(LC_ALL=C du $DUOPTIONS \
+# 					"$LOCALPATH/"*.log \
+# 					"$LOCALPATH/"*.tlog 2>/dev/null \
+# 					| tail -n 1 \
+# 					| awk '{print $1}')
+# 			LC_ALL=C echo "downloaded: $DOWNLOADED / $SIZE"
+# 			ps -p $SCPPID >/dev/null 2>&1 || break
+# 			sleep 2
+# 		done		
+# 
+#     wait $SCPPID
+#     if [ $? -ne 0 ]; then
+#       echo >&2 "error: scp failed!"
+#       RETURN=1
+#       return
+#     fi
 
-    wait $SCPPID
-    if [ $? -ne 0 ]; then
-      echo >&2 "error: scp failed!"
-      RETURN=1
-      return
-    fi
+		# Required .log and .tlog
+		rsync -az --info=progress2 \
+				-e "ssh $SSHOPTIONS" \
+				"$TARGET_USER@$IP:$LOGPATH/*.log" \
+				"$TARGET_USER@$IP:$LOGPATH/*.tlog" \
+				"$LOCALPATH/" \
+			|| { echo >&2 "error: rsync failed!"; RETURN=1; return; }
+
+		# Optional trace files — failure non-fatal
+		rsync -az \
+				-e "ssh $SSHOPTIONS" \
+				"$TARGET_USER@$IP:$DUMPPATH/redump_*.trace" \
+				"$LOCALPATH/" 2>/dev/null || true
   fi
 
   if $DELETE; then
     echo "deleting log files from robot"
-    ssh $SSHOPTIONS $TARGET_USER@$IP "rm -f $LOGPATH*"
+    ssh $SSHOPTIONS $TARGET_USER@$IP "rm -f $LOGPATH/* $DUMPPATH/redump_*.trace"
   fi
 
   if $RESTART; then

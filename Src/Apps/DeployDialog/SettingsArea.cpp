@@ -455,6 +455,8 @@ QWidget* SettingsArea::createLogsTab(const std::function<void()>& updateDeployBu
 
 void SettingsArea::writeOutput(std::map<std::string, Robot>& robots) const
 {
+  // this is the stdout that gets processed in the deployDialog script
+  
   if(mode == logs)
   {
     std::cout << "logs ";

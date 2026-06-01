@@ -67,9 +67,9 @@ public:
   static void logAdd(int track, const char* file, int line, const std::string& message);
 
   /**
-   * Dumps the content of the log message ring buffers to stderr or /home/nao/bhdump.log
-   * @param toStderr Whether to dump the content to stderr or /home/nao/bhdump.log
-   * @param termSignal A signal that was emitted to terminate the bhuman process
+   * Dumps the content of the log message ring buffers to stderr or robotHomeDir/redump.trace
+   * @param toStderr Whether to dump the content to stderr or robotHomeDir/redump.log
+   * @param termSignal A signal that was emitted to terminate the roboeireann process
    */
   static void logDump(bool toStderr, int termSignal);
 #endif // TARGET_ROBOT

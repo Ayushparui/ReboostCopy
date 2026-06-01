@@ -56,12 +56,10 @@ namespace LoggingTools
    * @param location The location in which the log is recorded. Must contain only alphanumeric characters.
    * @param identifier An identifier for the log. Must contain only alphanumeric characters, hyphens or single underscores.
    * @param playerNumber The player number of the recording robot. Must be nonnegative.
-   * @param suffix A suffix at the end of the log file name (before the file ending). Must be a number surrounded by parentheses.
    * @return A log file name that can be parsed into its components.
    */
   std::string createName(const std::string& headName, const std::string& bodyName, const std::string& scenario,
-                         const std::string& location, const std::string& identifier, int playerNumber,
-                         const std::string& suffix = "");
+                         const std::string& location, const std::string& identifier, int playerNumber);
 
   /**
    * Parses a log file name into its components.

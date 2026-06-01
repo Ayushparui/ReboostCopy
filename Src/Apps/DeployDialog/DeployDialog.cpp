@@ -222,7 +222,7 @@ RobotsTable* DeployDialog::createRobotsTable(const QStringList& substitutes)
       crashLog->setEnabled(table->item(index.row(), table->columnCount() - 1) && table->item(index.row(), table->columnCount() - 1)->text() == "yes");
       connect(crashLog, &QAction::triggered, [process, ip]
       {
-        process->startCommand(localCommand("../Make/Common/robotTerminal " + ip + " \"\"\"cat bhdump.log; read\"\"\"").c_str());
+        process->startCommand(localCommand("../Make/Common/robotTerminal " + ip + " \"\"\"cat redump.trace; read\"\"\"").c_str());
       });
       menu.addAction(crashLog);
 
@@ -365,22 +365,24 @@ void DeployDialog::createProcesses()
             table->setCell(robot.name, column, "");
         else if(Time::getRealTimeSince(robot.lastStatusUpdate) > statusUpdateTime && statusProcess->state() == QProcess::NotRunning)
         {
-          statusProcess->startCommand(remoteCommand(ip, "( cat /var/volatile/tmp/internalState.txt 2>/dev/null || echo '0 0 0'; "
-                                                          "echo -n ' '; "
-                                                          "ls /home/TARGET_USER/logs | wc -l; "
-                                                          "echo -n ' '; "
-                                                          "mount | grep media/usb >/dev/null && echo yes || echo no; "
-                                                          "echo -n ' '; "
-                                                          "ls >/dev/null 2>&1 /media/usb/logs && ls /media/usb/logs | wc -l || echo no; "
-                                                          "echo -n ' '; "
-                                                          "ls /home/TARGET_USER/Config/settings.cfg"
-                                                            " /home/TARGET_USER/Config/Robots/*/*/cameraCalibration.cfg"
-                                                            " /home/TARGET_USER/Config/Robots/*/Body/imuCalibration.cfg 2>/dev/null"
-                                                            " | xargs ls -t | head -1 | grep settings.cfg >/dev/null && echo no || echo yes; "
-                                                          "echo -n ' '; "
-                                                          "systemctl --user is-failed roboeireann.service; "
-                                                          "echo -n ' '; "
-                                                          "[ -e /home/TARGET_USER/redump.log ] && echo yes || echo no ) | tr -d '\\n'").c_str());
+          statusProcess->startCommand(
+              remoteCommand(ip, "( cat /var/volatile/tmp/internalState.txt 2>/dev/null || echo '0 0 0'; "
+                                "echo -n ' '; "
+                                "ls /home/TARGET_USER/logs/*.log | wc -l; "
+                                "echo -n ' '; "
+                                "mount | grep media/usb >/dev/null && echo yes || echo no; "
+                                "echo -n ' '; "
+                                "ls >/dev/null 2>&1 /media/usb/logs/*.log && ls /media/usb/logs/*.log | wc -l || echo no; "
+                                "echo -n ' '; "
+                                "ls /home/TARGET_USER/Config/settings.cfg"
+                                  " /home/TARGET_USER/Config/Robots/*/*/cameraCalibration.cfg"
+                                  " /home/TARGET_USER/Config/Robots/*/Body/imuCalibration.cfg 2>/dev/null"
+                                " | xargs ls -t | head -1 | grep settings.cfg >/dev/null && echo no || echo yes; "
+                                "echo -n ' '; "
+                                "systemctl --user is-failed roboeireann.service; "
+                                "echo -n ' '; "
+                                "[ -e /home/TARGET_USER/redump.log ] && echo yes || echo no ) | tr -d '\\n'")
+                  .c_str());
           robot.lastStatusUpdate = Time::getRealSystemTime();
         }
       });

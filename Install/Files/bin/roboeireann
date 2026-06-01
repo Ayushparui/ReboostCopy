@@ -3,7 +3,7 @@
 ROBOT=$(whoami)
 BINARY="/home/${ROBOT}/Config/roboeireann"
 LOGDIR="/home/${ROBOT}/logging"
-DUMPFILE="/home/${ROBOT}/bhdump.log"
+DUMPFILE="/home/${ROBOT}/redump.trace"
 BACKGROUND=false
 DEBUG=false
 ARGS=
@@ -109,16 +109,49 @@ if [ -f /media/usb/config.json ]; then
   fi
 fi
 
+# set up the logging director to point to usb or on-robot logs dir
 if [ -d /media/usb/logs ]; then
   ln -sfT /media/usb/logs "${LOGDIR}"
 else
   ln -sfT /home/${ROBOT}/logs "${LOGDIR}"
 fi
 
+if [ ! -L "${LOGDIR}" ] || [ ! -d "${LOGDIR}" ]; then
+  echo "Error: ${LOGDIR} is either missing, not a symlink, or a broken symlink." >&2
+fi
+
+# rename old B-Human style logfile names first
+# Loop through all files matching the exact old pattern
+for old_file in "${LOGDIR}"/roboeireannd_*.log; do
+  # Check if the loop actually matched files (prevents running if none exist)
+  [ -e "${old_file}" ] || break
+
+  # Extract just the digits - sed will return nothing if pattern doesn't match
+  num=$(basename "${old_file}" | sed -nE "s/^roboeireannd_\(([0-9]+)\)\.log$/\1/p")
+  
+  # Skip if sed returned nothing (file didn't match old naming pattern)
+  [ -z "${num}" ] && continue
+
+  # Format the number to 3 digits (e.g., "1" becomes "001")
+  printf -v formatted_num "%03d" "$num"
+  
+  # Rename to the new scheme
+  mv "${old_file}" "${LOGDIR}/roboeireannd_${formatted_num}.tlog"
+done
+
 # Make log-names unique by numbering them.
-COUNTER=$(ls "${LOGDIR}" | sed -nE "s/^roboeireannd_\(([0-9]+)\).log$/\1/p" | sort -n | tail -n1)
-COUNTER=$(expr ${COUNTER} + 1)
-LOGFILE="${LOGDIR}/roboeireannd_(${COUNTER}).log"
+#COUNTER=$(ls "${LOGDIR}" | sed -nE "s/^roboeireannd_\(([0-9]+)\).log$/\1/p" | sort -n | tail -n1)
+#COUNTER=$(expr ${COUNTER} + 1)
+#LOGFILE="${LOGDIR}/roboeireannd_(${COUNTER}).log"
+COUNTER=$(ls "${LOGDIR}" | sed -nE "s/^roboeireannd_([0-9]+).tlog$/\1/p" | sort -n | tail -n1)
+
+if [ -z "${COUNTER}" ]; then
+  COUNTER="001"
+else
+  printf -v COUNTER "%03d" $(( 10#${COUNTER} + 1 ))  
+fi
+LOGFILE="${LOGDIR}/roboeireannd_${COUNTER}.tlog"
+
 
 # Support running an executable from the USB drive.
 if [ -f /media/usb/Config/roboeireann ]; then
@@ -141,25 +174,45 @@ if [ ! -x "${BINARY}" ]; then
 fi
 
 # On Booster, activate second IP and wait for Motion PC to be available
-if [ "${ROBOT}" == booster ]; then
-  LAN="$(nmcli device show | tr '\n' '|' | sed 's%||%!%g' | tr '!' '\n' | grep 192.168.10.102 | tr '|' '\n' | grep GENERAL.CONNECTION | sed 's%.* %%')"
-  sudo nmcli connection up "${LAN}"
-  if [ ! -z "$(grep "\"${ROBOT}\"" "${ROBOTS}" | grep -E "robotType *= *t1 *;")" ]; then
-    while [ "$(ping -w 1 -c 1 192.168.10.101 >/dev/null && echo 1 || echo 0)" = "0" ]; do
-      sleep 1
-    done
-  fi
-fi
+# This seems redundant for K1, so commenting out for now
+# if [ "${ROBOT}" == booster ]; then
+#   #LAN="$(nmcli device show | tr '\n' '|' | sed 's%||%!%g' | tr '!' '\n' | grep 192.168.10.102 | tr '|' '\n' | grep GENERAL.CONNECTION | sed 's%.* %%')"
+# 	LAN=$(nmcli -t -f GENERAL.CONNECTION,IP4.ADDRESS device show | awk -F: '
+#     $1 == "GENERAL.CONNECTION" { con = $2 }
+#     $1 ~ /^IP4.ADDRESS/ && $2 ~ /^192.168.10.102/ { print con }
+#   ')
+#   sudo nmcli connection up "${LAN}"
+#   if [ ! -z "$(grep "\"${ROBOT}\"" "${ROBOTS}" | grep -E "robotType *= *t1 *;")" ]; then
+#     while [ "$(ping -w 1 -c 1 192.168.10.101 >/dev/null && echo 1 || echo 0)" = "0" ]; do
+#       sleep 1
+#     done
+#   fi
+# fi
+
+echo BACKGROUND=${BACKGROUND}
 
 # Actually execute roboeireann.
 if ${DEBUG}; then
   gdb --args "${BINARY}" ${ARGS}
 elif ${BACKGROUND}; then
-  "${BINARY}" ${ARGS} -w 2>&1 | mawk -W interactive -F '\n' '{print strftime("%H:%M:%S", systime()) " " $0}' >"${LOGFILE}"
-else
-  "${BINARY}" ${ARGS} -w 2>&1 | mawk -W interactive -F '\n' '{print strftime("%H:%M:%S", systime()) " " $0}' | tee "${LOGFILE}"
+	echo "starting in background"
+  # "${BINARY}" ${ARGS} -w 2>&1 | mawk -W interactive -F '\n' '{print strftime("%H:%M:%S", systime()) " " $0}' >"${LOGFILE}"
+	set -x
+	"${BINARY}" ${ARGS} -w >"${LOGFILE}" 2>&1 
+	set +x
+else # foreground
+  # "${BINARY}" ${ARGS} -w 2>&1 | mawk -W interactive -F '\n' '{print strftime("%H:%M:%S", systime()) " " $0}' | tee "${LOGFILE}"
+	"${BINARY}" ${ARGS} -w 2>&1 | tee "${LOGFILE}"
 fi
 RESULT=${PIPESTATUS[0]}
+
+
+# If the binary crashed, copy the dump file to a numbered copy alongside redump.trace
+# so that it can be correlated with the tlog file.
+# we leave the original redump.trace in place for deployDialog tool
+if [ -f "${DUMPFILE}" ]; then
+  cp "${DUMPFILE}" "/home/${ROBOT}/redump_${COUNTER}.trace"
+fi
 
 # Remove leftovers.
 rm -f "${LOGDIR}"

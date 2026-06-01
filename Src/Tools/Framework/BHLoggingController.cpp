@@ -46,8 +46,8 @@ std::string BHLoggingController::getDescription() const
     auto team = teams.find(static_cast<std::uint8_t>(gameState.opponentTeam.number));
     if(team != teams.end())
       return team->second + "_"
-             + (gameState.phase == GameState::penaltyShootout ? "ShootOut"
-                : gameState.phase == GameState::firstHalf ? "1stHalf" : "2ndHalf");
+             + (gameState.phase == GameState::penaltyShootout ? "shootout"
+                : gameState.phase == GameState::firstHalf ? "half1" : "half2");
   }
-  return "Testing";
+  return "NoGC";
 }
