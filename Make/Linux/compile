@@ -5,15 +5,88 @@ cd "$(dirname "$(which "$0")")"
 
 CONFIG="Develop"
 TARGETS=""
+DEEP_CLEAN=0
+PCH_CLEAN=0
+
+usage() {
+  echo "Usage: $(basename "$0") [Debug|Develop|Release] [--pch|--deep-clean] [target ...]"
+  echo ""
+  echo "  Config (default: Develop):"
+  echo "    Debug | Develop | Release"
+  echo ""
+  echo "  Options:"
+  echo "    --pch         Delete PCH files and rebuild (fixes 'please rebuild precompiled header' warnings)"
+  echo "    --deep-clean  Full clean: cmake --build --target clean + ccache -C, then rebuild"
+  echo ""
+  echo "  Examples:"
+  echo "    $(basename "$0") Develop Booster"
+  echo "    $(basename "$0") Develop --pch Booster"
+  echo "    $(basename "$0") --deep-clean"
+  echo "    $(basename "$0") Release"
+  exit 0
+}
 
 case $1 in
+  -h|--help)
+    usage
+    ;;
   Debug|Develop|Release)
     CONFIG=$1
     shift
+    ;;
 esac
 
-if [ $# -gt 0 ]; then
-  TARGETS="--target $@"
+
+# Parse flags after optional config
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -h|--help)
+      usage
+      ;;
+    --pch)
+      PCH_CLEAN=1
+      shift
+      ;;
+    --deep-clean)
+      DEEP_CLEAN=1
+      shift
+      ;;
+    *)
+      TARGETS="$TARGETS $1"
+      shift
+      ;;
+  esac
+done
+
+BUILD_DIR="../../Build/Linux/CMake/$CONFIG" # after the cd at the start
+
+# PCH-only clean: remove .pch and .gch files so cmake regenerates them
+if [ $PCH_CLEAN -eq 1 ]; then
+  echo "Cleaning precompiled headers in $BUILD_DIR..."
+  find "$BUILD_DIR" -name "*.pch" -o -name "*.gch" | xargs rm -f
+  if command -v ccache &>/dev/null; then
+    echo "Clearing ccache..."
+    ccache -C
+  fi	
+  echo "PCH files removed."
 fi
 
-cmake --build ../../Build/Linux/CMake/$CONFIG --config $CONFIG $TARGETS
+# Deep clean: cmake clean target + ccache clear
+if [ $DEEP_CLEAN -eq 1 ]; then
+  echo "Deep cleaning $BUILD_DIR..."
+  cmake --build "$BUILD_DIR" --config "$CONFIG" --target clean
+  if command -v ccache &>/dev/null; then
+    echo "Clearing ccache..."
+    ccache -C
+  fi
+  echo "Clean complete."
+fi
+
+
+if [ -n "$TARGETS" ]; then
+  cmake --build "$BUILD_DIR" --config "$CONFIG" --target $TARGETS
+else
+  if [ $PCH_CLEAN -eq 0 ] && [ $DEEP_CLEAN -eq 0 ]; then
+    cmake --build "$BUILD_DIR" --config "$CONFIG"
+  fi
+fi
