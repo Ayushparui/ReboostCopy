@@ -32,8 +32,6 @@ namespace RE
   {
     CRBEHAVIOUR_INIT(SoccerGameControlTask) 
     {
-      DECL_TLOGGER_VAR(tlogger, "SoccerGameControlTask", TextLogging::INFO);
-
       TLOGI(tlogger, "standbyStateBehaviour: {}", params.standbyStateBehaviour);
       TLOGI(tlogger, "readyStateBehaviour: {}", params.readyStateBehaviour);
       TLOGI(tlogger, "setStateBehaviour: {}", params.setStateBehaviour);
@@ -162,6 +160,8 @@ namespace RE
     //For arm motion tasks
     ArmContactAnyArmTask armContactAnyArmTask {env};
     ArmObstacleAvoidanceAnyArmTask armObstacleAvoidanceAnyArmTask {env};
+
+    DECL_TLOGGER_STATIC_VAR(tlogger, "SoccerGameControlTask", TextLogging::INFO);
 
     DECLARE_CALLS_BASIC_CORO(returnFromPenalizedTask, params.returnFromPenalizedBehaviour);
 

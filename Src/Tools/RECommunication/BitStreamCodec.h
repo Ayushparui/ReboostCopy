@@ -259,6 +259,8 @@ struct Integer
   {
     ASSERT(minVal < maxVal);
 
+    fprintf(stderr, "tlogger ptr = %p\n", &tlogger);
+
     if (nbits == 0)
     {
       nbits = numBitsNeeded(static_cast<unsigned>(((maxVal - minVal) / scale)));

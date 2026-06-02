@@ -445,13 +445,32 @@ private:
  * 
  * This would typically be used to add a member variable to a class that only has a header file. Otherwise
  * the DECL_TLOGGER macro which defines a static file level logger is a better solution
+ *
+ * This version creates a var per instance and is needed for template classes if they will be instanciated
+ * in different translation units
  */
-#define DECL_TLOGGER_VAR(varName_, loggerName_, level_) TextLogger& varName_ = TextLogging::get(loggerName_, level_)
+#define DECL_TLOGGER_VAR(varName_, loggerName_, level_)                                                                \
+  TextLogger &varName_ = TextLogging::get(loggerName_, level_)
+
+/**
+ * Use this macro to declare access to logger as a member or local variable
+ * 
+ * This would typically be used to add a member variable to a class that only has a header file. Otherwise
+ * the DECL_TLOGGER macro which defines a static file level logger is a better solution
+ *
+ * This uses C++17 static inline to make this a static var rather than one per instance
+ *
+ * @warning You cannot safely use this in a template class. The compiler does not guarantee that the static
+ *          var will be initialized before the constructor runs depending on the translation unit (cpp file)
+ *          the class is instanciated in.
+ */
+#define DECL_TLOGGER_STATIC_VAR(varName_, loggerName_, level_)                                                         \
+  static inline TextLogger &varName_ = TextLogging::get(loggerName_, level_)
 
 /**
  * Occasionally you might want to use this macro declare access to a logger in 
  * a .h file at the file level or as a member of a class.
- * However its usage should be rare and generally you should prefer DECL_TLOGGER_VAR
+ * However its usage should be rare and generally you should prefer DECL_TLOGGER_VAR/STATIC_VAR
  * unless the addition of a reference variable is impossible/difficult or somehow adds too much 
  * overhead.
  */
