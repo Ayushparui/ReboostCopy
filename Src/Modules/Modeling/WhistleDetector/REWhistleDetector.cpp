@@ -32,21 +32,18 @@ REWhistleDetector::REWhistleDetector()
 
     /* Memory Allocation for FFT */
     spectrumSize = static_cast<int>((fftSize / 2) + 1);
+    maxFFTs = ((bufferSize - fftSize) / fftStep) + 1;
     samples = fftwf_alloc_real(fftSize);
     spectrum = fftwf_alloc_complex(spectrumSize);
 
     /* Compile NN */
     whistleDetector.compile(*model);
 
-    ASSERT(whistleDetector.numOfInputs() == 1);
-    ASSERT(whistleDetector.numOfOutputs() == 1);
-
-    /* This should fit the input dimension of 18x257x1 */
-    ASSERT(whistleDetector.input(0).dims(0) == 18);
-    ASSERT(whistleDetector.input(0).dims(1) == 257);
-    ASSERT(whistleDetector.input(0).dims(2) == 1);
-
-    /* We only want 1 output */
+    ASSERT(whistleDetector.numOfInputs()     == 1);
+    ASSERT(whistleDetector.numOfOutputs()    == 1);
+    ASSERT(whistleDetector.input(0).dims(0)  == maxFFTs);
+    ASSERT(whistleDetector.input(0).dims(1)  == spectrumSize);
+    ASSERT(whistleDetector.input(0).dims(2)  == 1);
     ASSERT(whistleDetector.output(0).dims(0) == 1);
 
     SYNC;
@@ -64,16 +61,7 @@ REWhistleDetector::REWhistleDetector()
 
     /* Resize magSpectrums according specifications */
     magSpectrums.reserve(whistleDetector.input(0).dims(0));
-
-    /* Make initial empty spectrums which will be dropped later on */
-    for (std::vector<float>& magSpect : magSpectrums) {
-        magSpect.resize(spectrumSize);
-        std::fill(magSpect.begin(), magSpect.end(), 0);
-    }
-
-    /* Set our leftOverBuffer */
-    leftOverBuffer.reserve(1);
-    leftOverBuffer.push_front(0);
+    monoBuffer.reserve(bufferSize);
 }
 
 REWhistleDetector::~REWhistleDetector()
@@ -97,10 +85,16 @@ void REWhistleDetector::update(Whistle& theWhistle) {
         theWhistle.channelsUsedForWhistleDetection = 0; // no detection this time
 
     } /* go for whistle detection */ else {
-        /* Adapt number of channels to audio data; we assume this only changes at startup */
-        channelBuffers.resize(theAudioData.channels);
-        for (auto &buffer : channelBuffers)
+
+        static bool init = false;
+        if (!init) {
+          /* Adapt number of channels to audio data; we assume this only changes at startup */
+          channelBuffers.resize(theAudioData.channels);
+          for (auto &buffer : channelBuffers) {
             buffer.reserve(bufferSize);
+          }
+          init = true;
+        }
 
         processAudio(theWhistle, true);
     }
@@ -116,11 +110,6 @@ void REWhistleDetector::processAudio(Whistle& theWhistle, bool detectWhistle) {
      *    the monoBuffer (remember to read ring buffer correctly).
      */
     const std::size_t stepSize = theAudioData.channels;
-    monoBuffer.reserve((theAudioData.samples.size() / stepSize) + leftOverBuffer.size());
-
-    /* Place samples from leftOverBuffer to monoBuffer */
-    for (std::size_t sample = 0; sample < leftOverBuffer.size(); sample++)
-        monoBuffer.push_front(leftOverBuffer.from_back(sample));
 
     /* Copy from interleaved audioData to separate ring buffers, one per channel
      * (only the most recent bufferSize samples will be available in the ring buffer
@@ -144,11 +133,7 @@ void REWhistleDetector::processAudio(Whistle& theWhistle, bool detectWhistle) {
 
         /* normalize the mono sample level and add to the mono mix buffer */
         monoBuffer.push_front(std::clamp(monoSum / numChannels * sampleGain, -1.f , 1.f));
-
-        /* Plot monoBuffer Data
-         * TODO: Check whether this is the right way for indexing through monoBuffer.
-         */
-        PLOT("module:REWhistleDetector:audioBuffer", monoBuffer[i]);
+        PLOT("module:REWhistleDetector:audioBuffer", monoBuffer[0]);
     }
 
     /* We process our buffer as multiple FFT windows.
@@ -166,9 +151,6 @@ void REWhistleDetector::processAudio(Whistle& theWhistle, bool detectWhistle) {
             theWhistle.whistleDetected = true;
             theWhistle.lastTimeWhistleDetected = theFrameInfo.time;
 
-            /* Part of the whistle module. TODO if these are needed still or used
-            * elsewhere apart from whistleDetector or whistleHandler.
-            */
             theWhistle.confidenceOfLastWhistleDetection = whistleConfidence;
             theWhistle.channelsUsedForWhistleDetection = static_cast<unsigned char>(channelBuffers.size());
         }
@@ -185,11 +167,16 @@ float REWhistleDetector::inferenceCheck() {
      * Done with .from_back()
      */
 
+    /* In the event we don't have enough FFTs for an inference check */
+    if (static_cast<int>(magSpectrums.size()) < maxFFTs) {
+      return 0.f;
+    }
+
     /* Gets the number of FFTs to compute.
      * fftOffset sets the starting point of the monoBuffer to read from.
-     * numFFTs is capped to 15, with the excess left for next cycle.
+     * numFFTs is capped to 18, with the excess left for next cycle.
      */
-    int numFFTs = std::min(18, static_cast<int>((monoBuffer.size() / fftStep)));
+    int numFFTs = std::min(maxFFTs, static_cast<int>((monoBuffer.size() / fftStep)));
     int fftOffset = 0;
 
     /* For all the available FFT from buffer */
@@ -216,25 +203,6 @@ float REWhistleDetector::inferenceCheck() {
         fftOffset += fftStep;
     }
 
-    /* Store excess samples into leftOverBuffer.
-     * Make assertions to determine if there are samples to hold for next cycle.
-     * Then determine the number of samples left over.
-     */
-    std::size_t leftOverSize = monoBuffer.size() - (numFFTs * fftStep);
-    ASSERT(leftOverSize > 0);
-
-    leftOverBuffer.reserve(leftOverSize);
-
-    /* Position the pointer in RingBuffer of last sample to be used.
-    * As the previous loop ends with the last offset + an unused step,
-    * revert said change.
-    */
-    std::size_t leftOverOffset = fftOffset - fftStep;
-
-    /* Iterate over the remaining samples to be put into the leftOverBuffer. */
-    for (std::size_t sample = 0; sample < leftOverSize; sample++)
-        leftOverBuffer.push_front(monoBuffer.from_back(leftOverOffset + sample));
-
     /* Passing FFTs into NN */
     float *fftDest = whistleDetector.input(0).data();
 
@@ -244,7 +212,7 @@ float REWhistleDetector::inferenceCheck() {
         fftDest += spectrumSize;
     }
 
-    /* Comparison of FFT and NN */
+    /* Inference check */
     whistleDetector.apply();
     const float whistleConfidence = whistleDetector.output(0).data()[0];
 
@@ -253,5 +221,4 @@ float REWhistleDetector::inferenceCheck() {
     PLOT("module:REWhistleDetector:whistleConfidenceThresh", whistleConfidenceThresh);
 
     return whistleConfidence;
-
 }

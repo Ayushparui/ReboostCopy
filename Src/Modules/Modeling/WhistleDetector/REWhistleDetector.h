@@ -20,8 +20,6 @@
 #include <fftw3.h> // Library used for obtaining FFTs
 #include <string>
 
-#define MAX_SIZE 1600
-
 /* Module Declaration */
 MODULE(REWhistleDetector,
     {
@@ -51,8 +49,7 @@ public:
 
 private:
     std::vector<RingBuffer<AudioData::Sample>> channelBuffers;  // Sample buffers for all channels.
-    RingBuffer<AudioData::Sample, MAX_SIZE> monoBuffer;         // Mono mixdown buffer.
-    RingBuffer<AudioData::Sample> leftOverBuffer;               // Unused samples for next cycle.
+    RingBuffer<AudioData::Sample> monoBuffer;         // Mono mixdown buffer.
 
     /* FFTW related members */
     float* samples;             // The samples that will be used with the FFT
@@ -62,6 +59,7 @@ private:
     /* magSpectrums Contains numFFTs FFTs of size spectrumSize */
     RingBuffer<std::vector<float>> magSpectrums;
     int spectrumSize;
+    int maxFFTs;
 
     /* Other FFT Related members */
     std::vector<float> hannWindow;
