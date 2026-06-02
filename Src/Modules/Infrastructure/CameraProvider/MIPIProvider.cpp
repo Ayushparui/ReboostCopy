@@ -18,15 +18,13 @@ MIPIProvider::MIPIProvider(CameraInfo::Camera camera, [[maybe_unused]] const std
                            [[maybe_unused]] const std::string &cameraInfoTopic, [[maybe_unused]] const bool useSystemTime)
     :
 #ifdef TARGET_BOOSTER
-      imageSubscriber(imageTopic,
-                      [this](const void *msg)
-                      {
-                        (*reinterpret_cast<const sensor_msgs::msg::Image*>(msg));}),
-  cameraInfoSubscriber(cameraInfoTopic, [this](const void* msg)
-    {cameraInfoHandler(*reinterpret_cast<const sensor_msgs::msg::CameraInfo*>(msg));}),
-  useSystemTime(useSystemTime),
+      imageSubscriber(imageTopic, [this](const void *msg)
+                      { imageHandler(*reinterpret_cast<const sensor_msgs::msg::Image *>(msg)); }),
+      cameraInfoSubscriber(cameraInfoTopic, [this](const void *msg)
+                           { cameraInfoHandler(*reinterpret_cast<const sensor_msgs::msg::CameraInfo *>(msg)); }),
+      useSystemTime(useSystemTime),
 #endif
-  cameraInfo(camera)
+      cameraInfo(camera)
 {
   theInstance = this;
   VERIFY(readCameraIntrinsics());
