@@ -31,8 +31,10 @@
 #include "Tools/RECommon/OnceFlag.h"
 #include "Tools/RECommon/EdgeTrigger.h"
 #include "Tools/RECommon/IntervalTrigger.h"
+#include "Tools/RECommon/TimingStats.h"
 
 #include <atomic>
+#include <fmt/core.h>
 
 #if defined TARGET_ROBOT && (defined __arm64__ || defined __aarch64__)
 #define TARGET_BOOSTER
@@ -137,11 +139,19 @@ class BoosterK1Provider : public BoosterK1ProviderBase
   size_t connectedJoints;             /**< How many joints are connected? */
   EdgeTrigger<MotionRequest::Motion> motionRequestMotion {MotionRequest::playDead};
 
-  IntervalTriggerMs intervalLowStateRx;
-  IntervalTriggerMs intervalRobotStatus;
-  IntervalTriggerMs intervalUpdateHardwareDataAvailable;
-  IntervalTriggerMs intervalWaitForFrameData;
+  IntervalTriggerMs logIntervalLowStateRx;
+  IntervalTriggerMs logIntervalRobotStatus;
+  IntervalTriggerMs logIntervalUpdateHardwareDataAvailable;
+  IntervalTriggerMs logIntervalWaitForFrameData;
   float lastReportedStateOfCharge = 1.f;
+
+  IntervalTimingStats robotStatusIntervalStats;
+  IntervalTimingStats lowStateIntervalStats;
+  std::vector<unsigned> jointDisconnectionTime;
+
+  // fmt::memory_buffer jointDisconnectedBuf;
+  // fmt::memory_buffer jointReconnectedBuf;
+  size_t lastConnectedJoints = 0; // how many joints were previously connected
 
   // what booster reported in RobotStatesMsg subscription (updated when it changes)
   int32_t lastReportedMode = static_cast<int32_t>(booster::robot::RobotMode::kUnknown);

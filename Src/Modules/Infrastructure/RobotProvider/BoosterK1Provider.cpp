@@ -48,6 +48,7 @@
 #include "Platform/SystemCall.h"
 #include "Platform/Thread.h"
 #include "Platform/Time.h"
+#include "Debugging/Annotation.h"
 #include "TextLogging/TextLogging.h"
 #ifdef TARGET_BOOSTER
 #include <fcntl.h>
@@ -58,6 +59,15 @@
 MAKE_MODULE(BoosterK1Provider);
 
 DECL_TLOGGER(tlogger, "BoosterK1Provider", TextLogging::VERBOSE);
+
+// convenience shorthand for outputting to text log and annotation simultaneously
+#define TLOGI_ANNOTATION(logger_, ...)                                                                                 \
+  do                                                                                                                   \
+  {                                                                                                                    \
+    TLOGI(logger_, "*** " __VA_ARGS__);                                                                                       \
+    ANNOTATION_FMT("BoosterK1Provider", __VA_ARGS__);                                                                  \
+  } while (0)
+
 
 namespace
 {
@@ -123,6 +133,8 @@ BoosterK1Provider::BoosterK1Provider()
 
   lowCmd.cmd_type(booster_interface::msg::SERIAL);
   lowCmd.motor_cmd(std::vector<booster_interface::msg::MotorCmd>(jointMapping.size()));
+
+  jointDisconnectionTime.resize(jointMapping.size(), 0);
 
   connectedJoints = 0; // Initially joint data is not available - was previously lowCmd.motor_cmd().size();
 
@@ -200,6 +212,15 @@ void BoosterK1Provider::update(GamePad &theGamePad)
 #ifdef TARGET_BOOSTER
 void BoosterK1Provider::handleLowStateMsg(const booster_interface::msg::LowState& lowState)
 {
+  // track any timing issues with this callback.
+  lowStateIntervalStats.stop(); // new cycle
+  if (lowStateIntervalStats.sum() >= 15000u)
+  {
+    TLOGI(tlogger, "handleLowStateMsg: interval stats: {}", lowStateIntervalStats);
+    lowStateIntervalStats.reset();
+  }
+  lowStateIntervalStats.start();
+
   ASSERT(lowState.motor_state_serial().size() == jointMapping.size()); // TODO check whether this works for K1
 
   {
@@ -244,7 +265,7 @@ void BoosterK1Provider::handleLowStateMsg(const booster_interface::msg::LowState
     frameDataSignal.post();
   }
 
-  if (intervalLowStateRx.updateTriggered(jointSensorData.timestamp, 20000u))
+  if (logIntervalLowStateRx.updateTriggered(jointSensorData.timestamp, 20000u))
     TLOGI(tlogger, "handleLowStateMsg - received low state ({}/{} joints and inertial data)",
           lowState.motor_state_serial().size(), jointMapping.size());
 
@@ -278,19 +299,23 @@ void BoosterK1Provider::handleLowStateMsg(const booster_interface::msg::LowState
 
 void BoosterK1Provider::handleRobotStatusMsg(const booster_interface::msg::RobotStatusDdsMsg& robotStatus)
 {
+  // track any timing issues with this callback.
+  robotStatusIntervalStats.stop(); // new cycle
+  if (robotStatusIntervalStats.sum() >= 15000u)
+  {
+    TLOGI(tlogger, "handleRobotStatusMsg: interval stats: {}", robotStatusIntervalStats);
+    robotStatusIntervalStats.reset();
+  }
+  robotStatusIntervalStats.start();
+
   const std::vector<booster_interface::msg::RobotDdsBatteryStatus> &batteryStatuses = robotStatus.battery_vec();
   float stateOfCharge = -1.f;
   bool reportStateOfCharge = false;
-  int tmpConnectedJoints = 0;
+  size_t numConnected = 0;
+  bool connectedJointsChange = false;
 
   if(!batteryStatuses.empty())
     stateOfCharge = batteryStatuses.front().soc() * 0.01f;
-
-  // count the number of connected joints
-  tmpConnectedJoints = 0;
-  for(const booster_interface::msg::RobotDdsJointStatus& joint : robotStatus.joint_vec())
-    if(joint.is_connected())
-      ++tmpConnectedJoints;
 
   {
     SYNC;
@@ -305,14 +330,63 @@ void BoosterK1Provider::handleRobotStatusMsg(const booster_interface::msg::Robot
       systemSensorData.batteryCharging = false;
     }
 
-    connectedJoints = tmpConnectedJoints;
+    // count the number of connected joints
+    lastConnectedJoints = connectedJoints;
+    connectedJoints = 0;
+    for (const booster_interface::msg::RobotDdsJointStatus &joint : robotStatus.joint_vec())
+      if (joint.is_connected())
+        ++connectedJoints;
+
+    numConnected = connectedJoints;
+    connectedJointsChange = (connectedJoints != lastConnectedJoints);
+  }
+
+
+  // only read/written within this function, so outside SYNC
+  unsigned timeNow = Time::getCurrentSystemTime(); // don't use frameTime because we're in a booster thread here
+
+  if ((connectedJointsChange) && tlogger.isEnabled(TextLogging::WARNING))
+  {
+    ANNOTATION_FMT("BoosterK1Provider", "changed num of connected joints, now {}", numConnected);
+
+    size_t numDisconnected = jointMapping.size() - connectedJoints;;
+    if (numDisconnected < 5)
+    {
+      int i = 0;
+      for (const booster_interface::msg::RobotDdsJointStatus &joint : robotStatus.joint_vec())
+      {
+        if (joint.is_connected())
+        {
+          if (jointDisconnectionTime[i])
+          {
+            // Was disconnected, now reconnected
+            // fmt::format_to(std::back_inserter(reconnectedJointsBuf), "{}{}({})", reconnectedOut.size() ? ", " : "",
+            //                TypeRegistry::getEnumName(jointMapping[i]), timeNow - jointDisconnectionTime[i]);
+            TLOGI(tlogger, "joint reconnected: {} (after {} ms)", TypeRegistry::getEnumName(jointMapping[i]),
+                  timeNow - jointDisconnectionTime[i]);
+            jointDisconnectionTime[i] = 0;
+          }
+        }
+        else if (!jointDisconnectionTime[i])
+        {
+          // Newly disconnected
+          jointDisconnectionTime[i] = timeNow;
+          TLOGW(tlogger, "joint disconnected: {}", TypeRegistry::getEnumName(jointMapping[i]));
+        }
+        ++i;
+      }
+    }
+    else
+    {
+      TLOGI(tlogger, "changed num of connected joints, {} disconnected now", numDisconnected);
+    }
   }
 
   if (reportStateOfCharge)
     TLOGI(tlogger, "Battery stateOfCharge={:.2f}", stateOfCharge);
 
-  if (intervalRobotStatus.updateTriggered(theFrameInfo.time, 20000u))
-    TLOGI(tlogger, "handleRobotStatusMsg: connectedJoints={}", tmpConnectedJoints);
+  // if (logIntervalRobotStatus.updateTriggered(timeNow, 20000u))
+  //   TLOGI(tlogger, "handleRobotStatusMsg: connectedJoints={}", tmpConnectedJoints);
 }
 
 
@@ -343,6 +417,8 @@ void BoosterK1Provider::triggerSafetyTrip(const char *reason)
     TLOGW(tlogger, "******* {} ==> safetyTripped, entered DAMPing mode", reason);
   else
     TLOGE(tlogger, "******* {} ==> safetyTripped but FAILED ({}) to enter DAMPing mode", reason, res);
+
+  ANNOTATION_FMT("BoosterK1Provider", "safetyState: {} ==> safetyTripped", reason);
 }
 
 
@@ -409,6 +485,7 @@ void BoosterK1Provider::handleButtonEventMsg(const booster_interface::msg::Butto
 //       }
       robotSafetyState.store(RobotSafetyState::resetPending); // checks will happen in waitForFrameData2 + delegates
       TLOGI(tlogger, "**** from safetyTripped: {} long press detected ==> resetPending", buttonNames[buttonEvent.button()]);
+      ANNOTATION_FMT("BoosterK1Provider", "safetyState: safetyTripped ==> resetPending");
     }
     break;
 
@@ -484,7 +561,10 @@ void BoosterK1Provider::handleButtonEventMsg(const booster_interface::msg::Butto
 //       }
       RobotSafetyState::State expected = RobotSafetyState::resetPending;
       if (robotSafetyState.compare_exchange_strong(expected, RobotSafetyState::operational))
+      {
         TLOGI(tlogger, "**** from resetPending: {} press released ==> operational", buttonNames[buttonEvent.button()]);
+        ANNOTATION_FMT("BoosterK1Provider", "safetyState: resetPending ==> operational");
+      }
 
       // the CAS will only fail in case of a concurrent switch to safetyTripped which will already
       // be logged. Other checks also take place in waitForFrameData2 + delegates.
@@ -701,7 +781,8 @@ bool BoosterK1Provider::tryWaitForJointData()
 // called from motion thread only
 bool BoosterK1Provider::updateHardwareDataAvailable(bool jointDataReceived, size_t numConnectedJoints)
 {
-  bool isDataAvailable = ((numConnectedJoints==jointMapping.size()) && jointDataReceived);
+  // bool isDataAvailable = ((numConnectedJoints==jointMapping.size()) && jointDataReceived);
+  bool isDataAvailable = (numConnectedJoints && jointDataReceived);
   bool wasDataAvailable;
   {
     SYNC;
@@ -726,7 +807,7 @@ bool BoosterK1Provider::updateHardwareDataAvailable(bool jointDataReceived, size
       SystemCall::say("Body disconnected", true);
     }
 
-    if (intervalUpdateHardwareDataAvailable.updateTriggered(theFrameInfo.time, 5000u))
+    if (logIntervalUpdateHardwareDataAvailable.updateTriggered(theFrameInfo.time, 5000u))
       TLOGI(tlogger, "updateHardwareDataAvailable: hardwareData is NOT available: jointDataReceived={}, numJoints={}",
             jointDataReceived, numConnectedJoints);
 
@@ -742,6 +823,7 @@ bool BoosterK1Provider::updateHardwareDataAvailable(bool jointDataReceived, size
   else if (!wasDataAvailable)
   {
     TLOGI(tlogger, "updateHardwareDataAvailable: hardwareData now available");
+    ANNOTATION_FMT("BoosterK1Provider", "body/jointData connected");
     SystemCall::say("Body connected", true);
   }
 
@@ -934,7 +1016,7 @@ void BoosterK1Provider::waitForFrameData2()
     numConnectedJoints = connectedJoints; // thread safe read
   }
 
-  if (intervalWaitForFrameData.updateTriggered(theFrameInfo.time, 10000u))
+  if (logIntervalWaitForFrameData.updateTriggered(theFrameInfo.time, 10000u))
     TLOGI(tlogger, "waitForFrameData2: jointDataReceived={}, connectedJoints={}", jointDataReceived, numConnectedJoints);
 
   updateHardwareDataAvailable(jointDataReceived, numConnectedJoints);
