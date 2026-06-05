@@ -11,9 +11,15 @@
 
 #include "RERLWalkingEngine.h"
 #include "Platform/SystemCall.h"
+#include "TextLogging/TextLogging.h"
+
+
 #include <filesystem>
 
 MAKE_MODULE(RERLWalkingEngine);
+
+DECL_TLOGGER(tlogger, "RERLWalkingEngine", TextLogging::DEBUG);
+DECL_TLOGGER(tloggerWpd, "RERLWalkPhaseDummy", TextLogging::DEBUG);
 
 RERLWalkingEngine::RERLWalkingEngine():
   network(&Global::getAsmjitRuntime())
@@ -692,6 +698,8 @@ void RERLWalkPhaseDummy::getNextTargetRequest(JointAngles& target)
 
 void RERLWalkPhaseDummy::update()
 {
+  logInterval.updateTriggered(engine.theFrameInfo.time, 2000u);
+
   if(lastModelRequest > engine.theFrameInfo.time)
     lastModelRequest = engine.theFrameInfo.time;
   tWalk += engine.motionCycleTime;
@@ -713,6 +721,9 @@ bool RERLWalkPhaseDummy::isDone(const MotionRequest& motionRequest) const
 
 void RERLWalkPhaseDummy::calcJoints(const MotionRequest&, JointRequest& jointRequest, Pose2f& odometryOffset, MotionInfo& motionInfo)
 {
+  if (logInterval.wasTriggered())
+    TLOGD(tloggerWpd, "calcJoints - setting stiffnesses to 100");
+
   jointRequest.stiffnessData.stiffnesses.fill(100);
 
   jointRequest.angles[Joints::lShoulderPitch] = engine.armParameters.armShoulderPitch + engine.theRobotModel.soleLeft.translation.x() * engine.armParameters.armShoulderPitchFactor / 1000.f;
@@ -730,7 +741,8 @@ void RERLWalkPhaseDummy::calcJoints(const MotionRequest&, JointRequest& jointReq
 
   jointRequest.angles[Joints::waistYaw] = 0_deg;
 
-  if(SystemCall::getMode() != SystemCall::simulatedRobot && engine.theFrameInfo.getTimeSince(lastWalking) >= 2000 && engine.theGameState.playerState == GameState::PlayerState::penalizedManual)
+  if (SystemCall::getMode() != SystemCall::simulatedRobot && engine.theFrameInfo.getTimeSince(lastWalking) >= 2000 &&
+      engine.theGameState.playerState == GameState::PlayerState::penalizedManual)
   {
     for(std::size_t j = Joints::firstArmJoint; j < Joints::firstLegJoint; j++)
       standTarget.angles[j] = jointRequest.angles[j];

@@ -143,7 +143,7 @@ bool GamePadControlK1::updateKickMotion(MotionRequest& theMotionRequest)
   theMotionRequest.standHigh = true;
   theMotionRequest.energySavingWalk = false;
 
-  if (intervalLogKick.triggered(5000u))
+  if (intervalLogKick.updateTriggered(5000u))
     TLOGI(tlogger, "requesting MotionRequest::walkToBallAndKick {}",
           TypeRegistry::getEnumName(theMotionRequest.kickType));
 
@@ -173,7 +173,7 @@ void GamePadControlK1::updateWalkMotion(MotionRequest& theMotionRequest)
   else
     theMotionRequest.motion = MotionRequest::stand;
 
-  if (intervalLogWalk.triggered(5000u))
+  if (intervalLogWalk.updateTriggered(5000u))
     TLOGI(tlogger, "requesting MotionRequest::{} speed={{ rot={:.2f}, x={:.2f}, y={:.2f} }}",
           TypeRegistry::getEnumName(theMotionRequest.motion), (float)theMotionRequest.walkSpeed.rotation,
           theMotionRequest.walkSpeed.translation.x(), theMotionRequest.walkSpeed.translation.y());

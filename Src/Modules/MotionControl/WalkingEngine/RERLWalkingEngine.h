@@ -28,6 +28,7 @@
 #include "Representations/Sensing/RobotModel.h"
 #include "Representations/Sensing/SolePressureState.h"
 #include "Tools/Motion/MotionPhase.h"
+#include "Tools/RECommon/IntervalTrigger.h"
 
 #include "Platform/File.h"
 #include <CompiledNN2ONNX/CompiledNN.h>
@@ -165,8 +166,10 @@ private:
   std::vector<Vector2f> translationPolygon; /**< The polygon that defines the max allowed translation for the step size. */
 
   const std::string modelPath = std::string(File::getBHDir()) + "/Config/NeuralNets/BoosterWalk/";
+  IntervalTriggerMs logInterval;
 };
 
+// ==========================================================================
 struct DummyPhase : MotionPhase
 {
   using MotionPhase::MotionPhase;
@@ -174,6 +177,8 @@ struct DummyPhase : MotionPhase
   bool isDone(const MotionRequest&) const override { return true; }
   void calcJoints(const MotionRequest&, JointRequest&, Pose2f&, MotionInfo&) override {}
 };
+
+// ==========================================================================
 
 struct RERLWalkPhaseDummy : MotionPhase
 {
@@ -206,6 +211,7 @@ private:
   JointAngles requestAtStandStart;
   JointAngles standTarget;
   WalkGenerator::CreateNextPhaseCallback callBack;
+  IntervalTriggerMs logInterval;
 
   unsigned lastWalking = 0;
   unsigned slowWalkStart = 0;

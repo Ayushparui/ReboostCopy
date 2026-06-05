@@ -244,7 +244,7 @@ void BoosterK1Provider::handleLowStateMsg(const booster_interface::msg::LowState
     frameDataSignal.post();
   }
 
-  if (intervalLowStateRx.triggered(jointSensorData.timestamp, 20000u))
+  if (intervalLowStateRx.updateTriggered(jointSensorData.timestamp, 20000u))
     TLOGI(tlogger, "handleLowStateMsg - received low state ({}/{} joints and inertial data)",
           lowState.motor_state_serial().size(), jointMapping.size());
 
@@ -311,7 +311,7 @@ void BoosterK1Provider::handleRobotStatusMsg(const booster_interface::msg::Robot
   if (reportStateOfCharge)
     TLOGI(tlogger, "Battery stateOfCharge={:.2f}", stateOfCharge);
 
-  if (intervalRobotStatus.triggered(theFrameInfo.time, 20000u))
+  if (intervalRobotStatus.updateTriggered(theFrameInfo.time, 20000u))
     TLOGI(tlogger, "handleRobotStatusMsg: connectedJoints={}", tmpConnectedJoints);
 }
 
@@ -726,7 +726,7 @@ bool BoosterK1Provider::updateHardwareDataAvailable(bool jointDataReceived, size
       SystemCall::say("Body disconnected", true);
     }
 
-    if (intervalUpdateHardwareDataAvailable.triggered(theFrameInfo.time, 5000u))
+    if (intervalUpdateHardwareDataAvailable.updateTriggered(theFrameInfo.time, 5000u))
       TLOGI(tlogger, "updateHardwareDataAvailable: hardwareData is NOT available: jointDataReceived={}, numJoints={}",
             jointDataReceived, numConnectedJoints);
 
@@ -934,7 +934,7 @@ void BoosterK1Provider::waitForFrameData2()
     numConnectedJoints = connectedJoints; // thread safe read
   }
 
-  if (intervalWaitForFrameData.triggered(theFrameInfo.time, 10000u))
+  if (intervalWaitForFrameData.updateTriggered(theFrameInfo.time, 10000u))
     TLOGI(tlogger, "waitForFrameData2: jointDataReceived={}, connectedJoints={}", jointDataReceived, numConnectedJoints);
 
   updateHardwareDataAvailable(jointDataReceived, numConnectedJoints);

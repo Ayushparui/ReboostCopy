@@ -6,10 +6,10 @@
  *
  * Usage:
  *   IntervalTriggerMs logIntervalTrigger{500};
- *   if (logIntervalTrigger.triggered(nowMs)) doSomething();
+ *   if (logIntervalTrigger.updateTriggered(nowMs)) doSomething();
  *
  *   IntervalTriggerN sampleIntervalTrigger{10};
- *   if (sampleIntervalTrigger.triggered()) doSomethingElse();
+ *   if (sampleIntervalTrigger.updateTriggered()) doSomethingElse();
  *
  * @author Rudi Villing
  */
@@ -25,8 +25,8 @@ struct IntervalTriggerMs
   IntervalTriggerMs() : initialIntervalMs(15000u), dueMs(0) {}
   explicit IntervalTriggerMs(unsigned intervalMs) : initialIntervalMs(intervalMs), dueMs(0) {}
 
-  bool triggered(unsigned nowMs) { return triggered(nowMs, initialIntervalMs); }
-  bool triggered(unsigned nowMs, unsigned intervalMs)
+  bool updateTriggered(unsigned nowMs) { return updateTriggered(nowMs, initialIntervalMs); }
+  bool updateTriggered(unsigned nowMs, unsigned intervalMs)
   {
     if ((dueMs == nowMs) || ((dueMs - nowMs) > intervalMs)) // handles wrap around
     {
@@ -54,7 +54,7 @@ private:
 };
 
 /**
- * Triggers every N calls to triggered().
+ * Triggers every N calls to updateTriggered().
  * Fires on the Nth tick, then resets.
  */
 struct IntervalTriggerN
@@ -62,8 +62,8 @@ struct IntervalTriggerN
   IntervalTriggerN() : initialInterval(1000u), count(0) {}
   explicit IntervalTriggerN(unsigned initialInterval) : initialInterval(initialInterval), count(0) {}
 
-  bool triggered() { return triggered(initialInterval); }
-  bool triggered(unsigned interval)
+  bool updateTriggered() { return updateTriggered(initialInterval); }
+  bool updateTriggered(unsigned interval)
   {
     if (++count >= interval)
     {
