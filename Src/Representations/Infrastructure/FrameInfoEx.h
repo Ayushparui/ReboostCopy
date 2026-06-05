@@ -23,6 +23,9 @@ STREAMABLE_WITH_BASE(FrameInfoEx, FrameInfo,
    */
   int getTimeSincePrevious(unsigned timestamp) const;
 
+  /** Draw this representation. */
+  void draw() const;  
+
   /**** separate header from streamable fields - comma at end of comment ****/,
 
   (unsigned)(0) frameNumber, ///< a simple counter incremented on each frame
