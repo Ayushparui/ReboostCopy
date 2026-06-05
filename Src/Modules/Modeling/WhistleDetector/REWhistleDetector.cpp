@@ -41,8 +41,8 @@ REWhistleDetector::REWhistleDetector()
 
     ASSERT(whistleDetector.numOfInputs()     == 1);
     ASSERT(whistleDetector.numOfOutputs()    == 1);
-    ASSERT(whistleDetector.input(0).dims(0)  == maxFFTs);
-    ASSERT(whistleDetector.input(0).dims(1)  == spectrumSize);
+    ASSERT(whistleDetector.input(0).dims(0)  == static_cast<unsigned>(maxFFTs));
+    ASSERT(whistleDetector.input(0).dims(1)  == static_cast<unsigned>(spectrumSize));
     ASSERT(whistleDetector.input(0).dims(2)  == 1);
     ASSERT(whistleDetector.output(0).dims(0) == 1);
 
@@ -62,6 +62,10 @@ REWhistleDetector::REWhistleDetector()
     /* Resize magSpectrums according specifications */
     magSpectrums.reserve(whistleDetector.input(0).dims(0));
     monoBuffer.reserve(bufferSize);
+
+    /* Initialize the Noise filter params */
+    const float windowLenMs = 1000.0f * fftStep / theAudioData.sampleRate;
+    noisefilter.setParams(spectrumSize, static_cast<unsigned>((noiseAvgLenMs) / windowLenMs));
 }
 
 REWhistleDetector::~REWhistleDetector()
@@ -77,7 +81,7 @@ void REWhistleDetector::update(Whistle& theWhistle) {
     DECLARE_PLOT("module:REWhistleDetector:whistleConfidence");
     DECLARE_PLOT("module:REWhistleDetector:whistleConfidenceThresh");
 
-    bool validAudio = (!theAudioData.samples.empty() && (theAudioData.channels >= numChannels));
+    bool validAudio = (!theAudioData.samples.empty() && (theAudioData.channels >= static_cast<unsigned>(numChannels)));
 
     /* If not receiving audio input */
     if (!validAudio) {
@@ -120,7 +124,7 @@ void REWhistleDetector::processAudio(Whistle& theWhistle, bool detectWhistle) {
         float monoSum = 0;
 
         /* For each channel */
-        for (std::size_t channel = 0; channel < numChannels; ++channel) {
+        for (std::size_t channel = 0; channel < static_cast<unsigned>(numChannels); ++channel) {
             /* Obtain desired audio sample and perform clamping checks before
              * pushing to buffers.
              */
@@ -199,6 +203,16 @@ float REWhistleDetector::inferenceCheck() {
                 std::clamp((spectrum[j][0] * spectrum[j][0] + spectrum[j][1] * spectrum[j][1]) / fftSize , -1.f, 1.f);
         }
 
+        /* Update our filter profile */
+        noisefilter.update(magSpectrums.front());
+
+        /* Subtract noise profile from magSpectrums */
+        for (int j = 0; j < spectrumSize; j++)
+        {
+          /* calculate the magnitude spectrum with usual FFT normalization */
+          magSpectrums.front()[j] = std::max(magSpectrums.front()[j] - noisefilter.spectProfile[j], 0.f);;
+        }
+
         /* Use the next set of samples */
         fftOffset += fftStep;
     }
@@ -221,4 +235,30 @@ float REWhistleDetector::inferenceCheck() {
     PLOT("module:REWhistleDetector:whistleConfidenceThresh", whistleConfidenceThresh);
 
     return whistleConfidence;
+}
+
+void REWhistleDetector::NoiseFilter::setParams(unsigned spectSize, unsigned sampleAvg) {
+  spectProfile.resize(spectSize, 0);
+  numSample = 0;
+  maxNumSample = sampleAvg;
+}
+
+void REWhistleDetector::NoiseFilter::update(std::vector<float>(inputSpect)) {
+
+  if (numSample++ == 0) {
+    for (size_t binInd = 0; binInd < spectProfile.size(); binInd++) {
+      spectProfile[binInd] = inputSpect[binInd];
+    }
+  } else {
+
+    float smoothAdjust = 2.0f / (numSample + 1);
+
+    for (size_t binInd = 0; binInd < spectProfile.size(); binInd++) {
+      spectProfile[binInd] = (smoothAdjust * inputSpect[binInd]) + ((1 - smoothAdjust) * spectProfile[binInd]);
+    }
+  }
+
+  if (numSample > maxNumSample) {
+    numSample = maxNumSample;
+  }
 }

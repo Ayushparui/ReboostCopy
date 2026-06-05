@@ -39,6 +39,7 @@ MODULE(REWhistleDetector,
                 (int) numChannels,
                 (float)whistleConfidenceThresh,
                 (float)sampleGain,
+                (unsigned)noiseAvgLenMs,
             }),
     });
 
@@ -48,6 +49,23 @@ public:
     ~REWhistleDetector();
 
 private:
+
+  class NoiseFilter {
+  private:
+    unsigned int numSample = 0;
+    unsigned int maxNumSample;
+
+  public:
+    std::vector<float> spectProfile;
+
+    NoiseFilter() = default;
+    ~NoiseFilter() = default;
+    void setParams(unsigned, unsigned);
+    void reset() {numSample = 0;}
+    void update(std::vector<float>);
+  };
+
+
     std::vector<RingBuffer<AudioData::Sample>> channelBuffers;  // Sample buffers for all channels.
     RingBuffer<AudioData::Sample> monoBuffer;         // Mono mixdown buffer.
 
@@ -60,6 +78,8 @@ private:
     RingBuffer<std::vector<float>> magSpectrums;
     int spectrumSize;
     int maxFFTs;
+
+    NoiseFilter noisefilter;
 
     /* Other FFT Related members */
     std::vector<float> hannWindow;
