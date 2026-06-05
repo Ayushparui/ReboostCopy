@@ -1,4 +1,5 @@
 call ../Includes/BoosterPerceptOracle
 call ../Includes/5vs5
 
+# this forces the robots to be positioned where setupPoses.cfg specifies
 dr representation:SetupPoses:place
