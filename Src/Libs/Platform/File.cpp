@@ -26,7 +26,7 @@
 
 thread_local std::vector<std::string> File::searchPath;
 
-DECL_TLOGGER(tlogger,"File",TextLogging::DEBUG);
+DECL_TLOGGER(tlogger,"File",TextLogging::INFO);
 
 
 File::File(const std::string& name, const char* mode, bool tryAlternatives, bool isOptional)
