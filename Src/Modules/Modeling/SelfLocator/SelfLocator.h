@@ -19,6 +19,7 @@
 #include "Representations/Modeling/Odometer.h"
 #include "Representations/Modeling/PerceptRegistration.h"
 #include "Representations/Modeling/RobotPose.h"
+#include "Representations/Configuration/RobotDimensions.h"
 #include "Representations/Modeling/SelfLocalizationHypotheses.h"
 #include "Representations/Modeling/SideInformation.h"
 #include "Representations/Modeling/WorldModelPrediction.h"
@@ -47,13 +48,15 @@ MODULE(SelfLocator,
   REQUIRES(LibDemo),
   REQUIRES(MotionInfo),
   REQUIRES(CameraInfo),
-  REQUIRES(RobotPose),
+  REQUIRES(RobotDimensions),
   REQUIRES(SideInformation),
   REQUIRES(PerceptRegistration),
   REQUIRES(WorldModelPrediction),
   REQUIRES(SetupPoses),
   REQUIRES(StaticInitialPose),
   REQUIRES(GroundTruthRobotPose),
+
+  REQUIRES(RobotPose),
   PROVIDES(RobotPose),
   PROVIDES(SelfLocalizationHypotheses),
   LOADS_PARAMETERS(

@@ -206,17 +206,17 @@ void SelfLocator::update(RobotPose& robotPose)
   }
 
   // useful to get robot positions in the simulator console
-  DEBUG_RESPONSE_ONCE("module:SelfLocator:RobotPose")
+  DEBUG_RESPONSE_ONCE("module:SelfLocator:OutputRobotPose")
     OUTPUT_TEXT(fmt::format("t{}-r{} RobotPose: HSL {{rot={:.0f}_deg; x={:.0f}; y={:.0f}}}", theGameState.ownTeam.number,
                             theGameState.playerNumber, robotPose.translation.x(), robotPose.translation.y(),
                             robotPose.rotation.toDegrees()));
 
   // this is useful to when positioning robots in the simulator if you want their coordinates
-  DEBUG_RESPONSE_ONCE("module:SelfLocator:GroundTruthRobotPoseInSim")
+  DEBUG_RESPONSE_ONCE("module:SelfLocator:OutputGroundTruthRobotPose")
   {
     Pose2f pose = theGroundTruthRobotPose;
     Pose2f simPose = pose;
-    bool leftToRight = theGameState.ownTeam.number == theGameControllerData.teams[0].teamNumber;
+    bool leftToRight = (theGameState.ownTeam.number == theGameControllerData.teams[0].teamNumber);
     if (leftToRight) // need to convert sim coord output in this case
     {
       simPose.rotation = Angle::normalize(pose.rotation + pi);
@@ -229,6 +229,25 @@ void SelfLocator::update(RobotPose& robotPose)
         pose.translation.y(), simPose.rotation.toDegrees(), simPose.translation.x(), simPose.translation.y()));
   }
 
+  // update the ground truth robot pose to match the robot's belief. This is useful to make the simulated robot in
+  // the 3D field view roughly match where the robot was in the real world (if the self localisation is vaguely
+  // OK)
+  DEBUG_RESPONSE_ONCE("module:SelfLocator:UpdateGroundTruthRobotPoseOnce")
+  {
+    Pose2f pose = robotPose;
+
+    bool leftToRight = (theGameState.ownTeam.number == theGameControllerData.teams[0].teamNumber);
+    if (leftToRight)
+    {
+      pose.rotation = Angle::normalize(pose.rotation + pi);
+      pose.translation.x() = -pose.translation.x();
+      pose.translation.y() = -pose.translation.y();
+    }
+
+    OUTPUT(idConsole, text,
+           "mv " << pose.translation.x() << " " << pose.translation.y() << " " << theRobotDimensions.simOriginHeight
+                 << " 0 0 " << pose.rotation.toDegrees());
+  }
 }
 
 void SelfLocator::update(SelfLocalizationHypotheses& selfLocalizationHypotheses)
