@@ -71,7 +71,7 @@ call GameStates
 call DebugResponses
 
 dr debugDrawing3d:representation:RobotPose
-# dr debugDrawing3d:representation:GameState:playerNumber
+dr debugDrawing3d:representation:GameState:playerNumber
 
 # clear ball is not working correctly
 ar clearBall off

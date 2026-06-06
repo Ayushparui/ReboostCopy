@@ -4,6 +4,7 @@
  * Implements a class that performs self-localization
  *
  * @author <a href="mailto:tlaue@uni-bremen.de">Tim Laue</a>
+ * @author Rudi Villing (minor modifications)
  */
 
 #include "SelfLocator.h"
@@ -13,7 +14,13 @@
 #include "Math/Eigen.h"
 #include "Math/Probabilistics.h"
 #include "Platform/SystemCall.h"
+#include "TextLogging/TextLogging.h"
+#include "Tools/RECommon/FmtCommonTypes.h"
+
 #include <algorithm>
+
+
+DECL_TLOGGER(tlogger, "SelfLocator", TextLogging::INFO);
 
 SelfLocator::SelfLocator() : lastTimeJumpSound(0),
   timeOfLastReturnFromPenalty(0),
@@ -49,8 +56,15 @@ void SelfLocator::update(RobotPose& robotPose)
    */
   handleGameStateChanges();
 
-  DEBUG_RESPONSE("module:SelfLocator:activateSampleResettingToGroundTruth")
-    resetSamplesToGroundTruth();
+  // update to match the (sim) ground truth position once (immediately)
+  DEBUG_RESPONSE_ONCE("module:SelfLocator:resetSamplesToGroundTruthOnce")
+    resetSamplesToGroundTruth(true);
+
+  // continuous updates based on ground truth pose deviation (E.g. when moving
+  // the robot around)
+  DEBUG_RESPONSE("module:SelfLocator:resetSamplesToGroundTruthAsNeeded")
+    resetSamplesToGroundTruth(false);
+
   // In any case, remember last ground truth robot pose
   lastGroundTruthRobotPose = theGroundTruthRobotPose;
 
@@ -123,7 +137,8 @@ void SelfLocator::update(RobotPose& robotPose)
 
   /** In Initial, the setup pose is directly set to avoid jumping.
    */
-  if(theGameState.gameControllerActive && theGameState.isInitial() && !theGameState.isPenaltyShootout())
+  if (forceInitialPoseAllowed && theGameState.gameControllerActive && theGameState.isInitial() &&
+      !theGameState.isPenaltyShootout())
     robotPose = getNewPoseAtWalkInPosition();
 
   /* Finally, update internal variables, debug and draw stuff.
@@ -188,6 +203,50 @@ void SelfLocator::update(RobotPose& robotPose)
   {
     Pose2f origin = robotPose + theOdometryData.inverse();
     ORIGIN("cognition:Odometry", origin.translation.x(), origin.translation.y(), origin.rotation);
+  }
+
+  // useful to get robot positions in the simulator console
+  DEBUG_RESPONSE_ONCE("module:SelfLocator:OutputRobotPose")
+    OUTPUT_TEXT(fmt::format("t{}-r{} RobotPose: HSL {{rot={:.0f}_deg; x={:.0f}; y={:.0f}}}", theGameState.ownTeam.number,
+                            theGameState.playerNumber, robotPose.translation.x(), robotPose.translation.y(),
+                            robotPose.rotation.toDegrees()));
+
+  // this is useful to when positioning robots in the simulator if you want their coordinates
+  DEBUG_RESPONSE_ONCE("module:SelfLocator:OutputGroundTruthRobotPose")
+  {
+    Pose2f pose = theGroundTruthRobotPose;
+    Pose2f simPose = pose;
+    bool leftToRight = (theGameState.ownTeam.number == theGameControllerData.teams[0].teamNumber);
+    if (leftToRight) // need to convert sim coord output in this case
+    {
+      simPose.rotation = Angle::normalize(pose.rotation + pi);
+      simPose.translation.x() = -pose.translation.x();
+      simPose.translation.y() = -pose.translation.y();
+    }
+    OUTPUT_TEXT(fmt::format(
+        "t{}-r{} GroundTruthRobotPose: HSL {{rot={:.0f}_deg; x={:.0f}; y={:.0f}}}, Sim {{ {:.0f} {:.0f} {:.0f}deg }}",
+        theGameState.ownTeam.number, theGameState.playerNumber, pose.rotation.toDegrees(), pose.translation.x(),
+        pose.translation.y(), simPose.rotation.toDegrees(), simPose.translation.x(), simPose.translation.y()));
+  }
+
+  // update the ground truth robot pose to match the robot's belief. This is useful to make the simulated robot in
+  // the 3D field view roughly match where the robot was in the real world (if the self localisation is vaguely
+  // OK)
+  DEBUG_RESPONSE_ONCE("module:SelfLocator:UpdateGroundTruthRobotPoseOnce")
+  {
+    Pose2f pose = robotPose;
+
+    bool leftToRight = (theGameState.ownTeam.number == theGameControllerData.teams[0].teamNumber);
+    if (leftToRight)
+    {
+      pose.rotation = Angle::normalize(pose.rotation + pi);
+      pose.translation.x() = -pose.translation.x();
+      pose.translation.y() = -pose.translation.y();
+    }
+
+    OUTPUT(idConsole, text,
+           "mv " << pose.translation.x() << " " << pose.translation.y() << " " << theRobotDimensions.simOriginHeight
+                 << " 0 0 " << pose.rotation.toDegrees());
   }
 }
 
@@ -468,19 +527,35 @@ bool SelfLocator::sensorResetting(const RobotPose& robotPose)
   return false;
 }
 
-void SelfLocator::resetSamplesToGroundTruth()
+void SelfLocator::resetSamplesToGroundTruth(bool updateImmediately)
 {
-  if(theGroundTruthRobotPose.timestamp != theFrameInfo.time)
+  if (theGroundTruthRobotPose.timestamp != theFrameInfo.time)
     return;
-  const float distanceDeviation = std::abs((theGroundTruthRobotPose.translation - lastGroundTruthRobotPose.translation).norm());
-  const float rotationDeviation = std::abs(Angle::normalize(theGroundTruthRobotPose.rotation - lastGroundTruthRobotPose.rotation));
-  // Numbers are guessed and hardcoded, but this is a debugging function anyway ...
-  if(distanceDeviation > 300.f || rotationDeviation > Angle::fromDegrees(30.f))
+
+  // once we override the ground truth pose we don't want it immediately set back to the initial pose
+  if (SystemCall::getMode() != SystemCall::physicalRobot)
+    forceInitialPoseAllowed = false;
+
+  // if we haven't asked for an immediate update, check if the robot has been moved around manually or teleported
+  // such that the ground truth pose changes suddenly
+  if (!updateImmediately)
+  {
+    const float distanceDeviation =
+        std::abs((theGroundTruthRobotPose.translation - lastGroundTruthRobotPose.translation).norm());
+    const float rotationDeviation =
+        std::abs(Angle::normalize(theGroundTruthRobotPose.rotation - lastGroundTruthRobotPose.rotation));
+    // Numbers are guessed and hardcoded, but this is a debugging function anyway ...
+    updateImmediately = (distanceDeviation > 300.f || rotationDeviation > Angle::fromDegrees(30.f));
+  }
+
+  if (updateImmediately)
   {
     for(int i = 0; i < samples->size(); ++i)
       samples->at(i).init(theGroundTruthRobotPose, penaltyShootoutPoseDeviation, nextSampleNumber++, 0.9f);
     sampleSetHasBeenReset = true;
     idOfLastBestSample = -1;
+
+    TLOGI(tlogger, "resetSamplesToGroundTruth: samples updated to {}", static_cast<Pose2f>(theGroundTruthRobotPose));
   }
 }
 

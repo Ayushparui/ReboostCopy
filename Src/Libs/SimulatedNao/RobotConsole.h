@@ -425,6 +425,7 @@ private:
   bool moduleRequest(In&, std::string threadName);
   bool moveBall(In&);
   bool moveRobot(In&);
+  bool moveRobotAndRobotPose(In&);
   bool msg(In&);
   bool penalizeRobot(In&);
   bool remoteControl(In&);

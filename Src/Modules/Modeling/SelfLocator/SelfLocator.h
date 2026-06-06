@@ -13,11 +13,13 @@
 #include "Representations/Configuration/FieldDimensions.h"
 #include "Representations/Infrastructure/CameraInfo.h"
 #include "Representations/Infrastructure/FrameInfo.h"
+#include "Representations/Communication/GameControllerData.h"
 #include "Representations/Infrastructure/GameState.h"
 #include "Representations/Modeling/AlternativeRobotPoseHypothesis.h"
 #include "Representations/Modeling/Odometer.h"
 #include "Representations/Modeling/PerceptRegistration.h"
 #include "Representations/Modeling/RobotPose.h"
+#include "Representations/Configuration/RobotDimensions.h"
 #include "Representations/Modeling/SelfLocalizationHypotheses.h"
 #include "Representations/Modeling/SideInformation.h"
 #include "Representations/Modeling/WorldModelPrediction.h"
@@ -38,6 +40,7 @@ MODULE(SelfLocator,
   REQUIRES(Odometer),
   REQUIRES(OdometryData),
   REQUIRES(FallDownState),
+  REQUIRES(GameControllerData),
   REQUIRES(GameState),
   REQUIRES(IMUValueState),
   REQUIRES(FieldDimensions),
@@ -45,13 +48,15 @@ MODULE(SelfLocator,
   REQUIRES(LibDemo),
   REQUIRES(MotionInfo),
   REQUIRES(CameraInfo),
-  REQUIRES(RobotPose),
+  REQUIRES(RobotDimensions),
   REQUIRES(SideInformation),
   REQUIRES(PerceptRegistration),
   REQUIRES(WorldModelPrediction),
   REQUIRES(SetupPoses),
   REQUIRES(StaticInitialPose),
   REQUIRES(GroundTruthRobotPose),
+
+  REQUIRES(RobotPose),
   PROVIDES(RobotPose),
   PROVIDES(SelfLocalizationHypotheses),
   LOADS_PARAMETERS(
@@ -119,6 +124,8 @@ private:
   float sumOfUsedLandmarks;                     /**< Statistics: Sum up number of all integrated landmarks (average over samples) */
   float sumOfUsedLines;                         /**< Statistics: Sum up number of all integrated lines (average over samples) */
 
+  bool forceInitialPoseAllowed = true; ///< whether the initial pose may be forced
+
   /**
    * The method provides the robot pose
    *
@@ -153,7 +160,7 @@ private:
    *  reinitializes at the new pose. This allows easier testing by moving the robot around without waiting
    *  for it to re-localize at the new pose.
    */
-  void resetSamplesToGroundTruth();
+  void resetSamplesToGroundTruth(bool updateImmediately=false);
 
   /** Some motions lead to low-quality percepts, as the camera pose cannot be computed precisely enough.
    *  This functions performs the necessary checks.

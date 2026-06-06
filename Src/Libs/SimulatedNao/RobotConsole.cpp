@@ -374,6 +374,10 @@ bool RobotConsole::handleConsoleLine(const std::string& line)
   {
     result = moveRobot(stream);
   }
+  else if(command == "mvrp")
+  {
+    result = moveRobotAndRobotPose(stream);
+  }
   else if(command == "mvb")
   {
     result = moveBall(stream);
@@ -2120,6 +2124,20 @@ bool RobotConsole::moveRobot(In& stream)
     simulatedRobot->moveRobotPerTeam(movePos, moveRot * 1_deg, true);
   }
   return true;
+}
+
+bool RobotConsole::moveRobotAndRobotPose(In& stream)
+{
+  if (moveRobot(stream))
+  {
+    std::unordered_map<std::string, size_t>::const_iterator found =
+        debugRequestTable.slowIndex.find("module:SelfLocator:resetSamplesToGroundTruthOnce");
+    if (found != debugRequestTable.slowIndex.end())
+      handleConsole("dr module:SelfLocator:resetSamplesToGroundTruthOnce");
+    return true;
+  }
+  else
+    return false;
 }
 
 bool RobotConsole::msg(In& stream)

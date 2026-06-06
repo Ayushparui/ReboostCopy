@@ -96,12 +96,12 @@ void RobotPose::draw() const
     for(int i = 0; i < 4; i++)
       bodyPoints[i] = *this * bodyPoints[i];
     const Vector2f dirVec = *this * Vector2f(200, 0);
-    LINE3D("representation:RobotPose", translation.x(), translation.y(), 10, dirVec.x(), dirVec.y(), 10, 1, ownJerseyColorForDrawing);
+    LINE3D("representation:RobotPose", translation.x(), translation.y(), 10, dirVec.x(), dirVec.y(), 10, 2, ownJerseyColorForDrawing);
     for(int i = 0; i < 4; ++i)
     {
       const Vector2f p1 = bodyPoints[i];
       const Vector2f p2 = bodyPoints[(i + 1) & 3];
-      LINE3D("representation:RobotPose", p1.x(), p1.y(), 10, p2.x(), p2.y(), 10, 1, ownJerseyColorForDrawing);
+      LINE3D("representation:RobotPose", p1.x(), p1.y(), 10, p2.x(), p2.y(), 10, 2, ownJerseyColorForDrawing);
     }
   }
 
