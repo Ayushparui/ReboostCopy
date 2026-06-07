@@ -36,6 +36,7 @@ STREAMABLE(LedColorK1,
   static const LedColorK1 BROWN;
   static const LedColorK1 GRAY;
   static const LedColorK1 LIGHT_GRAY;
+  static const LedColorK1 DARK_BLUE_GRAY;
 
 
   constexpr LedColorK1() = default;
@@ -80,6 +81,7 @@ inline const LedColorK1 LedColorK1::CYAN = {0, 128, 255};
 inline const LedColorK1 LedColorK1::BROWN = {77, 38, 0};
 inline const LedColorK1 LedColorK1::GRAY = {77, 77, 77};
 inline const LedColorK1 LedColorK1::LIGHT_GRAY = {152, 152, 152};
+inline const LedColorK1 LedColorK1::DARK_BLUE_GRAY = {40, 40, 64};
 
 
 /**
@@ -96,8 +98,10 @@ STREAMABLE(LedRequestK1,
   ENUM(Mode,
   {, 
     binaryPattern, 
-    fade, 
-    fade2, 
+    fade, // slow pulse over full period (part=halfPeriod)
+    fade2, // pulse over full period, but rise and fall take place over 0.25 period each and fully on for half period (part=quarterPeriod)
+    fade3, // pulse over 0.75 period, and 0.25 period off (part=quarterPeriod)
+    fade4, // pulse over 0.5 period, and 0.5 period off (part=quarterPeriod)
   });
 
 
@@ -132,12 +136,20 @@ STREAMABLE(LedRequestK1,
     fgMask = pattern;
   }
 
-  void setFgFade(const LedColorK1 &color, Mode fadeMode = Mode::fade)
+  /**
+   * set the fade
+   *
+   * @param color  the colour of the LEDs
+   * @param fadeMode  what type of fade to use, @see Mode comments for details
+   * @param offsetIndex the offset part index - depends on the fade type, but offsets by either half or quarter period
+   */
+  void setFgFade(const LedColorK1 &color, Mode fadeMode = Mode::fade, unsigned offsetIndex=0)
   {
     fgColor = color;
-    ASSERT(fadeMode == Mode::fade || fadeMode == Mode::fade2);
+    ASSERT(fadeMode == Mode::fade || fadeMode == Mode::fade2 || fadeMode == Mode::fade3 || fadeMode == Mode::fade4);
+    ASSERT(offsetIndex<4);
     fgMode = fadeMode;
-    fgMask = ON;
+    fgMask = offsetIndex;
   }
 
   void setBgPattern(const LedColorK1 &color, uint32_t pattern = ON)
@@ -147,12 +159,13 @@ STREAMABLE(LedRequestK1,
     bgMask = pattern;
   }
 
-  void setBgFade(const LedColorK1 &color, Mode fadeMode = Mode::fade)
+  void setBgFade(const LedColorK1 &color, Mode fadeMode = Mode::fade, unsigned offsetIndex=0)
   {
     bgColor = color;
-    ASSERT(fadeMode == Mode::fade || fadeMode == Mode::fade2);
+    ASSERT(fadeMode == Mode::fade || fadeMode == Mode::fade2 || fadeMode == Mode::fade3 || fadeMode == Mode::fade4);
+    ASSERT(offsetIndex<4);
     bgMode = fadeMode;
-    bgMask = ON;
+    bgMask = offsetIndex;
   }
 
 

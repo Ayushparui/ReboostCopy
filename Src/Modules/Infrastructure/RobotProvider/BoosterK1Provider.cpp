@@ -934,10 +934,11 @@ void BoosterK1Provider::updateRobotModeFromMotionRequest()
 
 void BoosterK1Provider::commandLightControl()
 {
-  static constexpr int MACRO_PERIOD_MS = 1600u; // bitmask macro cycle duration
-  static constexpr int BIT_DURATION_MS = 50u;   // duration of each bitmask bit
-  static constexpr int FADE_PERIOD_MS = 2 * MACRO_PERIOD_MS;
-  static constexpr int HALF_FADE_MS = FADE_PERIOD_MS / 2;
+  static constexpr unsigned MACRO_PERIOD_MS = 1600u; // bitmask macro cycle duration
+  static constexpr unsigned BIT_DURATION_MS = 50u;   // duration of each bitmask bit
+  static constexpr unsigned FADE_PERIOD_MS = 2 * MACRO_PERIOD_MS;
+  static constexpr unsigned HALF_FADE_MS = FADE_PERIOD_MS / 2;
+  static constexpr unsigned QUARTER_FADE_MS = FADE_PERIOD_MS / 4;
 
   const auto &req = theLedRequestK1;
   const unsigned t = theFrameInfo.time;
@@ -953,14 +954,34 @@ void BoosterK1Provider::commandLightControl()
   };
 
   // fade using a cosine shaped curve
-  auto fadeScale = [t](LedRequestK1::Mode mode) -> float
+  auto fadeScale = [t](LedRequestK1::Mode mode, unsigned offset=0) -> float
   {
-    if (mode == LedRequestK1::Mode::fade)
-      return 0.5f - 0.5f * std::cos(float(t % FADE_PERIOD_MS) * pi2 / float(FADE_PERIOD_MS));
-    else
+    enum Shape { RISE, ON, FALL, OFF, UNUSED };
+
+    static constexpr Shape modeTable[][4] = {
+        // P0  P1    P2      P3    (=partIndexes)
+        {RISE, FALL, UNUSED, UNUSED}, // fade - half period rise/fall
+        {RISE, ON,   ON,   FALL}, // fade2
+        {RISE, ON,   FALL, OFF}, // fade3
+        {RISE, FALL, OFF,  OFF}, // fade4
+    };
+
+    // fade uses half-period part, fade2/3/4 use quarter-period parts
+    const unsigned partMs = (mode == LedRequestK1::Mode::fade) ? HALF_FADE_MS : QUARTER_FADE_MS;
+    const unsigned phase = (t + (offset * partMs)) % FADE_PERIOD_MS;
+    const unsigned partIndex = phase / partMs; // which part of the phase
+    const float partPos = float(phase % partMs) / float(partMs); // what fraction of the part
+
+    // WARNING: this mapping to lookup table index requires fade, fade2, fade3, fade4 to be contiguous enum values
+    // If the enum values become non-contiguous it will break
+    const int modeIndex = static_cast<int>(mode) - static_cast<int>(LedRequestK1::fade);
+    switch (modeTable[modeIndex][partIndex])
     {
-      const int c = std::clamp(int(t % FADE_PERIOD_MS) - HALF_FADE_MS, -HALF_FADE_MS, 0);
-      return 0.5f + 0.5f * std::cos(float(c) * pi2 / float(HALF_FADE_MS));
+    case RISE: return 0.5f - (0.5f * std::cos(partPos * pi));
+    case ON: return 1.0f;
+    case FALL: return 0.5f + (0.5f * std::cos(partPos * pi));
+    case OFF: return 0.0f;
+    default: ASSERT(false); return 0.0f; // should not occur
     }
   };
 
@@ -978,7 +999,7 @@ void BoosterK1Provider::commandLightControl()
     }
     else // fade
     {
-      const float s = fadeScale(mode);
+      const float s = fadeScale(mode, mask);
       setColor(uint8_t(float(color.r) * s), uint8_t(float(color.g) * s), uint8_t(float(color.b) * s));
       return true;
     }

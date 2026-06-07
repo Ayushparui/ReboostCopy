@@ -55,6 +55,8 @@ void LedProviderK1::updateFromGameState(LedRequestK1 &ledRequest)
     ledRequest.setBgPattern(LedColorK1::MAGENTA, LedRequestK1::ON);
   else if (theGameState.isPenalized())
     ledRequest.setBgPattern(LedColorK1::RED, LedRequestK1::ON);
+  else if (theGameState.isInitial(/*orStandby=*/false))
+    ledRequest.setBgFade(LedColorK1::DARK_BLUE_GRAY, LedRequestK1::fade4);
   // else if(theGameState.state == GameState::standby)
   //   ledRequest.setBgPattern(LedColorK1::CYAN, LedRequestK1::ON);
   else if (theGameState.isReady())
