@@ -1,5 +1,5 @@
 # appears in textlogging output but not console - useful for debugging
-tlog staring BoosterSingleM.con
+tlog starting BoosterSingleM.con
 
 call ../Includes/BoosterNormal
 
