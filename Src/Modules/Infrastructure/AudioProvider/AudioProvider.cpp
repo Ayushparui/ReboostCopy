@@ -17,6 +17,14 @@ MAKE_MODULE(AudioProvider);
 
 AudioProvider::AudioProvider()
 {
+  // all channels broken/disabled?
+  if (std::all_of(theDamageConfigurationHead.audioChannelsDefect.begin(),
+                  theDamageConfigurationHead.audioChannelsDefect.end(), [](bool defect) { return defect; }))
+  {
+    channels = 0;
+    return;
+  }
+
   allChannels ? channels = 4 : channels = 2;
   int brokenFirst = (theDamageConfigurationHead.audioChannelsDefect[0] ? 1 : 0) + (theDamageConfigurationHead.audioChannelsDefect[1] ? 1 : 0);
   int brokenSecond = (theDamageConfigurationHead.audioChannelsDefect[2] ? 1 : 0) + (theDamageConfigurationHead.audioChannelsDefect[3] ? 1 : 0);
@@ -53,13 +61,20 @@ AudioProvider::AudioProvider()
 
 AudioProvider::~AudioProvider()
 {
-  snd_pcm_close(handle);
+  if (handle)
+    snd_pcm_close(handle);
 }
 
 void AudioProvider::update(AudioData& audioData)
 {
   audioData.channels = channels;
   audioData.sampleRate = sampleRate;
+
+  if (channels == 0) // mics disabled
+  {
+    Thread::sleep(30);
+    return;
+  }
 
   if(captureVolume != currentCaptureVolume)
   {

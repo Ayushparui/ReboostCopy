@@ -253,8 +253,17 @@ void MotionEngine::update(JointRequest& jointRequest)
 #endif
 
   // Set stiffness of broken joints to 0.
-  for(const Joints::Joint joint : theDamageConfigurationBody.jointsToEraseStiffness)
-    jointRequest.stiffnessData.stiffnesses[joint] = 0;
+  if (theDamageConfigurationBody.allMotionDisabled)
+  {
+    // Note: although strictly it should only be for the body, allMotionsDisabled will disable head movement also
+    FOREACH_ENUM(Joints::Joint, joint)
+      jointRequest.stiffnessData.stiffnesses[joint] = 0;
+  }
+  else
+  {
+    for (const Joints::Joint joint : theDamageConfigurationBody.jointsToEraseStiffness)
+      jointRequest.stiffnessData.stiffnesses[joint] = 0;
+  }
 
   for(const Joints::Joint joint : theJointPlay.getJointsWithSensorJump(JointPlay::broken))
   {

@@ -113,10 +113,12 @@ MODULE(MotionEngine,
   REQUIRES(WalkToBallAndKickGenerator),
   PROVIDES(JointRequest),
   REQUIRES(JointRequest),
+
   PROVIDES(ArmMotionInfo),
   PROVIDES(HeadMotionInfo),
   PROVIDES(MotionInfo),
   PROVIDES(OdometryData),
+  
   LOADS_PARAMETERS(
   {,
     (int) emergencySitDownDelay, /**< If no new data from Cognition arrived for this duration, the robot sits down. */

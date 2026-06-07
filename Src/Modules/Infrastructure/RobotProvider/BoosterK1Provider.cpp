@@ -896,7 +896,8 @@ void BoosterK1Provider::updateRobotModeFromMotionRequest()
   // decide the appropriate booster mode for the requested motion
   booster::robot::RobotMode targetMode = booster::robot::RobotMode::kCustom;
 
-  if (theMotionRequest.motion == MotionRequest::playDead)
+  // if (theMotionRequest.motion == MotionRequest::playDead)
+  if ((theMotionInfo.executedPhase == MotionPhase::playDead) || (theDamageConfigurationBody.allMotionDisabled))
     targetMode = booster::robot::RobotMode::kDamping;
   else if (theMotionRequest.motion == MotionRequest::prepare)
     targetMode = booster::robot::RobotMode::kPrepare;

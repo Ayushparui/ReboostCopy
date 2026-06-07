@@ -41,8 +41,8 @@ class AudioProvider : public AudioProviderBase
 {
 private:
 #ifdef TARGET_ROBOT
-  snd_pcm_t* handle;
-  int channels;
+  snd_pcm_t* handle = nullptr;
+  int channels = 0;
   float currentCaptureVolume = -1.f;
 
   bool setCaptureVolume(const std::string& element, float volume);

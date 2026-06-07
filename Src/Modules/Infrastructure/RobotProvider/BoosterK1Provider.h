@@ -17,6 +17,7 @@
 #include "Platform/Semaphore.h"
 #include "Platform/Thread.h"
 #include "Representations/Configuration/JointCalibration.h"
+#include "Representations/Configuration/DamageConfiguration.h"
 #include "Representations/Infrastructure/FrameInfo.h"
 #include "Representations/Infrastructure/JointRequest.h"
 #include "Representations/Infrastructure/ModifiedJointRequest.h"
@@ -56,6 +57,7 @@ MODULE(BoosterK1Provider,
 {,
   REQUIRES(FrameInfo),
   REQUIRES(JointCalibration),
+  REQUIRES(DamageConfigurationBody),
   USES(JointRequest),
   USES(JointSensorData),
   USES(ModifiedJointRequest),
