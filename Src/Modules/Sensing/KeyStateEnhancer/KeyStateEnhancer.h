@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include "Representations/Configuration/DamageConfiguration.h"
 #include "Representations/Infrastructure/FrameInfo.h"
 #include "Representations/Infrastructure/FrameInfoEx.h"
 #include "Representations/Infrastructure/SensorData/KeyStates.h"

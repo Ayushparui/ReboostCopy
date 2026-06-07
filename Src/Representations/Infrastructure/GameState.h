@@ -428,7 +428,9 @@ STREAMABLE(GameState,
   Team::Color color() const
   {
     return ownTeam.color(playerNumber);
-  },
+  }
+  
+  /**** separate header from streamable fields - comma at end of comment ****/,
 
   (Phase)(firstHalf) phase, /**< The current phase of the game. */
   (unsigned)(0) timeWhenPhaseEnds, /**< Time when the current phase is expected to end. */

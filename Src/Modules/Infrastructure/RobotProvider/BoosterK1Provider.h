@@ -168,7 +168,7 @@ class BoosterK1Provider : public BoosterK1ProviderBase
   bool robotInfoLogged = false;
 
   enum Button : int32_t { button_f1, button_stand, button_walk };
-  std::array<bool, 3> buttonPressed;
+  std::array<bool, 3> buttonPressed = {}; // all false initially
 
   // mSentColor: packed RGB of last SetLEDLightColor call; UINT32_MAX = uninitialised sentinel.
   uint32_t mSentLedColor = UINT32_MAX;

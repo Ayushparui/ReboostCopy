@@ -25,6 +25,18 @@
 #include "Math/RingBuffer.h"
 #include "Tools/RECommon/EdgeTrigger.h"
 
+
+#if defined TARGET_ROBOT && (defined __arm64__ || defined __aarch64__)
+#define TARGET_BOOSTER
+#endif
+
+#ifdef TARGET_BOOSTER
+#include "Representations/Infrastructure/SensorData/GamePad.h"
+#define BOOSTER_REQUIRES(representation_) REQUIRES(representation_),
+#else
+#define BOOSTER_REQUIRES(representation_)
+#endif
+
 MODULE(GameStateProvider,
 {,
   REQUIRES(BallInGoal),
@@ -32,6 +44,7 @@ MODULE(GameStateProvider,
   REQUIRES(BallSpecification),
   USES(BehaviorStatus),
   REQUIRES(EnhancedKeyStates),
+  BOOSTER_REQUIRES(GamePadEx)
   REQUIRES(FieldDimensions),
   REQUIRES(FrameInfo),
   REQUIRES(GameControllerData),

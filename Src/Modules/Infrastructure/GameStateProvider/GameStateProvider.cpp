@@ -33,10 +33,11 @@ DECL_TLOGGER(tlogger, "GameStateProvider", TextLogging::DEBUG);
 void GameStateProvider::update(GameState& gameState)
 {
   DECLARE_DEBUG_DRAWING("module:GameStateProvider:ballCovariance", "drawingOnField");
-  auto setToUnstiff = [this, &gameState]
+  auto setToUnstiff = [this, &gameState](const char* reason)
   {
     reset(gameState);
-    TLOGI_ANNOTATION(tlogger, "playerState ==> unstiff, state={}", TypeRegistry::getEnumName(gameState.state));
+    TLOGI_ANNOTATION(tlogger, "playerState ==> unstiff (because {}) state={}",
+                     reason, TypeRegistry::getEnumName(gameState.state));
   };
 
   auto setToPrepare = [this, &gameState]
@@ -67,7 +68,7 @@ void GameStateProvider::update(GameState& gameState)
   };
 
   DEBUG_RESPONSE_ONCE("module:GameStateProvider:unstiff")
-    setToUnstiff();
+    setToUnstiff("DEBUG_REQUEST");
 
   DEBUG_RESPONSE_ONCE("module:GameStateProvider:prepare")
     setToPrepare();
@@ -120,15 +121,19 @@ void GameStateProvider::update(GameState& gameState)
       break;
 
     case GameState::calibration:
-      if (unstiffModeRequested ||
-          theBehaviorStatus.calibrationFinished) // FIXME - change this to an explicit unstiff request
-        setToUnstiff();
+      if (unstiffModeRequested)
+        setToUnstiff("HRI requested");
+      else if ((Global::getSettings().robotType == Settings::nao) && theBehaviorStatus.calibrationFinished) 
+        setToUnstiff("calibration finished"); // FIXME - not for K1
       break;
 
     default:
-      if (unstiffModeRequested || (SystemCall::getMode() != SystemCall::simulatedRobot &&
-                                   theFrameInfo.getTimeSince(timeWhenStateNotAfterHalf) > unstiffAfterHalfDuration))
-        setToUnstiff(); // FIXME - needs to be different for K1
+      if (unstiffModeRequested)
+        setToUnstiff("HRI requested");
+      else if ((SystemCall::getMode() != SystemCall::simulatedRobot) &&
+               ((Global::getSettings().robotType == Settings::nao) &&
+                (theFrameInfo.getTimeSince(timeWhenStateNotAfterHalf) > unstiffAfterHalfDuration)))
+        setToUnstiff("after half"); // FIXME - needs to be different for K1
       else if (calibrationModeRequested)
         setToCalibration();
     }
@@ -136,7 +141,7 @@ void GameStateProvider::update(GameState& gameState)
   else // safety state not operational
   {
     if (gameState.playerState != GameState::unstiff)
-      setToUnstiff();
+      setToUnstiff("not operational");
   }
 
   updateBallBuffer(gameState);
@@ -676,11 +681,13 @@ void GameStateProvider::updateFromNaoHri(GameState& gameState)
 void GameStateProvider::updateFromBoosterK1Hri([[maybe_unused]] GameState& gameState)
 {
   unstiffModeRequested = false; // handled outside game state
+  prepareModeRequested = false;
   activeModeRequested = false; // handled outside game state
   calibrationModeRequested = false; // TODO - gamePad?
   manualGameStateChangeRequested = false;
   manualPhaseChangeRequested = false; // TODO - gamePad or not used
 
+#ifdef TARGET_BOOSTER
   // tmp debug
   // if (theEnhancedKeyStates.hitStreak[KeyStates::k1_stand] == 1)
   //   TLOGI(tlogger, "STAND button clicked once");
@@ -720,15 +727,21 @@ void GameStateProvider::updateFromBoosterK1Hri([[maybe_unused]] GameState& gameS
         TLOGI(tlogger, "Prepare: WALK button clicked once: activeModeRequested");
         activeModeRequested = true;
       }
+      break;
 
     case GameState::calibration:
-      break; // do nothing
+      if (theEnhancedKeyStates.pressedDuration[KeyStates::k1_stand] > 2000u)
+      {
+        TLOGI(tlogger, "calibration: STAND button long pressed: prepareModeRequested");
+        prepareModeRequested = true;
+      }
+      break;
 
     default:
       if (gameState.isInitial() && (gameState.playerState == GameState::active) &&
-          (theEnhancedKeyStates.pressedDuration[KeyStates::k1_stand] > 2000u))
+          (theEnhancedKeyStates.pressedDuration[KeyStates::k1_walk] > 2000u))
       {
-        TLOGI(tlogger, "Active: STAND button long pressed: calibrationModeRequested");
+        TLOGI(tlogger, "Active: WALK button long pressed: calibrationModeRequested");
         calibrationModeRequested = true;
       }
       else if (theEnhancedKeyStates.hitStreak[KeyStates::k1_walk] == 1)
@@ -736,8 +749,18 @@ void GameStateProvider::updateFromBoosterK1Hri([[maybe_unused]] GameState& gameS
         TLOGI(tlogger, "Active: WALK button clicked: manualGameStateChangeRequested");
         manualGameStateChangeRequested = true;
       }
+      else if (theEnhancedKeyStates.pressedDuration[KeyStates::k1_stand] > 2000u)
+      {
+        TLOGI(tlogger, "Active: STAND button long pressed: prepareModeRequested");
+        prepareModeRequested = true;
+      }
+      else // buttons (above) take precedence over any game pad control (in here)
+      {
+        // TODO
+      }
     }
   }
+#endif // TARGET_BOOSTER
 }
 
 bool GameStateProvider::checkForWhistle(unsigned from, bool useGameControllerData) const

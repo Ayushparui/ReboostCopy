@@ -76,35 +76,25 @@ STREAMABLE(GamePad,
     upLeft,
   });
 
-  bool hatChanged(const GamePad& prev) const { return hat != prev.hat; }
   bool hatActive() const { return hat != Hat::centered; }
 
-  /// has any button changed
-  bool buttonsChanged(const GamePad& prev) const { return buttonsChanged(maskAny, prev); }
-  bool buttonsChanged(unsigned mask, const GamePad& prev) const { return (buttons & mask) != (prev.buttons & mask); }
 
-  /// which buttons have been pressed since last check
-  unsigned buttonsNew(const GamePad& prev) const { return ~prev.buttons & buttons; } 
-  /// which buttons have been released since last check
-  unsigned buttonsReleased(const GamePad& prev) const { return prev.buttons & ~buttons; } // just released in this snapshot
-
-  /// check if the user has just completed the button combination specified in mask
-  bool justPressed(unsigned mask, const GamePad& prev) const { return pressed(mask) && !prev.pressed(mask); }
-  /// check if the user has just pressed the single button index specified
-  bool justPressed(Button btnIndex, const GamePad& prev) const { return pressed(btnIndex) && !prev.pressed(btnIndex); }
-
-  /// check if a single button using the button index (from Button enum)
+  /// check if a single button is pressed using the button index (from Button enum)
   /// Take care to ensure you use a Button enum value (cast if needed) if you want this overload.
   bool pressed(Button buttonIndex) const { return pressed(buttonIndex, buttons); }
-  static bool pressed(Button buttonIndex, unsigned buttonBits) { return (buttonBits & (1 << buttonIndex)) != 0; }
 
-  /// check if all the buttons in some mask were pressed. Bitwise-or individual 
+  /// check if <b>ALL</b> the buttons in some mask were pressed. BitwiseOr the individual 
   /// button masks together to specify a combination.
   bool pressed(unsigned mask) const { return pressed(mask, buttons); }
-  static bool pressed(unsigned mask, unsigned buttonBits) { return (buttonBits & mask) == mask; }
-  /// check if any of the buttons in some mask were pressed. Bitwise-or individual 
-  /// button masks together to specify a combination.
+
+  /// check if <b>ANY</b> button within the specified mask is pressed
   bool anyPressed(unsigned mask) const { return anyPressed(mask, buttons); }
+
+  // --- static helpers (useful for provider update logic) ---
+  // buttonBits refers to a snapshot of the button state at some point
+
+  static bool pressed(Button buttonIndex, unsigned buttonBits) { return (buttonBits & (1 << buttonIndex)) != 0; }
+  static bool pressed(unsigned mask, unsigned buttonBits) { return (buttonBits & mask) == mask; }
   static bool anyPressed(unsigned mask, unsigned buttonBits) { return (buttonBits & mask) != 0; }
 
 
@@ -124,4 +114,28 @@ STREAMABLE(GamePad,
   // (float)(0.f) rTrigger,
 
   (Hat)(centered) hat,
+});
+
+
+STREAMABLE_WITH_BASE(GamePadEx, GamePad, 
+{
+  bool hatChanged() const { return hat != prevHat; }
+
+  /// has any button within the masked set changed
+  bool buttonsChanged(unsigned mask = maskAny) const { return (buttons & mask) != (prevButtons & mask); }
+
+  /// which buttons have been pressed since last check
+  unsigned buttonsNew() const { return ~prevButtons & buttons; } 
+  /// which buttons have been released since last check
+  unsigned buttonsReleased() const { return prevButtons & ~buttons; } // just released in this snapshot
+
+  /// check if the user has just completed the button combination specified in mask
+  bool justPressed(unsigned mask) const { return pressed(mask) && !pressed(mask, prevButtons); }
+  /// check if the user has just pressed the single button index specified
+  bool justPressed(Button btnIndex) const { return pressed(btnIndex) && !pressed(btnIndex, prevButtons); }
+
+
+  /**** separate header from streamable fields - comma at end of comment ****/,
+  (unsigned)(0) prevButtons,
+  (Hat)(centered) prevHat,
 });

@@ -42,43 +42,39 @@ void GamePadControlK1::update(MotionRequest& theMotionRequest)
 
   if (theRobotSafetyState.state != RobotSafetyState::operational)
   {
-    lastGamePad = GamePad();
-
     if (theMotionRequest.motion != MotionRequest::playDead)
-    {
-      theMotionRequest.motion = MotionRequest::playDead;
-      theMotionRequest.standHigh = true;
-
       TLOGI(tlogger, "safety state not operational, so playDead");
-    }
+
+    theMotionRequest.motion = MotionRequest::playDead;
+    theMotionRequest.standHigh = true;
   }
-  else if (theGamePad.connected)
+  else if (theGamePadEx.connected)
   {
-    if (theGamePad.justPressed(GamePad::maskLB | GamePad::maskBack, lastGamePad) && controlEnabled)
+    if (theGamePadEx.justPressed(GamePad::maskLB | GamePad::maskBack) && controlEnabled)
     {
       controlEnabled = false;
       TLOGI(tlogger, "GamePad control disabled");
     }
-    else if (theGamePad.justPressed(GamePad::maskLB | GamePad::maskStart, lastGamePad) && !controlEnabled)
+    else if (theGamePadEx.justPressed(GamePad::maskLB | GamePad::maskStart) && !controlEnabled)
     {
       controlEnabled = true;
       TLOGI(tlogger, "GamePad control enabled");
     }
-    else if (theGamePad.pressed(GamePad::maskLB | GamePad::maskX) && (theMotionRequest.motion != MotionRequest::playDead))
+    else if (theGamePadEx.pressed(GamePad::maskLB | GamePad::maskX) && (theMotionRequest.motion != MotionRequest::playDead))
     {
       theMotionRequest.motion = MotionRequest::playDead;
       theMotionRequest.energySavingWalk = false;
       theMotionRequest.standHigh = true;
       TLOGI(tlogger, "requesting MotionRequest::playDead");
     }
-    else if (theGamePad.pressed(GamePad::maskLB | GamePad::maskB) && (theMotionRequest.motion != MotionRequest::prepare))
+    else if (theGamePadEx.pressed(GamePad::maskLB | GamePad::maskB) && (theMotionRequest.motion != MotionRequest::prepare))
     {
       theMotionRequest.motion = MotionRequest::prepare;
       theMotionRequest.energySavingWalk = false;
       theMotionRequest.standHigh = true;
       TLOGI(tlogger, "requesting MotionRequest::prepare");
     }
-    else if (theGamePad.justPressed(GamePad::maskLB | GamePad::maskA, lastGamePad))
+    else if (theGamePadEx.justPressed(GamePad::maskLB | GamePad::maskA))
     {
       theMotionRequest.motion = MotionRequest::stand;
       theMotionRequest.energySavingWalk = false;
@@ -94,8 +90,6 @@ void GamePadControlK1::update(MotionRequest& theMotionRequest)
   {
     stopGracefully(theMotionRequest);
   }
-
-  lastGamePad = theGamePad;
 }
 
 
@@ -112,13 +106,13 @@ void GamePadControlK1::setHeadZero(bool keepJointsEnabled)
 
 bool GamePadControlK1::updateKickMotion(MotionRequest& theMotionRequest)
 {
-  if (!theGamePad.pressed(GamePad::maskRT)) // are we doing any sort of kicking?
+  if (!theGamePadEx.pressed(GamePad::maskRT)) // are we doing any sort of kicking?
     return false;
-  if (!theGamePad.anyPressed(GamePad::maskA | GamePad::maskB))
+  if (!theGamePadEx.anyPressed(GamePad::maskA | GamePad::maskB))
     return false;
 
   KickInfo::KickType kickType = KickInfo::walkForwardsLeftLong;
-  if (theGamePad.pressed(GamePad::maskB))
+  if (theGamePadEx.pressed(GamePad::maskB))
     kickType = KickInfo::walkForwardsRightLong;
 
 
@@ -131,8 +125,8 @@ bool GamePadControlK1::updateKickMotion(MotionRequest& theMotionRequest)
   // so the GamePad x,y input only say how fast to move, not whether to move in x
   // or in y. Hence we just extract the max magnitude of these inputs.
 
-  const float speed = std::max(std::abs(applyDeadZone(theGamePad.lStickX)),
-                               std::abs(applyDeadZone(theGamePad.lStickY)));
+  const float speed = std::max(std::abs(applyDeadZone(theGamePadEx.lStickX)),
+                               std::abs(applyDeadZone(theGamePadEx.lStickY)));
 
   theMotionRequest.motion = MotionRequest::walkToBallAndKick;
   theMotionRequest.kickType = kickType;
@@ -164,9 +158,9 @@ void GamePadControlK1::updateWalkMotion(MotionRequest& theMotionRequest)
   theMotionRequest.energySavingWalk = false;
   theMotionRequest.standHigh = false;
 
-  theMotionRequest.walkSpeed.translation.x() = applyDeadZone(theGamePad.lStickX);
-  theMotionRequest.walkSpeed.translation.y() = applyDeadZone(theGamePad.lStickY);
-  theMotionRequest.walkSpeed.rotation = applyDeadZone(theGamePad.rStickX);
+  theMotionRequest.walkSpeed.translation.x() = applyDeadZone(theGamePadEx.lStickX);
+  theMotionRequest.walkSpeed.translation.y() = applyDeadZone(theGamePadEx.lStickY);
+  theMotionRequest.walkSpeed.rotation = applyDeadZone(theGamePadEx.rStickX);
 
   if (theMotionRequest.walkSpeed != Pose2f())
     theMotionRequest.motion = MotionRequest::walkAtRelativeSpeed;

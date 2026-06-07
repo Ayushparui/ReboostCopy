@@ -48,20 +48,18 @@ STREAMABLE(KeyStates,
     k1_lastKey = k1_walk
   });
 
-  KeyStates();
+  KeyStates() { pressed.fill(false); }
 
   /**** separate header from streamable fields, note comma after comment ****/,
 
   (ENUM_INDEXED_ARRAY(bool, Key)) pressed,
 });
 
-inline KeyStates::KeyStates()
-{
-  pressed.fill(false);
-}
 
 STREAMABLE_WITH_BASE(EnhancedKeyStates, KeyStates,
 {
+  EnhancedKeyStates() { hitStreak.fill(0); pressedDuration.fill(0); }
+  
   /*
    * calculates the 'current' hit streak for a given key state sensor
    *

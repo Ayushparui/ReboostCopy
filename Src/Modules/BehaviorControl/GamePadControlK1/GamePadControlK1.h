@@ -24,7 +24,7 @@
 MODULE(GamePadControlK1,
 {,
   REQUIRES(BallModel),
-  REQUIRES(GamePad),
+  REQUIRES(GamePadEx),
   REQUIRES(OdometryData),
   REQUIRES(RobotSafetyState),
   REQUIRES(MotionInfo),
@@ -37,7 +37,6 @@ MODULE(GamePadControlK1,
 class GamePadControlK1 : public GamePadControlK1Base
 {
 protected:
-  GamePad lastGamePad; ///< the GamePad from the previous cycle
   bool controlEnabled = false;
   HeadMotionRequest headMotionRequest; /**< The head motion request provided. */
   IntervalTriggerMs intervalLogKick;

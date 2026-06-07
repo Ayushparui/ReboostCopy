@@ -60,7 +60,7 @@ void KeyStateEnhancer::update(EnhancedKeyStates& enhancedKeyStates)
     auto keyStr = [&](KeyStates::Key k) -> std::string
     {
       if (!pressedOrReleased[k])
-        return "-";
+        return "--";
       return theKeyStates.pressed[k] ? "P" : fmt::format("R({}ms)", hitStreakDurations[k].front().getSize());
     };
 
