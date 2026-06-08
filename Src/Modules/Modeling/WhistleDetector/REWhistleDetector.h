@@ -62,7 +62,7 @@ private:
     ~NoiseFilter() = default;
     void setParams(unsigned, unsigned);
     void reset() {numSample = 0;}
-    void update(std::vector<float>);
+    void update(const std::vector<float>&);
   };
 
 

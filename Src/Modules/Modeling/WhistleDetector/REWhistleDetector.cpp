@@ -62,10 +62,6 @@ REWhistleDetector::REWhistleDetector()
     /* Resize magSpectrums according specifications */
     magSpectrums.reserve(whistleDetector.input(0).dims(0));
     monoBuffer.reserve(bufferSize);
-
-    /* Initialize the Noise filter params */
-    const float windowLenMs = 1000.0f * fftStep / theAudioData.sampleRate;
-    noisefilter.setParams(spectrumSize, static_cast<unsigned>((noiseAvgLenMs) / windowLenMs));
 }
 
 REWhistleDetector::~REWhistleDetector()
@@ -97,6 +93,10 @@ void REWhistleDetector::update(Whistle& theWhistle) {
           for (auto &buffer : channelBuffers) {
             buffer.reserve(bufferSize);
           }
+
+          /* Initialize the Noise filter params */
+          const float windowLenMs = 1000.0f * fftStep / theAudioData.sampleRate;
+          noisefilter.setParams(spectrumSize, static_cast<unsigned>((noiseAvgLenMs) / windowLenMs));
           init = true;
         }
 
@@ -171,11 +171,6 @@ float REWhistleDetector::inferenceCheck() {
      * Done with .from_back()
      */
 
-    /* In the event we don't have enough FFTs for an inference check */
-    if (static_cast<int>(magSpectrums.size()) < maxFFTs) {
-      return 0.f;
-    }
-
     /* Gets the number of FFTs to compute.
      * fftOffset sets the starting point of the monoBuffer to read from.
      * numFFTs is capped to 18, with the excess left for next cycle.
@@ -200,7 +195,7 @@ float REWhistleDetector::inferenceCheck() {
         {
             /* calculate the magnitude spectrum with usual FFT normalization */
             magSpectrums.front()[j] =
-                std::clamp((spectrum[j][0] * spectrum[j][0] + spectrum[j][1] * spectrum[j][1]) / fftSize , -1.f, 1.f);
+                std::clamp(std::sqrt(spectrum[j][0] * spectrum[j][0] + spectrum[j][1] * spectrum[j][1]) , 0.f, 1.f);
         }
 
         /* Update our filter profile */
@@ -215,6 +210,11 @@ float REWhistleDetector::inferenceCheck() {
 
         /* Use the next set of samples */
         fftOffset += fftStep;
+    }
+
+    /* In the event we don't have enough FFTs for an inference check */
+    if (static_cast<int>(magSpectrums.size()) < maxFFTs) {
+      return 0.f;
     }
 
     /* Passing FFTs into NN */
@@ -243,7 +243,7 @@ void REWhistleDetector::NoiseFilter::setParams(unsigned spectSize, unsigned samp
   maxNumSample = sampleAvg;
 }
 
-void REWhistleDetector::NoiseFilter::update(std::vector<float>(inputSpect)) {
+void REWhistleDetector::NoiseFilter::update(const std::vector<float> &inputSpect) {
 
   if (numSample++ == 0) {
     for (size_t binInd = 0; binInd < spectProfile.size(); binInd++) {
