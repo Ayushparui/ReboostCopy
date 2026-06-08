@@ -10,6 +10,7 @@
 
 #ifdef TARGET_ROBOT
 #include <alsa/asoundlib.h>
+#include <WakeupApi.h>
 #endif
 
 #include "Framework/Module.h"
@@ -40,6 +41,7 @@ MODULE(REAudioProvider,
                 (std::string)mixerName, /* The ALSA sound card to be used for audio capture. */
                 (float)captureVolume, /* The microphone volume in percent. */
                 (unsigned)numChannels, /* The number of input channels */
+                (unsigned)usedChannels, /* The number of input channels actually used */
             }),
     });
 
@@ -58,6 +60,11 @@ private:
     std::vector<int16_t> audioFramesInt;
     bool setVolume();
     void signedToFloat(AudioData& audioData);
+
+  /* WakeupAPI related elements */
+    HWWakeup wakeupHandle;
+    std::vector<std::vector<int16_t>> inputAudioBuffers;  /* 4, mic 1, mic 2, mic 3, ref */
+    std::vector<std::vector<int16_t>> outputAudioBuffers; /* 4, out 1, out 2, out 3, ref */
 #endif
 
     unsigned tickWatchDog = 0;

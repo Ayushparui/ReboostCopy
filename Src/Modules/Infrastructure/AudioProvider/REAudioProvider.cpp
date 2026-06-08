@@ -44,13 +44,17 @@ REAudioProvider::REAudioProvider()
     snd_pcm_prepare(inputDevice);
     VERIFY(!snd_pcm_start(inputDevice));
 
+    OUTPUT_TEXT("Initializing WakeupAPI...");
+    VERIFY(!Duerwen_wakeup_init(&wakeupHandle, 0));
+
     bufferInit = false;
     setVolume();
 }
 
 REAudioProvider::~REAudioProvider()
 {
-    snd_mixer_close(inputMixer);
+  Duerwen_wakeup_unit(wakeupHandle);
+  snd_mixer_close(inputMixer);
 }
 
 bool REAudioProvider::setVolume()
@@ -97,6 +101,16 @@ void REAudioProvider::update(AudioData& audioData)
 
       audioData.channels = numChannels;
       audioData.sampleRate = sampleRate;
+
+      const uint wakeupAPIBufferSize = 1024;
+      inputAudioBuffers.resize(usedChannels);
+      outputAudioBuffers.resize(usedChannels);
+
+      for (size_t bufferInd = 0; bufferInd < inputAudioBuffers.size(); bufferInd++) {
+        inputAudioBuffers[bufferInd].resize(wakeupAPIBufferSize);
+        outputAudioBuffers[bufferInd].resize(wakeupAPIBufferSize);
+      }
+
       bufferInit = true;
     }
 
