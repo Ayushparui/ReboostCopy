@@ -22,6 +22,7 @@ if(BUILD_BOOSTER)
   target_link_libraries(Booster PRIVATE Booster::FastCDR::FastCDR)
   target_link_libraries(Booster PRIVATE Booster::FastRTPS::FastRTPS)
   target_link_libraries(Booster PRIVATE Booster::FooNathan::Memory)
+  target_link_libraries(Booster PRIVATE Booster::WakeupAPI::WakeupAPI)
 
   target_compile_options(Booster PRIVATE $<$<CONFIG:Develop>:-UNDEBUG>)
   if(MACOS)

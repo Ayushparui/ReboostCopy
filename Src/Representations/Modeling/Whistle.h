@@ -17,6 +17,7 @@ STREAMABLE(Whistle, COMMA public BHumanCompressedMessageParticle<Whistle>
   void operator>>(BHumanMessage& m) const override;
   void operator<<(const BHumanMessage& m) override,
 
+  (bool)(false)      whistleDetected,
   (float)(0)         confidenceOfLastWhistleDetection, /**< Confidence based on hearing capability. */
   (unsigned char)(0) channelsUsedForWhistleDetection,  /**< Number of channels the robot used to listen. */
   (unsigned int)(0)  lastTimeWhistleDetected,          /**< Timestamp */
