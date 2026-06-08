@@ -4,6 +4,7 @@
  * This file declares the class \c BHLoggingController.
  *
  * @author Arne Hasselbring
+ * @author Rudi Villing (modifications)
  */
 
 #include "Framework/Logger.h"
@@ -14,6 +15,7 @@
 #include <vector>
 
 struct GameState;
+struct RobotSafetyState;
 
 class BHLoggingController : public LoggingController
 {
@@ -37,6 +39,28 @@ private:
   STREAMABLE(TeamList,
   {,
     (std::vector<Team>) teams,
+  });
+
+  /// config params for the logging controller
+  ENUM(LoggingCondition,
+  {,
+    softwareStart,
+    safetyStateOperational,
+    playerStateUnstiff,
+    playerStatePrepare,
+    playerStateActive,
+    gcStateInitial,
+    gcStateReady,
+    gcStateSet,
+    gcStatePlaying,
+    gcStateFinished,
+  });
+
+  STREAMABLE(Params,
+  {,
+    (LoggingCondition)(gcStateReady) startCondition,
+    (LoggingCondition)(gcStateFinished) stopCondition,
+    (int)(10000) stopConditionTimeout,
   });
 
   /**
@@ -64,4 +88,6 @@ private:
 
   std::unordered_map<std::uint8_t, std::string> teams; /**< The map from team numbers to team names for naming the log file after the opponent. */
   const GameState& gameState; /**< The game state in the current thread's blackboard. */
+  const RobotSafetyState& robotSafetyState; ///< from the blackboard
+  mutable Params params;
 };
