@@ -60,13 +60,16 @@ MAKE_MODULE(BoosterK1Provider);
 
 DECL_TLOGGER(tlogger, "BoosterK1Provider", TextLogging::VERBOSE);
 
-// convenience shorthand for outputting to text log and annotation simultaneously
-#define TLOGI_ANNOTATION(logger_, ...)                                                                                 \
+// convenience shorthand for annotation in a callback (Booster SDK thread)
+#define ANNOTATION_K1_CB(...)                                                                                          \
   do                                                                                                                   \
   {                                                                                                                    \
-    TLOGI(logger_, "*** " __VA_ARGS__);                                                                                       \
-    ANNOTATION_FMT("BoosterK1Provider", __VA_ARGS__);                                                                  \
+    SYNC;                                                                                                              \
+    pendingAnnotations.push_back(fmt::format(__VA_ARGS__));                                                            \
   } while (0)
+
+// convenience shorthand for annotation in the motion thread
+#define ANNOTATION_K1(...) ANNOTATION_FMT("BoosterK1Provider", __VA_ARGS__)
 
 
 namespace
@@ -151,22 +154,8 @@ BoosterK1Provider::BoosterK1Provider()
     // robotMode stays at kUnknown
   }
 
-  //   if (changeRobotMode(booster::robot::RobotMode::kCustom))
-  //   {
-  //     // if we get this far, we've partially initialised the hardware interface
-  //     Thread::sleep(10);
-  //
-  //     logRobotInfoOnce();
-  //   }
-  //   else // couldn't get custom mode yet
-  //   {
-  //     SystemCall::say("Waiting for robot mode control"); // interface state is unchanged
-  //     Thread::sleep(100);
-  //   }
-
   // only register the subscribers at this point so that we don't need any SYNC
   // in the ctor itself.
-  // TODO - do these work if we are not in custom mode???
   lowStateSubscriber.InitChannel();
   robotStatusSubscriber.InitChannel();
   buttonEventSubscriber.InitChannel();
@@ -347,9 +336,9 @@ void BoosterK1Provider::handleRobotStatusMsg(const booster_interface::msg::Robot
 
   if ((connectedJointsChange) && tlogger.isEnabled(TextLogging::WARNING))
   {
-    ANNOTATION_FMT("BoosterK1Provider", "changed num of connected joints, now {}", numConnected);
+    ANNOTATION_K1_CB("changed num of connected joints, now {}", numConnected);
 
-    size_t numDisconnected = jointMapping.size() - connectedJoints;;
+    size_t numDisconnected = jointMapping.size() - numConnected;;
     if (numDisconnected < 5)
     {
       int i = 0;
@@ -392,7 +381,7 @@ void BoosterK1Provider::handleRobotStatusMsg(const booster_interface::msg::Robot
 
 
 
-void BoosterK1Provider::triggerSafetyTrip(const char *reason)
+void BoosterK1Provider::triggerSafetyTrip(const char *reason, bool fromCallback)
 {
   // we set tripped regardless of whether we successfully change mode or not.
   // This will later force us to suppress motor actuations if needed.
@@ -400,12 +389,6 @@ void BoosterK1Provider::triggerSafetyTrip(const char *reason)
   robotSafetyState.store(RobotSafetyState::safetyTripped);
 
   int32_t res = client.ChangeMode(booster::robot::RobotMode::kDamping);
-
-  // {
-  //   SYNC;
-  //   if (res == 0)
-  //     robotMode = booster::robot::RobotMode::kDamping;
-  // }
 
   // robotMode intentionally NOT updated here — no SYNC needed on this path.
   // If SDK call succeeded: robot is physically in kDamping; robotMode corrected next time
@@ -418,7 +401,10 @@ void BoosterK1Provider::triggerSafetyTrip(const char *reason)
   else
     TLOGE(tlogger, "******* {} ==> safetyTripped but FAILED ({}) to enter DAMPing mode", reason, res);
 
-  ANNOTATION_FMT("BoosterK1Provider", "safetyState: {} ==> safetyTripped", reason);
+  if (fromCallback)
+    ANNOTATION_K1_CB("safetyTripped: {}", reason);
+  else
+    ANNOTATION_K1("safetyTripped: {}", reason);
 }
 
 
@@ -456,36 +442,16 @@ void BoosterK1Provider::handleButtonEventMsg(const booster_interface::msg::Butto
   {
   case RobotSafetyState::operational:
     if (buttonEvent.button() == button_f1 && buttonEvent.event() == booster_interface::msg::PRESS_DOWN)
-      triggerSafetyTrip("E-stop (F1) pressed");
+      triggerSafetyTrip("E-stop (F1) pressed", true);
     break;
 
   case RobotSafetyState::safetyTripped:
     if ((buttonEvent.button() == button_f1 || buttonEvent.button() == button_stand) &&
         (buttonEvent.event() == booster_interface::msg::LONG_PRESS_START))
     {
-//       bool hardwareDataAvailableLocal;
-//       booster::robot::RobotMode robotModeLocal;
-//       {
-//         SYNC;
-//         hardwareDataAvailableLocal = hardwareDataAvailable;
-//         robotModeLocal = robotMode;
-//       }
-// 
-//       if (hardwareDataAvailableLocal && (robotModeLocal == booster::robot::RobotMode::kDamping))
-//       {
-//         robotSafetyState.store(RobotSafetyState::resetPending);
-//         TLOGI(tlogger, "safetyTripped: {} long press detected ==> resetPending, robotMode={}",
-//               buttonNames[buttonEvent.button()], robotModeString(robotModeLocal));
-//       }
-//       else
-//       {
-//         SystemCall::playSound("bad_button.wav");
-//         TLOGI(tlogger, "safetyTripped: {} long press detected, but hardwareDataAvailable={} and robotMode={}, so ignore",
-//               buttonNames[buttonEvent.button()], hardwareDataAvailableLocal, robotModeString(robotModeLocal));
-//       }
       robotSafetyState.store(RobotSafetyState::resetPending); // checks will happen in waitForFrameData2 + delegates
       TLOGI(tlogger, "**** from safetyTripped: {} long press detected ==> resetPending", buttonNames[buttonEvent.button()]);
-      ANNOTATION_FMT("BoosterK1Provider", "safetyState: safetyTripped ==> resetPending");
+      ANNOTATION_K1_CB("safetyState: safetyTripped ==> resetPending");
     }
     break;
 
@@ -493,77 +459,11 @@ void BoosterK1Provider::handleButtonEventMsg(const booster_interface::msg::Butto
     if ((buttonEvent.button() == button_f1 || buttonEvent.button() == button_stand) &&
         (buttonEvent.event() == booster_interface::msg::PRESS_UP))
     {
-      // bool hardwareDataAvailableLocal;
-      // booster::robot::RobotMode robotModeLocal;
-      // {
-      //   SYNC;
-      //   hardwareDataAvailableLocal = hardwareDataAvailable;
-      //   robotModeLocal = robotMode;
-      // }
-
-      // booster::robot::RobotMode targetRobotMode = (buttonEvent.button() == button_f1)
-      //                                                 ? booster::robot::RobotMode::kDamping
-      //                                                 : booster::robot::RobotMode::kPrepare;
-
-//       if (robotModeLocal != booster::robot::RobotMode::kDamping)
-//       {
-//         // Programming error: resetPending should only be reachable after confirmed kDamping.
-//         // However, fail safe rather than assert.
-//         robotSafetyState.store(RobotSafetyState::safetyTripped);
-// 
-//         TLOGE(tlogger, "resetPending: {} press released ==> safetyTripped because robotMode={} (expected DAMPing)",
-//               buttonNames[buttonEvent.button()], robotModeString(robotModeLocal));
-//         // TODO - audiovisual feedback
-//         SystemCall::playSound("bad_button.wav");
-//         SystemCall::say("Robot mode programming error. Safety tripped.");
-//       }
-//       else if (!hardwareDataAvailableLocal)
-//       {
-//         robotSafetyState.store(RobotSafetyState::safetyTripped);
-//         TLOGW(tlogger, "resetPending: {} press released ==> safetyTripped because hardware data is unavailable",
-//               buttonNames[buttonEvent.button()]);
-//         // TODO - audiovisual feedback
-//         SystemCall::playSound("bad_button.wav");
-//         SystemCall::say("Hardware data unavailable. Safety tripped.");
-//       }
-//       else if (!checkMotionRequestIsSafe())
-//       {
-//         robotSafetyState.store(RobotSafetyState::safetyTripped);
-//         TLOGW(tlogger, "resetPending: {} press released ==> safetyTripped because motionRequest is unsafe",
-//               buttonNames[buttonEvent.button()]);
-//         // TODO - audiovisual feedback
-//         SystemCall::playSound("bad_button.wav");
-//         SystemCall::say("Motion request is unsafe. Safety tripped.");
-//       }
-//       else if (changeRobotMode(targetRobotMode))
-//       {
-//         RobotSafetyState::State expected = RobotSafetyState::resetPending;
-//         if (robotSafetyState.compare_exchange_strong(expected, RobotSafetyState::operational))
-//         {
-//           TLOGI(tlogger, "resetPending: {} press released ==> operational",
-//                 buttonNames[buttonEvent.button()]);
-//         }
-//         else
-//         {
-//           // safetyTripped was stored during the SDK call — robot is in kCustom, re-arm kDamping
-//           triggerSafetyTrip("concurrent safetyTrip in resetPending");
-//           TLOGW(tlogger, "resetPending: {} press released: concurrent safetyTrip",
-//                 buttonNames[buttonEvent.button()]);
-//           SystemCall::playSound("bad_button.wav");
-//         }
-//       }
-//       else // changeRobotMode failed, we assume that the robotMode stayed as DAMPing
-//       {
-//         robotSafetyState.store(RobotSafetyState::safetyTripped);
-//         TLOGE(tlogger, "{} press released ==> safetyTripped because we FAILED to change mode from {}",
-//               buttonNames[buttonEvent.button()], robotModeString(robotModeLocal));
-//         SystemCall::playSound("bad_button.wav");
-//       }
       RobotSafetyState::State expected = RobotSafetyState::resetPending;
       if (robotSafetyState.compare_exchange_strong(expected, RobotSafetyState::operational))
       {
         TLOGI(tlogger, "**** from resetPending: {} press released ==> operational", buttonNames[buttonEvent.button()]);
-        ANNOTATION_FMT("BoosterK1Provider", "safetyState: resetPending ==> operational");
+        ANNOTATION_K1_CB("safetyState: resetPending ==> operational");
       }
 
       // the CAS will only fail in case of a concurrent switch to safetyTripped which will already
@@ -602,12 +502,6 @@ void BoosterK1Provider::handleRemoteControllerMsg(const booster_interface::msg::
 
   
   SYNC;
-
-  // gamePad.buttons = ((1 << GamePad::a) * rc.a()) | ((1 << GamePad::b) * rc.b()) | ((1 << GamePad::x) * rc.x()) |
-  //                   ((1 << GamePad::y) * rc.y()) | ((1 << GamePad::lb) * rc.lb()) | ((1 << GamePad::rb) * rc.rb()) |
-  //                   ((1 << GamePad::lt) * rc.lt()) | ((1 << GamePad::rt) * rc.rt()) | ((1 << GamePad::ls) * rc.ls()) |
-  //                   ((1 << GamePad::rs) * rc.rs()) | ((1 << GamePad::back) * rc.back()) |
-  //                   ((1 << GamePad::start) * rc.start());
 
   gamePad.buttons = (GamePad::maskA * rc.a()) | (GamePad::maskB * rc.b()) | (GamePad::maskX * rc.x()) |
                     (GamePad::maskY * rc.y()) | (GamePad::maskLB * rc.lb()) | (GamePad::maskRB * rc.rb()) |
@@ -650,30 +544,18 @@ void BoosterK1Provider::handleRobotStatesMsg(const booster_interface::msg::Robot
 
     switch (static_cast<BodyControl>(bodyControl))
     {
-    case kUnknown:
-      return "Unknown";
-    case kDamping:
-      return "Damping";
-    case kPrepare:
-      return "Prepare";
-    case kHumanlikeGait:
-      return "HumanlikeGait";
-    case kSoccerGait:
-      return "SoccerGait";
-    case kShoot:
-      return "Shoot";
-    case kInsideFoot:
-      return "InsideFoot";
-    case kGoalie:
-      return "Goalie";
-    case kWBCGait:
-      return "WholeBodyControlGait";
-    case kCustom:
-      return "Custom";
-    case kGetUp:
-      return "GetUp";
-    default:
-      return "Other BodyControl";
+    case kUnknown: return "Unknown";
+    case kDamping: return "Damping";
+    case kPrepare: return "Prepare";
+    case kHumanlikeGait: return "HumanlikeGait";
+    case kSoccerGait: return "SoccerGait";
+    case kShoot: return "Shoot";
+    case kInsideFoot: return "InsideFoot";
+    case kGoalie: return "Goalie";
+    case kWBCGait: return "WholeBodyControlGait";
+    case kCustom: return "Custom";
+    case kGetUp: return "GetUp";
+    default: return "Other BodyControl";
     }
   };
   
@@ -823,7 +705,7 @@ bool BoosterK1Provider::updateHardwareDataAvailable(bool jointDataReceived, size
   else if (!wasDataAvailable)
   {
     TLOGI(tlogger, "updateHardwareDataAvailable: hardwareData now available");
-    ANNOTATION_FMT("BoosterK1Provider", "body/jointData connected");
+    ANNOTATION_K1("body/jointData connected");
     SystemCall::say("Body connected", true);
   }
 
@@ -831,20 +713,22 @@ bool BoosterK1Provider::updateHardwareDataAvailable(bool jointDataReceived, size
 }
 
 
-bool BoosterK1Provider::checkMotionRequestIsSafe(booster::robot::RobotMode targetMode)
+bool BoosterK1Provider::checkJointRequestIsSafe(booster::robot::RobotMode targetMode)
 {
   {
     SYNC;
 
     if (targetMode == booster::robot::RobotMode::kCustom && robotMode != booster::robot::RobotMode::kCustom)
     {
+      bool ret = true;
+
       // verify all joint request angles are "close" to current joint angles
       for (size_t joint = 0; joint < lowCmd.motor_cmd().size(); ++joint)
       {
         const size_t index = jointMapping[joint];
         ASSERT(index != Joints::numJoint);
 
-        // FIXME: 2_deg is a guessed tolerance value to avoid jerks on transition - make it configurable?
+        // FIXME: 5_deg is a guessed tolerance value to avoid jerks on transition - make it configurable?
         // FIXME: we assume that while not in kCustom, and in particular just before transitioning into
         //        it, that stiffness should be zero (if the joint is not off)
         //
@@ -853,45 +737,38 @@ bool BoosterK1Provider::checkMotionRequestIsSafe(booster::robot::RobotMode targe
         // bad things will happen
         if (theJointRequest.angles[index] != SensorData::off)
         {
-          if (std::abs(theJointRequest.angles[index] - jointSensorData.angles[index]) > 2_deg)
-            return false; // not safe
+          if (std::abs(theJointRequest.angles[index] - jointSensorData.angles[index]) > 5_deg)
+          {
+            TLOGW(tlogger, "Joint unsafe: {} angle={:.1f}, request={:.1f}",
+                  TypeRegistry::getEnumName(static_cast<Joints::Joint>(index)),
+                  jointSensorData.angles[index].toDegrees(), theJointRequest.angles[index].toDegrees());
+            ret = false; // not safe
+          }
         }
         else if (theJointRequest.stiffnessData.stiffnesses[index] > 0)
-          return false;
+        {
+          TLOGW(tlogger, "Joint unsafe: {} request off but stiffness={}",
+                TypeRegistry::getEnumName(static_cast<Joints::Joint>(index)),
+                theJointRequest.stiffnessData.stiffnesses[index]);
+          ret = false;
         }
+      }
+
+      return ret;
     }
   }
 
   return true; // safe
-
-//   // If programmed correctly, external code (e.g. in GameStateProvider etc)
-//   // should have detected the hardwareDisconnected safety state and switched
-//   // to playDead/unstiff so that the motors will be in a safe state for
-//   // resumption. However, safety takes precedence and a mistake could break
-//   // a robot, so...
-//   if (theMotionRequest.motion != MotionRequest::playDead)
-//     return false; // not safe
-// 
-//   // also verify all joints are off
-//   for (size_t joint = 0; joint < lowCmd.motor_cmd().size(); ++joint)
-//   {
-//     const size_t index = jointMapping[joint];
-//     ASSERT(index != Joints::numJoint);
-//     if ((theJointRequest.angles[index] != SensorData::off) && (theJointRequest.stiffnessData.stiffnesses[index] > 0))
-//       return false; // not safe
-//   }
-// 
-//   return true; // safe
 }
 
 // Switches between kCustom and kDamping as the motion request demands.
 // called from motion thread only
-void BoosterK1Provider::updateRobotModeFromMotionRequest()
+void BoosterK1Provider::updateRobotModeFromMotion()
 {
-  // has the motionRequest motion changed?
-  if (motionRequestMotion.update(theMotionRequest.motion))
-    TLOGI(tlogger, "updateRobotModeFromMotionRequest: requested motion = MotionRequest::{}",
-          TypeRegistry::getEnumName(theMotionRequest.motion));
+  // has the motion changed?
+  if (motionInfoPhase.update(theMotionInfo.executedPhase))
+    TLOGI(tlogger, "updateRobotModeFromMotion: requested motion = {}",
+          TypeRegistry::getEnumName(theMotionInfo.executedPhase));
 
   // decide the appropriate booster mode for the requested motion
   booster::robot::RobotMode targetMode = booster::robot::RobotMode::kCustom;
@@ -899,29 +776,21 @@ void BoosterK1Provider::updateRobotModeFromMotionRequest()
   // if (theMotionRequest.motion == MotionRequest::playDead)
   if ((theMotionInfo.executedPhase == MotionPhase::playDead) || (theDamageConfigurationBody.allMotionDisabled))
     targetMode = booster::robot::RobotMode::kDamping;
-  else if (theMotionRequest.motion == MotionRequest::prepare)
+  // else if (theMotionRequest.motion == MotionRequest::prepare)
+  else if (theMotionInfo.executedPhase == MotionPhase::prepare)
     targetMode = booster::robot::RobotMode::kPrepare;
 
   // check if it is safe to change mode
-  if (!checkMotionRequestIsSafe(targetMode))
+  if (!checkJointRequestIsSafe(targetMode))
   {
     triggerSafetyTrip("Motion request unsafe for intended mode");
     SystemCall::playSound("siren");
     SystemCall::say("Motion request is unsafe.");
   }
 
-
-  //   if (robotMode == targetMode)
-  //     return;
-  //
-  //   bool wasRobotModeUnknown = (robotMode == booster::robot::RobotMode::kUnknown);
-
   if (changeRobotMode(targetMode))
   {
     modeChangeFailureAnnouncement.reset();
-
-    // if (wasRobotModeUnknown) // TODO - how useful is this? Startup only?
-    //   SystemCall::say("Body ready", true);
   }
   else
   {
@@ -1086,7 +955,7 @@ void BoosterK1Provider::waitForFrameData2()
 
   // robot safety state steady state handling
   if (currentRobotSafetyState == RobotSafetyState::operational)
-    updateRobotModeFromMotionRequest(); // also checks motion request is safe
+    updateRobotModeFromMotion(); // also checks motion request is safe
   else if (currentRobotSafetyState == RobotSafetyState::safetyTripped)
     changeRobotMode(booster::robot::RobotMode::kDamping); // internally checks if change is really required
 
@@ -1126,18 +995,7 @@ void BoosterK1Provider::finishFrame2()
       motorCmd.kd(0.f);
       motorCmd.tau(0.f);
     }
-    // else
-    // {
-    //   motorCmd.q(theJointRequest.angles[index] + theJointCalibration.offsets[index]);
-    //   const float stiffness = Rangef::ZeroOneRange().limit(theJointRequest.stiffnessData.stiffnesses[index] * 0.01f);
-    //   motorCmd.kp(controlParameters[joint].p * stiffness);
-    //   motorCmd.kd(controlParameters[joint].d * stiffness);
-    //   if(setTorque)
-    //     motorCmd.tau(Rangef(-controlParameters[joint].maxTorque * stiffness, controlParameters[joint].maxTorque * stiffness).limit(theModifiedJointRequest.angles[index] * controlParameters[joint].p * stiffness));
-    //   else
-    //     motorCmd.tau(0);
-    // }
-    else if (index != Joints::headPitch && index != Joints::headYaw) // RV TMP TESTING with limited joints only
+    else if (index != Joints::headPitch && index != Joints::headYaw /* && (index >= Joints::firstLegJoint) */) // FIXME: TESTING with limited joints only
     {
       motorCmd.q(theJointRequest.angles[index] + theJointCalibration.offsets[index]);
       const float stiffness = Rangef::ZeroOneRange().limit(theJointRequest.stiffnessData.stiffnesses[index] * 0.01f);
@@ -1156,5 +1014,22 @@ void BoosterK1Provider::finishFrame2()
   }
 
   VERIFY(lowCmdPublisher.Write(&lowCmd));
+
+
+  // output any annotations created in callbacks.
+  // has to be done here so that we're in the motion thread
+  std::vector<std::string> pendingAnnotationsSnapshot;
+
+  {
+    SYNC;
+    if (!pendingAnnotations.empty())
+    {
+      pendingAnnotationsSnapshot = pendingAnnotations;
+      pendingAnnotations.clear();
+    }
+  }
+
+  for (const auto& annotation : pendingAnnotationsSnapshot)
+    ANNOTATION("BoosterK1Provider", annotation);
 #endif
 }

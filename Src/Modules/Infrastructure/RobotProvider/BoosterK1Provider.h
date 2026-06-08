@@ -28,6 +28,7 @@
 #include "Representations/Infrastructure/SensorData/SystemSensorData.h"
 #include "Representations/Infrastructure/RobotSafetyState.h"
 #include "Representations/MotionControl/MotionRequest.h"
+#include "Representations/MotionControl/MotionInfo.h"
 #include "Representations/Infrastructure/LedRequestK1.h"
 #include "Tools/RECommon/OnceFlag.h"
 #include "Tools/RECommon/EdgeTrigger.h"
@@ -62,6 +63,7 @@ MODULE(BoosterK1Provider,
   USES(JointSensorData),
   USES(ModifiedJointRequest),
   REQUIRES(MotionRequest),
+  USES(MotionInfo),
   REQUIRES(LedRequestK1),
   PROVIDES(FrameInfo),
   PROVIDES(JointSensorData),
@@ -140,6 +142,7 @@ class BoosterK1Provider : public BoosterK1ProviderBase
   bool hardwareDataAvailable = false; // default is disconnected initially
   size_t connectedJoints;             /**< How many joints are connected? */
   EdgeTrigger<MotionRequest::Motion> motionRequestMotion {MotionRequest::playDead};
+  EdgeTrigger<MotionPhase::Type> motionInfoPhase {MotionPhase::playDead};
 
   IntervalTriggerMs logIntervalLowStateRx;
   IntervalTriggerMs logIntervalRobotStatus;
@@ -172,6 +175,10 @@ class BoosterK1Provider : public BoosterK1ProviderBase
 
   // mSentColor: packed RGB of last SetLEDLightColor call; UINT32_MAX = uninitialised sentinel.
   uint32_t mSentLedColor = UINT32_MAX;
+
+  // annotation helper - needed since we cannot write annotations directly from
+  // Booster SDK callbacks
+  std::vector<std::string> pendingAnnotations;
 #endif
 
   /**
@@ -242,7 +249,7 @@ class BoosterK1Provider : public BoosterK1ProviderBase
     };
   }
 
-  void triggerSafetyTrip(const char* reason);
+  void triggerSafetyTrip(const char* reason, bool fromCallback=false);
 
   /**
    * Process a low state message from the robot - called from booster pub/sub thread
@@ -269,8 +276,8 @@ class BoosterK1Provider : public BoosterK1ProviderBase
   // bool connectHardwareInterfaceIfNeeded();
   bool tryWaitForJointData();
   bool updateHardwareDataAvailable(bool lowStateReceived, size_t joints);
-  bool checkMotionRequestIsSafe(booster::robot::RobotMode targetMode);
-  void updateRobotModeFromMotionRequest();
+  bool checkJointRequestIsSafe(booster::robot::RobotMode targetMode);
+  void updateRobotModeFromMotion();
 
   void logRobotInfoOnce();
 
