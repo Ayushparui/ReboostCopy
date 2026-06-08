@@ -95,7 +95,7 @@ STREAMABLE(ReboostWalkNNParameters,
   (unsigned) numInput, /**< Neural Network input size. */
   (unsigned) numOutput, /**< Neural Network output size. */
   (bool) enablePhaseInputs, /**< Allows you to disable the phase inputs to the model */
-  (int) timeLowWalkSpeedForStand, /**< To allow standing, the robot must walk slow for this time. */
+  (int) walkToStandSlowdownMs, /**< To allow standing, the robot must walk slow for this time. */
   (Pose2f) slowWalkStepSpeed, /**< Speed values to classify slow walking. This is based on the step size. */
 });
 
@@ -204,19 +204,24 @@ private:
   void getNextTargetRequest(JointAngles& target);
   std::vector<Joints::Joint> getBoosterLegJointSequence();
 
+  friend class WalkingEngine;
+
   RERLWalkingEngine& engine; /**< A reference to the running motion engine. */
   unsigned lastModelRequest = 0;
   JointAngles nextTarget;
   JointAngles lastTarget;
-  JointAngles requestAtStandStart;
+  // JointAngles requestAtStandStart;
   JointAngles standTarget;
   WalkGenerator::CreateNextPhaseCallback callBack;
   IntervalTriggerMs logInterval;
 
-  unsigned lastWalking = 0;
-  unsigned slowWalkStart = 0;
+  unsigned lastTimeWalking = 0; ///< the last time we were actually walking
+  unsigned slowingDownToStandStartTime = 0;
 
-  friend class WalkingEngine;
+  // Interpolation to our stand from something else (e.g. Booster PREP mode)
+  unsigned interpStartTime = 0; ///< zero means no interpolation active, otherwise time when interpolation started
+  unsigned interpDurationMs = 0; ///< how long to interpolate for
+  JointAngles interpStartAngles; ///< the starting joint values that we'll blend from until eventually 100% model output
 
 protected:
   unsigned freeLimbs() const override
