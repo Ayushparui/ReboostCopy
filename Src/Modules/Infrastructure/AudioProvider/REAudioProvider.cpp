@@ -95,14 +95,13 @@ void REAudioProvider::update(AudioData& audioData)
     if (!bufferInit) {
       OUTPUT_TEXT("Initializing audio buffers...");
       audioFramesInt.resize(maxFrames * numChannels);
-      audioData.samples.resize(maxFrames * numChannels);
+      audioData.samples.resize(maxFrames * outChannels);
       std::fill(audioFramesInt.begin(), audioFramesInt.end(), 0);
       std::fill(audioData.samples.begin(), audioData.samples.end(), 0);
 
-      audioData.channels = numChannels;
+      audioData.channels = outChannels;
       audioData.sampleRate = sampleRate;
 
-      const uint wakeupAPIBufferSize = 1024;
       inputAudioBuffers.resize(usedChannels);
       outputAudioBuffers.resize(usedChannels);
 
@@ -132,10 +131,48 @@ void REAudioProvider::update(AudioData& audioData)
         OUTPUT_WARNING("Audio record error, recovering...");
         numAudioFrames = snd_pcm_recover(inputDevice, numAudioFrames, 0);
     } else {
-        audioData.samplesCaptured = static_cast<uint>(numAudioFrames);
-        signedToFloat(audioData);
-    }
 
+      /* Deinterleave the frames for the wakeupAPI */
+      waitBuffer.insert(waitBuffer.end(), audioFramesInt.begin(), audioFramesInt.begin() + (numAudioFrames * numChannels));
+
+      const size_t maxWaitSize = wakeupAPIBufferSize * numChannels * 2;
+      if (waitBuffer.size() > maxWaitSize) {
+        waitBuffer.erase(waitBuffer.begin(), waitBuffer.end() - maxWaitSize);
+      }
+
+      audioData.samplesCaptured = 0;
+
+      while (waitBuffer.size() > (wakeupAPIBufferSize * numChannels)) {
+        for (size_t bufferInd = 0; bufferInd < wakeupAPIBufferSize; bufferInd++) {
+          inputAudioBuffers[0][bufferInd] = waitBuffer[bufferInd * numChannels + 0];
+          inputAudioBuffers[1][bufferInd] = waitBuffer[bufferInd * numChannels + 1];
+          inputAudioBuffers[2][bufferInd] = waitBuffer[bufferInd * numChannels + 2];
+          inputAudioBuffers[3][bufferInd] = waitBuffer[bufferInd * numChannels + 4];
+        }
+
+        Duerwen_wakeup_three_write_data(
+          wakeupHandle,
+          inputAudioBuffers[0].data(),
+          inputAudioBuffers[1].data(),
+          inputAudioBuffers[2].data(),
+          inputAudioBuffers[3].data(),
+          outputAudioBuffers[0].data(),
+          outputAudioBuffers[1].data(),
+          outputAudioBuffers[2].data(),
+          outputAudioBuffers[3].data()
+        );
+
+        for (size_t bufferInd = 0; bufferInd < wakeupAPIBufferSize; bufferInd++) {
+          audioFramesInt[bufferInd * 3 + 0] = outputAudioBuffers[0][bufferInd];
+          audioFramesInt[bufferInd * 3 + 1] = outputAudioBuffers[1][bufferInd];
+          audioFramesInt[bufferInd * 3 + 2] = outputAudioBuffers[2][bufferInd];
+        }
+
+        waitBuffer.erase(waitBuffer.begin(), waitBuffer.begin() + (wakeupAPIBufferSize * numChannels));
+        audioData.samplesCaptured = wakeupAPIBufferSize;
+        signedToFloat(audioData);
+      }
+    }
 
   const unsigned workTimeMs = Time::getCurrentSystemTime() - timeMs;
   tickWatchDog = Time::getCurrentSystemTime();
@@ -146,7 +183,7 @@ void REAudioProvider::update(AudioData& audioData)
 
 void REAudioProvider::signedToFloat(AudioData& audioData)
 {
-    for (uint sampleIndex = 0; sampleIndex < audioData.samplesCaptured * numChannels; sampleIndex++) {
+    for (uint sampleIndex = 0; sampleIndex < audioData.samplesCaptured * audioData.channels; sampleIndex++) {
         audioData.samples[sampleIndex] = static_cast<float>(audioFramesInt[sampleIndex]) / INT16_MAX;
     }
 }
