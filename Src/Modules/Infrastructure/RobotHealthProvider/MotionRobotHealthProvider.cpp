@@ -59,18 +59,20 @@ void MotionRobotHealthProvider::update(MotionRobotHealth& motionRobotHealth)
       motionRobotHealth.frameLostStatus = MotionRobotHealth::oneFrameLost;
       if(motionRobotHealth.motionFramesDropped >= multipleFramesDroppedThreshold)
         motionRobotHealth.frameLostStatus = MotionRobotHealth::multipleFramesLost;
-      if(motionRobotHealth.motionFramesDropped * Global::getSettings().motionCycleTime > bodyDisconnectThreshold)
+      if(motionRobotHealth.motionFramesDropped * Global::getSettings().motionCycleTime > bodyDisconnectThresholdSecs)
       {
         motionRobotHealth.frameLostStatus = MotionRobotHealth::bodyDisconnect;
-        if(SystemCall::getMode() == SystemCall::physicalRobot && theFrameInfo.getTimeSince(bodyDisconnectTimestamp) > bodyDisconnectWarningTime &&
-           executionTimes > executionTimesThreshold)
+        if (SystemCall::getMode() == SystemCall::physicalRobot &&
+            theFrameInfo.getTimeSince(bodyDisconnectTimestamp) > bodyDisconnectWarningTimeMs &&
+            executionTimes > executionTimesThreshold)
         {
           bodyDisconnectTimestamp = theFrameInfo.time;
-          ANNOTATION("MotionRobotHealthProvider", "No body connection for " << theFrameInfo.getTimeSince(lastFrameTime) << "ms");
+          ANNOTATION("MotionRobotHealthProvider",
+                     "No body connection for " << theFrameInfo.getTimeSince(lastFrameTime) << "ms");
           SystemCall::playSound("siren", true);
-          SystemCall::say(
-            (std::string("Body disconnect ") + TypeRegistry::getEnumName(theGameState.color()) + " " + std::to_string(theGameState.playerNumber)).c_str(),
-            true);
+          SystemCall::say(fmt::format("Body disconnect {} {}", TypeRegistry::getEnumName(theGameState.color()),
+                                      theGameState.playerNumber),
+                          true);
           OUTPUT_ERROR("Body Disconnect!");
         }
       }

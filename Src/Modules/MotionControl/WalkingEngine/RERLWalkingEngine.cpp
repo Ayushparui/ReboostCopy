@@ -2,18 +2,27 @@
  * @file RERLWalkingEngine.h
  *
  * Walking engine implementation for an RL model trained in IsaacLab.
- * This file utilizes the custom inputs and outputs from the Reboost locomotion
+ * This file utilizes the custom inputs and outputs from the our locomotion
  * policy.
- * This file is a modified version of Philip Reichenberg's implementation.
  * 
- * @Author James Florin Petri, Philip Reichenberg
+ * This file is based on RLWalkingEngine.
+ * 
+ * @Author Philip Reichenberg (original RLWalkingEngine)
+ * @Author James Florin Petri (modifications)
  */
 
 #include "RERLWalkingEngine.h"
 #include "Platform/SystemCall.h"
+#include "TextLogging/TextLogging.h"
+
+
 #include <filesystem>
 
+
 MAKE_MODULE(RERLWalkingEngine);
+
+DECL_TLOGGER(tlogger, "RERLWalkingEngine", TextLogging::DEBUG);
+DECL_TLOGGER(walkPhaseLogger, "RERLWalkPhaseDummy", TextLogging::DEBUG);
 
 RERLWalkingEngine::RERLWalkingEngine():
   network(&Global::getAsmjitRuntime())
@@ -533,41 +542,76 @@ RERLWalkPhaseDummy::RERLWalkPhaseDummy(RERLWalkingEngine& engine, Pose2f useStep
   callBack(callBack)
 {
   step = useStepTarget;
-  slowWalkStart = engine.theFrameInfo.time > static_cast<unsigned>(engine.reboostWalkNNParameters.timeLowWalkSpeedForStand) ? engine.theFrameInfo.time - engine.reboostWalkNNParameters.timeLowWalkSpeedForStand : 0;
+  bool standRequested = (step == Pose2f());
+  bool slowWalkRequested =
+      (std::abs(step.rotation) < engine.reboostWalkNNParameters.slowWalkStepSpeed.rotation &&
+       std::abs(step.translation.x()) < engine.reboostWalkNNParameters.slowWalkStepSpeed.translation.x() &&
+       std::abs(step.translation.y()) < engine.reboostWalkNNParameters.slowWalkStepSpeed.translation.y());
+
+  slowingDownToStandStartTime = 0; // only non-zero if actually slowing down
   tBase = engine.motionCycleTime;
 
   lastTarget.angles = engine.theJointRequest.angles;
   lastModelRequest = engine.theFrameInfo.time;
-  if(lastPhase.type == MotionPhase::walk || lastPhase.type == MotionPhase::stand)
+
+  lastTimeWalking = 0;
+  interpStartTime = 0; // by default we are not interpolating
+
+  // helper to ensure we always start interpolation the same way
+  // (useful if we need it for transitions other than just from prepare)
+  auto beginInterpolation = [&](unsigned durationMs)
+  {
+    interpStartTime = engine.theFrameInfo.time;
+    interpDurationMs = durationMs;
+    // const std::vector<Joints::Joint> jointList = getBoosterLegJointSequence();
+    // for (Joints::Joint j : jointList)
+    //   interpStartAngles.angles[j] = engine.theJointAngles.angles[j];
+
+    FOREACH_ENUM(Joints::Joint, joint)
+    {
+      interpStartAngles.angles[joint] = engine.theJointRequest.stiffnessData.stiffnesses[joint] > 0
+                                            ? engine.theJointRequest.angles[joint]
+                                            : engine.theJointAngles.angles[joint];
+    }
+
+    TLOGI(walkPhaseLogger, "begin interpolation to model outputs");
+  };
+
+  // handle transitions from different motions as needed
+  if (lastPhase.type == MotionPhase::walk || lastPhase.type == MotionPhase::stand)
   {
     const auto& lastWalkPhase = static_cast<const RERLWalkPhaseDummy&>(lastPhase);
     tBase = lastWalkPhase.tBase;
     lastTarget = lastWalkPhase.lastTarget;
     lastModelRequest = lastWalkPhase.lastModelRequest;
     nextTarget = lastWalkPhase.nextTarget;
-    lastWalking = lastWalkPhase.lastWalking;
-    if(lastPhase.type == MotionPhase::stand)
-    {
+    interpStartTime = lastWalkPhase.interpStartTime;
+
+    if (lastPhase.type == MotionPhase::stand)
       tBase = engine.theWalkGenerator.isNextLeftPhase(lastPhase, useStepTarget) ? 0.f : 0.5f;
-    }
-    slowWalkStart = lastWalkPhase.slowWalkStart;
+
+    slowingDownToStandStartTime =
+        slowWalkRequested ? lastWalkPhase.slowingDownToStandStartTime : engine.theFrameInfo.time;
   }
-  else
-    lastWalking = engine.theFrameInfo.time > 2000 ? engine.theFrameInfo.time - 2000 : 0;
-
-  if(!(std::abs(step.rotation) < engine.reboostWalkNNParameters.slowWalkStepSpeed.rotation &&
-       std::abs(step.translation.x()) < engine.reboostWalkNNParameters.slowWalkStepSpeed.translation.x() &&
-       std::abs(step.translation.y()) < engine.reboostWalkNNParameters.slowWalkStepSpeed.translation.y()))
-    slowWalkStart = engine.theFrameInfo.time;
-
-  // Standing is only allowed after a short time to prevent badly falling due to leftover momentum
-  if(step == Pose2f() && engine.theFrameInfo.getTimeSince(slowWalkStart) < engine.reboostWalkNNParameters.timeLowWalkSpeedForStand && slowWalkStart != 0)
-    step = Pose2f(0.001f, 0.f);
-
-  if(step == Pose2f())
+  else if (lastPhase.type == MotionPhase::prepare)
   {
-    type = MotionPhase::stand;
-    tBase = 0.f;
+    beginInterpolation(2000u); // FIXME make configurable
+  }
+
+  if (standRequested)
+  {
+    // Standing is only allowed after we're definitely slow enough to prevent badly falling due to leftover momentum
+    if (slowingDownToStandStartTime &&
+        (engine.theFrameInfo.getTimeSince(slowingDownToStandStartTime) < engine.reboostWalkNNParameters.walkToStandSlowdownMs))
+    {
+      step = Pose2f(0.001f, 0.f);
+      // MotionPhase::walk was already set as default type on MotionPhase initializer
+    }
+    else
+    {
+      type = MotionPhase::stand;
+      tBase = 0.f;
+    }
   }
 
   // Set walk values
@@ -579,17 +623,20 @@ RERLWalkPhaseDummy::RERLWalkPhaseDummy(RERLWalkingEngine& engine, Pose2f useStep
   isLeftPhase = type == MotionPhase::stand || tBase < 0.5f;
 
   tWalk = 0.f;
-  if(type == MotionPhase::walk)
-    lastWalking = engine.theFrameInfo.time;
-  else if(engine.theFrameInfo.getTimeSince(lastWalking) >= 2000)
-  {
-    FOREACH_ENUM(Joints::Joint, joint)
-    {
-      requestAtStandStart.angles[joint] = engine.theJointRequest.stiffnessData.stiffnesses[joint] > 0 ?
-                                          engine.theJointRequest.angles[joint] :
-                                          engine.theJointAngles.angles[joint];
-    }
-  }
+
+  if (type == MotionPhase::walk)
+    lastTimeWalking = engine.theFrameInfo.time;
+
+  // else
+  // if (engine.theFrameInfo.getTimeSince(interpStartTime) >= 2000)
+  // {
+  //   FOREACH_ENUM(Joints::Joint, joint)
+  //   {
+  //     requestAtStandStart.angles[joint] = engine.theJointRequest.stiffnessData.stiffnesses[joint] > 0 ?
+  //                                         engine.theJointRequest.angles[joint] :
+  //                                         engine.theJointAngles.angles[joint];
+  //   }
+  // }
 
   frequency = rawFrequency = engine.frequencyParameters.base;
 }
@@ -692,8 +739,11 @@ void RERLWalkPhaseDummy::getNextTargetRequest(JointAngles& target)
 
 void RERLWalkPhaseDummy::update()
 {
+  logInterval.updateTriggered(engine.theFrameInfo.time, 2000u);
+
   if(lastModelRequest > engine.theFrameInfo.time)
     lastModelRequest = engine.theFrameInfo.time;
+
   tWalk += engine.motionCycleTime;
   tBase = std::fmod(tBase + engine.motionCycleTime * frequency * (type == MotionPhase::walk ? 1.f : 0.f), 1.f);
   if(type == MotionPhase::stand && engine.theFrameInfo.getTimeSince(lastModelRequest) >= 20)
@@ -713,32 +763,53 @@ bool RERLWalkPhaseDummy::isDone(const MotionRequest& motionRequest) const
 
 void RERLWalkPhaseDummy::calcJoints(const MotionRequest&, JointRequest& jointRequest, Pose2f& odometryOffset, MotionInfo& motionInfo)
 {
+  // if (logInterval.wasTriggered())
+  //   TLOGD(walkPhaseLogger, "calcJoints - setting stiffnesses to 100");
+
   jointRequest.stiffnessData.stiffnesses.fill(100);
 
   jointRequest.angles[Joints::lShoulderPitch] = engine.armParameters.armShoulderPitch + engine.theRobotModel.soleLeft.translation.x() * engine.armParameters.armShoulderPitchFactor / 1000.f;
   jointRequest.angles[Joints::lShoulderRoll] = engine.armParameters.armShoulderRoll + std::abs(engine.theRobotModel.soleLeft.translation.y()) * engine.armParameters.armShoulderRollIncreaseFactor / 1000.f;
   jointRequest.angles[Joints::lElbowYaw] = engine.armParameters.armElbowYaw;
-  jointRequest.angles[Joints::lElbowRoll] = 0_deg;
+  jointRequest.angles[Joints::lElbowRoll] = 30_deg; // FIXME - was 0_deg - decide which is correct
   jointRequest.angles[Joints::lWristYaw] = -90_deg;
   jointRequest.angles[Joints::lHand] = 0.f;
   jointRequest.angles[Joints::rShoulderPitch] = engine.armParameters.armShoulderPitch + engine.theRobotModel.soleRight.translation.x() * engine.armParameters.armShoulderPitchFactor / 1000.f;
   jointRequest.angles[Joints::rShoulderRoll] = -engine.armParameters.armShoulderRoll - std::abs(engine.theRobotModel.soleRight.translation.y()) * engine.armParameters.armShoulderRollIncreaseFactor / 1000.f;
   jointRequest.angles[Joints::rElbowYaw] = -engine.armParameters.armElbowYaw;
-  jointRequest.angles[Joints::rElbowRoll] = 0_deg;
+  jointRequest.angles[Joints::rElbowRoll] = 30_deg; // FIXME - was 0_deg - decide which is correct
   jointRequest.angles[Joints::rWristYaw] = 90_deg;
   jointRequest.angles[Joints::rHand] = 0.f;
 
   jointRequest.angles[Joints::waistYaw] = 0_deg;
 
-  if(SystemCall::getMode() != SystemCall::simulatedRobot && engine.theFrameInfo.getTimeSince(lastWalking) >= 2000 && engine.theGameState.playerState == GameState::PlayerState::penalizedManual)
+  // check if we need to interpolate from some previous joint setting to model outputs
+  if ((SystemCall::getMode() != SystemCall::simulatedRobot) && interpStartTime)
   {
-    for(std::size_t j = Joints::firstArmJoint; j < Joints::firstLegJoint; j++)
+    // take target arm joints from just above
+    for (std::size_t j = Joints::firstArmJoint; j < Joints::firstLegJoint; j++) // override arm joints
       standTarget.angles[j] = jointRequest.angles[j];
-    const float ratio = Rangef::ZeroOneRange().limit((engine.theFrameInfo.getTimeSince(lastWalking) - 2000) / 2000.f);
-    for(std::size_t j = Joints::firstArmJoint; j < Joints::numOfJoints; j++)
-      jointRequest.angles[j] = standTarget.angles[j] * ratio + (1.f - ratio) * requestAtStandStart.angles[j];
+
+    // take target leg joints from the policy's nextTarget (obtained in getNextTargetRequest)
+    std::vector<Joints::Joint> jointList = getBoosterLegJointSequence();
+    for(Joints::Joint j : jointList)
+    {
+      lastTarget.angles[j] = nextTarget.angles[j];
+      standTarget.angles[j] = lastTarget.angles[j];
+    }
+
+    // crossfade from all start angles to all standTarget angles over the interpolation period
+    const float tNorm = Rangef::ZeroOneRange().limit(engine.theFrameInfo.getTimeSince(interpStartTime) /
+                                                     static_cast<float>(interpDurationMs));
+    const float alpha = tNorm * tNorm * (3.f - 2.f * tNorm); // the smoothstep function / ease-in, ease-out
+
+    for (std::size_t j = Joints::firstArmJoint; j < Joints::numOfJoints; j++) // leave out head joints
+      jointRequest.angles[j] = interpStartAngles.angles[j] + alpha * (standTarget.angles[j] - interpStartAngles.angles[j]);
+
+    if (engine.theFrameInfo.getTimeSince(interpStartTime) >= static_cast<int>(interpDurationMs))
+      interpStartTime = 0; // no longer interpolating
   }
-  else
+  else // no interpolation - just apply the model output
   {
     std::vector<Joints::Joint> jointList = getBoosterLegJointSequence();
     for(Joints::Joint j : jointList)
@@ -747,7 +818,7 @@ void RERLWalkPhaseDummy::calcJoints(const MotionRequest&, JointRequest& jointReq
       jointRequest.angles[j] = lastTarget.angles[j];
     }
     standTarget = nextTarget;
-    requestAtStandStart.angles = jointRequest.angles;
+    // requestAtStandStart.angles = jointRequest.angles;
     if(SystemCall::getMode() != SystemCall::simulatedRobot && type == MotionPhase::stand)
     {
       jointRequest.stiffnessData.stiffnesses[Joints::lAnklePitch] = 50;
@@ -760,9 +831,14 @@ void RERLWalkPhaseDummy::calcJoints(const MotionRequest&, JointRequest& jointReq
   motionInfo.isMotionStable = true;
   motionInfo.isWalkPhaseInWalkKick = walkKickStep.currentKick != WalkKicks::none;
   const float stepDuration = engine.configuredParameters.baseWalkPeriod / 1000.f;
-  motionInfo.speed = type == MotionPhase::walk ? Pose2f(step.rotation / stepDuration, step.translation.x() / stepDuration, step.translation.y() / stepDuration) : Pose2f();
 
-  if(engine.theFrameInfo.getTimeSince(lastWalking) >= 2000)
+  if (type == MotionPhase::walk)
+    motionInfo.speed =
+        Pose2f(step.rotation / stepDuration, step.translation.x() / stepDuration, step.translation.y() / stepDuration);
+  else
+    motionInfo.speed = Pose2f();
+
+  if (engine.theFrameInfo.getTimeSince(lastTimeWalking) >= 0)
     odometryOffset = Pose2f(0_deg, 0.f, 0.f);
   else
     odometryOffset = engine.theOdometryDataPreview.odometryChange;

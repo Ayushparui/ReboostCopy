@@ -15,7 +15,7 @@
  * define a generic edge trigger class that eliminated repeated code and variables
  * used just for edge triggering
  */
-template<typename Value>
+template <typename Value>
 STREAMABLE(EdgeTrigger,
 {
   /**
@@ -33,7 +33,10 @@ STREAMABLE(EdgeTrigger,
   {
   }
 
+  /** reset as per constructor */
   void reset(Value initial) { reset(initial, initial); }
+
+  /** reset as per constructor where you want configuration to be as if the value had just changed */
   void reset(Value initial, Value prev)
   {
     value = initial;
@@ -43,7 +46,9 @@ STREAMABLE(EdgeTrigger,
   /**
    * true if the value changed at the last update
    */
-  bool valueChanged() { return value != prevValue; }
+  bool valueChanged() const { return value != prevValue; }
+
+  bool valueChanged(Value targetValue) const { return value != prevValue && value == targetValue; }
 
   /**
    * returns true if the value changed (i.e. if we should edge trigger)
@@ -53,9 +58,20 @@ STREAMABLE(EdgeTrigger,
     prevValue = value;
     value = newValue;
 
-    return value != prevValue;
+    return valueChanged();
   }
-  
+
+  /**
+   * returns true if the value just changed AND it is now matches targetValue
+   */
+  bool update(Value newValue, Value targetValue)
+  {
+    prevValue = value;
+    value = newValue;
+
+    return valueChanged(targetValue);
+  }
+
 
   /* ----------------- separate header from streamable members (note comma at end) ------------------ */,
 
@@ -65,6 +81,7 @@ STREAMABLE(EdgeTrigger,
 
 
 using EdgeTriggera = EdgeTrigger<Angle>;
+using EdgeTriggerb = EdgeTrigger<bool>;
 using EdgeTriggeri = EdgeTrigger<int>;
 using EdgeTriggeru = EdgeTrigger<unsigned>;
 using EdgeTriggerf = EdgeTrigger<float>;

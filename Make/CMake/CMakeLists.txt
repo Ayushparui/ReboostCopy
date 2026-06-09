@@ -203,13 +203,15 @@ set(_is_msvc "$<CXX_COMPILER_ID:MSVC>")
 set(_is_clang "$<NOT:$<CXX_COMPILER_ID:MSVC>>")
 set(_not_mac "$<NOT:$<PLATFORM_ID:Darwin>>")
 
-# RV: it appears DebugInDevelop flags refer to executables that should include
-# debug symbols in the Develop configuration but should only have
-# the optimisations in the Release configuration, but not Develop
+# RV: it appears DebugInDevelop flags works as follows:
+# Debug - debug as normal
+# Develop - debug symbols, no optimisation, NDEBUG not set, asserts active
+# Release - no debug symbols, has optimisation, NDEBUG is set, asserts disabled
 #
-# In contrast the Default flags will optimise in the Release and Develop
-# configurations (with no debug symbols). The only difference is that
-# NDEBUG is not defined in Develop, so Asserts continue to work.
+# In contrast the Default flags will be:
+# Debug - debug as normal
+# Develop - no debug symbols, has optimisation, NDEBUG *not* set, asserts active
+# Release - no debug symbols, has optimisation, NDEBUG is set, asserts disabled
 
 add_library(Flags::DebugInDevelop INTERFACE IMPORTED)
 target_compile_definitions(Flags::DebugInDevelop INTERFACE
@@ -252,6 +254,22 @@ target_link_options(Flags::Default INTERFACE
     $<${_is_msvc}:$<$<CONFIG:Debug>:/DEBUG>>
     $<${_is_msvc}:$<$<NOT:$<CONFIG:Debug>>:/INCREMENTAL:NO>>
     $<$<AND:${_not_mac},${_is_clang}>:$<$<CONFIG:Release>:-s>>)
+
+# RV add - only for booster build and only to apply to selected libraries while debugging
+# Note that we use -O3 in Develop. If that is a problem, consider dropping -O2
+add_library(Flags::OptimizedDebugInDevelop INTERFACE IMPORTED)
+target_compile_definitions(Flags::OptimizedDebugInDevelop INTERFACE
+    $<$<CONFIG:Release>:NDEBUG>)
+target_compile_options(Flags::OptimizedDebugInDevelop INTERFACE
+    $<${_is_clang}:$<$<NOT:$<CONFIG:Release>>:-gdwarf-4>>
+    $<${_is_clang}:$<$<NOT:$<CONFIG:Release>>:-fno-debug-types-section>>
+    $<${_is_clang}:$<$<NOT:$<CONFIG:Release>>:-O3>>
+    $<${_is_clang}:$<$<NOT:$<CONFIG:Release>>:-fno-omit-frame-pointer>>
+    $<${_is_clang}:$<$<CONFIG:Release>:-O3>>
+    $<${_is_clang}:$<$<CONFIG:Release>:-fomit-frame-pointer>>)
+target_link_options(Flags::OptimizedDebugInDevelop INTERFACE
+    $<$<AND:${_not_mac},${_is_clang}>:$<$<CONFIG:Release>:-s>>)
+    
 
 if(BUILD_DESKTOP)
   if(NOT PYTHON_ONLY)

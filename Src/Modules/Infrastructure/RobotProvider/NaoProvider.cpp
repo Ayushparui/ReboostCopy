@@ -321,7 +321,8 @@ void NaoProvider::update(JointSensorData& theJointSensorData)
 
 void NaoProvider::update(KeyStates& theKeyStates)
 {
-  FOREACH_ENUM(KeyStates::Key, key)
+  // FOREACH_ENUM(KeyStates::Key, key)
+  for (auto key = KeyStates::nao_firstKey; key <= KeyStates::nao_lastKey; key = KeyStates::Key(unsigned(key)+1))
     theKeyStates.pressed[key] = MsgPack::readFloat(keys[key]) != 0.f;
 
   if(!theKeyStates.pressed[KeyStates::chest])

@@ -28,6 +28,7 @@
 #include "Representations/Infrastructure/JointAngles.h"
 #include "Representations/Infrastructure/JointRequest.h"
 #include "Representations/Infrastructure/StiffnessData.h"
+#include "Representations/Infrastructure/RobotSafetyState.h"
 #include "Representations/MotionControl/ArmKeyFrameGenerator.h"
 #include "Representations/MotionControl/ArmMotionInfo.h"
 #include "Representations/MotionControl/ArmMotionRequest.h"
@@ -46,6 +47,7 @@
 #include "Representations/MotionControl/MotionRequest.h"
 #include "Representations/MotionControl/OdometryData.h"
 #include "Representations/MotionControl/PointAtGenerator.h"
+#include "Representations/MotionControl/PrepareGenerator.h"
 #include "Representations/MotionControl/ReplayWalkRequestGenerator.h"
 #include "Representations/MotionControl/SpecialGenerator.h"
 #include "Representations/MotionControl/StandGenerator.h"
@@ -97,7 +99,9 @@ MODULE(MotionEngine,
   REQUIRES(OdometryDataPreview),
   REQUIRES(OdometryTranslationRequest),
   REQUIRES(PointAtGenerator),
+  REQUIRES(PrepareGenerator),
   REQUIRES(ReplayWalkRequestGenerator),
+  REQUIRES(RobotSafetyState),
   REQUIRES(SpecialGenerator),
   REQUIRES(StandGenerator),
   REQUIRES(StiffnessSettings),
@@ -109,10 +113,12 @@ MODULE(MotionEngine,
   REQUIRES(WalkToBallAndKickGenerator),
   PROVIDES(JointRequest),
   REQUIRES(JointRequest),
+
   PROVIDES(ArmMotionInfo),
   PROVIDES(HeadMotionInfo),
   PROVIDES(MotionInfo),
   PROVIDES(OdometryData),
+  
   LOADS_PARAMETERS(
   {,
     (int) emergencySitDownDelay, /**< If no new data from Cognition arrived for this duration, the robot sits down. */

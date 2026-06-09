@@ -1,5 +1,9 @@
 #include "SkillBehaviorControl.h"
 
+
+DECL_OPTION_TLOGGER(HandleGameState, TextLogging::DEBUG);
+
+
 option((SkillBehaviorControl) HandleGameState)
 {
   common_transition
@@ -22,6 +26,7 @@ option((SkillBehaviorControl) HandleGameState)
   {
     action
     {
+      TLOGD_STATE_ENTRY(playing);
       ArmContact();
       if(theStrategyStatus.role != PositionRole::toRole(PositionRole::goalkeeper))
         ArmObstacleAvoidance();
@@ -32,6 +37,8 @@ option((SkillBehaviorControl) HandleGameState)
   {
     action
     {
+      TLOGD_STATE_ENTRY(initial);
+
       LookAtAngles({.pan = 0_deg,
                     .tilt = 0_deg,
                     .speed = 150_deg});

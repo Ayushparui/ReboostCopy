@@ -11,18 +11,12 @@
 #include "RobotParts/Joints.h"
 #include "RobotParts/Legs.h"
 #include "Streaming/EnumIndexedArray.h"
-#include <cstring>
-#include "Math/Pose2f.h"
 #include "Streaming/Enum.h"
+#include <array>
 
 STREAMABLE(DamageConfigurationHead,
-{
-  DamageConfigurationHead()
-  {
-    std::memset(audioChannelsDefect, 0, sizeof(audioChannelsDefect));
-  },
-
-  (bool[4]) audioChannelsDefect,
+{,
+  (std::array<bool,4>)({}) audioChannelsDefect,
 });
 
 STREAMABLE(DamageConfigurationBody,
@@ -41,6 +35,7 @@ STREAMABLE(DamageConfigurationBody,
     (bool)(false) footBumperDefect,
     (bool)(false) armContactDefect,
   }),
+  (bool)(false) allMotionDisabled, // overrides individual joint stiffness etc.
   (bool)(false) noFieldGenuflect,
   (BrokenStandUp)(allFine) brokenStandUp,
   (ENUM_INDEXED_ARRAY(std::vector<FsrSensors::FsrSensor>, Legs::Leg)) brokenFsrSensors,

@@ -11,16 +11,41 @@
 #include "Debugging/DebugDrawings.h"
 #include "Platform/BHAssert.h"
 #include "Platform/SystemCall.h"
+#include "Debugging/Annotation.h"
+#include "TextLogging/TextLogging.h"
+
 #include <algorithm>
 
+
 MAKE_MODULE(GameStateProvider);
+
+DECL_TLOGGER(tlogger, "GameStateProvider", TextLogging::DEBUG);
+
+// convenience shorthand for outputting to text log and annotation simultaneously
+#define TLOGI_ANNOTATION(logger_, ...)                                                                                 \
+  do                                                                                                                   \
+  {                                                                                                                    \
+    TLOGI(logger_, "*** " __VA_ARGS__);                                                                                       \
+    ANNOTATION_FMT("GameStateProvider", __VA_ARGS__);                                                                  \
+  } while (0)
+
 
 void GameStateProvider::update(GameState& gameState)
 {
   DECLARE_DEBUG_DRAWING("module:GameStateProvider:ballCovariance", "drawingOnField");
-  auto setToUnstiff = [this, &gameState]
+  auto setToUnstiff = [this, &gameState](const char* reason)
   {
     reset(gameState);
+    TLOGI_ANNOTATION(tlogger, "playerState ==> unstiff (because {}) state={}",
+                     reason, TypeRegistry::getEnumName(gameState.state));
+  };
+
+  auto setToPrepare = [this, &gameState]
+  {
+    reset(gameState);
+    gameState.playerState = GameState::prepare;
+    gameState.timeWhenPlayerStateStarted = theFrameInfo.time;
+    TLOGI_ANNOTATION(tlogger, "playerState ==> prepare, state={}", TypeRegistry::getEnumName(gameState.state));
   };
 
   auto setToCalibration = [this, &gameState]
@@ -30,6 +55,7 @@ void GameStateProvider::update(GameState& gameState)
     gameState.timeWhenStateStarted = theFrameInfo.time;
     gameState.playerState = GameState::calibration;
     gameState.timeWhenPlayerStateStarted = theFrameInfo.time;
+    TLOGI_ANNOTATION(tlogger, "playerState ==> calibration, state=playing");
   };
 
   auto setToActive = [this, &gameState]
@@ -38,10 +64,14 @@ void GameStateProvider::update(GameState& gameState)
     gameState.playerState = GameState::active;
     gameState.timeWhenPlayerStateStarted = theFrameInfo.time;
     timeOfLastIntegratedGameControllerData = theFrameInfo.time - gameControllerTimeout;
+    TLOGI_ANNOTATION(tlogger, "playerState ==> active, state={}", TypeRegistry::getEnumName(gameState.state));
   };
 
   DEBUG_RESPONSE_ONCE("module:GameStateProvider:unstiff")
-    setToUnstiff();
+    setToUnstiff("DEBUG_REQUEST");
+
+  DEBUG_RESPONSE_ONCE("module:GameStateProvider:prepare")
+    setToPrepare();
 
   DEBUG_RESPONSE_ONCE("module:GameStateProvider:calibration")
     setToCalibration();
@@ -56,34 +86,62 @@ void GameStateProvider::update(GameState& gameState)
     timeWhenStateNotAfterHalf = theFrameInfo.time;
 
   gameState.whistled = false;
-  bool ignoreChestButton = false;
-  const bool unstiffButtonsPressed = theEnhancedKeyStates.pressedDuration[KeyStates::headFront] > unstiffHeadButtonPressDuration &&
-                                     (theEnhancedKeyStates.pressedDuration[KeyStates::headMiddle] > unstiffHeadButtonPressDuration ||
-                                      theEnhancedKeyStates.pressedDuration[KeyStates::chest] > unstiffHeadButtonPressDuration) &&
-                                     theEnhancedKeyStates.pressedDuration[KeyStates::headRear] > unstiffHeadButtonPressDuration;
-  switch(gameState.playerState)
+
+  TLOGV(tlogger, "start of update: GameState {}, PlayerState {}", TypeRegistry::getEnumName(gameState.state),
+        TypeRegistry::getEnumName(gameState.playerState));
+
+  if (robotSafetyStateEdge.update(theRobotSafetyState.state))//, RobotSafetyState::operational))
   {
+    if (theRobotSafetyState.state == RobotSafetyState::operational)
+      timeWhenRobotBecameOperational = theFrameInfo.time;
+
+    TLOGD(tlogger, "robotSafetyState just became {}, playerState is {}",
+          TypeRegistry::getEnumName(theRobotSafetyState.state), TypeRegistry::getEnumName(gameState.playerState));
+  }
+
+  if (Global::getSettings().robotType == Settings::nao)
+    updateFromNaoHri(gameState);
+  else if (Global::getSettings().robotType == Settings::k1)
+    updateFromBoosterK1Hri(gameState);
+
+  if (theRobotSafetyState.state == RobotSafetyState::operational)
+  {
+    switch (gameState.playerState)
+    {
     case GameState::unstiff:
-      if(theEnhancedKeyStates.hitStreak[KeyStates::chest] == 1)
-      {
+      if (activeModeRequested)
         setToActive();
-        ignoreChestButton = true;
-      }
+      else if (prepareModeRequested)
+        setToPrepare();
       break;
+
+    case GameState::prepare:
+      if (activeModeRequested)
+        setToActive();
+      break;
+
     case GameState::calibration:
-      if(unstiffButtonsPressed || theBehaviorStatus.calibrationFinished)
-        setToUnstiff();
+      if (unstiffModeRequested)
+        setToUnstiff("HRI requested");
+      else if ((Global::getSettings().robotType == Settings::nao) && theBehaviorStatus.calibrationFinished) 
+        setToUnstiff("calibration finished"); // FIXME - not for K1
       break;
+
     default:
-      if(unstiffButtonsPressed ||
-         (SystemCall::getMode() != SystemCall::simulatedRobot &&
-          theFrameInfo.getTimeSince(timeWhenStateNotAfterHalf) > unstiffAfterHalfDuration))
-        setToUnstiff();
-      else if(gameState.isInitial() &&
-              gameState.playerState == GameState::active &&
-              theEnhancedKeyStates.pressedDuration[KeyStates::headFront] > calibrationHeadButtonPressDuration &&
-              theEnhancedKeyStates.isPressedFor(KeyStates::chest, 1000u))
+      if (unstiffModeRequested)
+        setToUnstiff("HRI requested");
+      else if ((SystemCall::getMode() != SystemCall::simulatedRobot) &&
+               ((Global::getSettings().robotType == Settings::nao) &&
+                (theFrameInfo.getTimeSince(timeWhenStateNotAfterHalf) > unstiffAfterHalfDuration)))
+        setToUnstiff("after half"); // FIXME - needs to be different for K1
+      else if (calibrationModeRequested)
         setToCalibration();
+    }
+  }
+  else // safety state not operational
+  {
+    if (gameState.playerState != GameState::unstiff)
+      setToUnstiff("not operational");
   }
 
   updateBallBuffer(gameState);
@@ -91,8 +149,16 @@ void GameStateProvider::update(GameState& gameState)
   updateIllegalPosition();
 
   // If this player is unstiff or in calibration mode, the game state stays reset and GameController messages are ignored.
-  if(gameState.playerState == GameState::unstiff || gameState.playerState == GameState::calibration)
+  if (gameState.playerState == GameState::unstiff || gameState.playerState == GameState::prepare ||
+      gameState.playerState == GameState::calibration)
     return;
+
+  TLOGV(tlogger, "beyond unstiff/prepare/calib check");
+
+  // at this point, we want to track and further changes to gameState or playerState for text logging
+  GameState::State prevState = gameState.state;
+  GameState::PlayerState prevPlayerState = gameState.playerState;
+
 
   // Update whether the GameController is "active".
   const bool useGameControllerData = theGameControllerData.timeLastPacketReceived > timeOfLastIntegratedGameControllerData;
@@ -179,6 +245,10 @@ void GameStateProvider::update(GameState& gameState)
         }
         break;
     }
+
+    if (gameState.state != prevState)
+      TLOGI_ANNOTATION(tlogger, "GameState ==> {} (was previously overridden {})",
+                       TypeRegistry::getEnumName(gameState.state), TypeRegistry::getEnumName(prevState));
   }
 
   // A kick-off or penalty-kick is over once either the ball has moved, is no longer on a legal position or the time has elapsed.
@@ -192,6 +262,9 @@ void GameStateProvider::update(GameState& gameState)
     gameState.state = GameState::playing;
     gameState.timeWhenStateStarted = theFrameInfo.time;
     gameState.timeWhenStateEnds = 0;
+
+    TLOGI_ANNOTATION(tlogger, "GameState ==> {} (was previously {})",
+                     TypeRegistry::getEnumName(gameState.state), TypeRegistry::getEnumName(prevState));
   }
 
   // State transitions that are triggered by the whistle:
@@ -290,6 +363,9 @@ void GameStateProvider::update(GameState& gameState)
         }
         break;
     }
+    if (gameState.state != prevState)
+      TLOGI_ANNOTATION(tlogger, "GameState ==> {}{} based on whistle etc (was previously {})", TypeRegistry::getEnumName(gameState.state),
+                       gameStateOverridden ? " [overridden]" : "", TypeRegistry::getEnumName(prevState));
   }
 
   // Transition from Standby to Ready
@@ -303,6 +379,9 @@ void GameStateProvider::update(GameState& gameState)
     gameState.timeWhenStateEnds = gameState.timeWhenStateStarted + kickOffSetupDuration;
     gameState.kickOffSetupFromTouchlines = true;
     gameStateOverridden = true;
+
+    TLOGI_ANNOTATION(tlogger, "GameState ==> {} based on referee signal (was previously {})",
+                     TypeRegistry::getEnumName(gameState.state), TypeRegistry::getEnumName(prevState));
   }
 
   if(useGameControllerData)
@@ -349,6 +428,11 @@ void GameStateProvider::update(GameState& gameState)
       // Actually set the new state and associated timestamps:
       gameState.state = gameControllerState;
       gameState.timeWhenStateStarted = theFrameInfo.time;
+
+      if (gameState.state != prevState)
+        TLOGI_ANNOTATION(tlogger, "GameState ==> {} based on Game Controller (was previously {})",
+                         TypeRegistry::getEnumName(gameState.state), TypeRegistry::getEnumName(prevState));
+
       switch(gameControllerState)
       {
         case GameState::setupOwnKickOff:
@@ -426,6 +510,10 @@ void GameStateProvider::update(GameState& gameState)
     if(gameControllerPlayerState != gameState.playerState)
     {
       gameState.playerState = gameControllerPlayerState;
+
+      TLOGI_ANNOTATION(tlogger, "PlayerState ==> {} based on Game Controller (was previously {})",
+                        TypeRegistry::getEnumName(gameState.playerState), TypeRegistry::getEnumName(prevPlayerState));
+
       // If this is the first GameController packet for some time, it might be that the robot actually has had the state for a longer time.
       if(theFrameInfo.getTimeSince(timeOfLastIntegratedGameControllerData) >= gameControllerTimeout)
         gameState.timeWhenPlayerStateStarted = 0;
@@ -446,7 +534,8 @@ void GameStateProvider::update(GameState& gameState)
     // Button interface (only when we haven't received from a GameController recently):
     // - chest button to switch between manual penalty and PLAYING / penalty shoot-out
     // - right foot bumper to switch between penalty shoot-out and normal mode
-    if(!ignoreChestButton && theEnhancedKeyStates.hitStreak[KeyStates::chest] == 1)
+    // if(!ignoreChestButton && theEnhancedKeyStates.hitStreak[KeyStates::chest] == 1)
+    if (manualGameStateChangeRequested)
     {
       if(gameState.playerState == GameState::active)
         gameState.playerState = GameState::penalizedManual;
@@ -478,7 +567,8 @@ void GameStateProvider::update(GameState& gameState)
 
     if(gameState.isInitial() && gameState.playerState == GameState::active)
     {
-      if(theEnhancedKeyStates.hitStreak[KeyStates::rFootRight] == 1)
+      // if(theEnhancedKeyStates.hitStreak[KeyStates::rFootRight] == 1)
+      if (manualPhaseChangeRequested)
       {
         if(gameState.phase != GameState::penaltyShootout)
         {
@@ -506,6 +596,14 @@ void GameStateProvider::update(GameState& gameState)
         }
       }
     }
+
+    if (gameState.state != prevState)
+      TLOGI_ANNOTATION(tlogger, "GameState ==> {} based on button interface (was previously {})",
+                       TypeRegistry::getEnumName(gameState.state), TypeRegistry::getEnumName(prevState));
+    
+    if (gameState.playerState != prevPlayerState)
+      TLOGI_ANNOTATION(tlogger, "PlayerState ==> {} based on button interfaces (was previously {})",
+                       TypeRegistry::getEnumName(gameState.playerState), TypeRegistry::getEnumName(prevPlayerState));
   }
 
   if(gameState.gameControllerActive && !gameStateOverridden)
@@ -540,6 +638,129 @@ void GameStateProvider::reset(GameState& gameState)
   timeWhenStateStartedBeforeWhistle = 0;
   timeWhenSwitchedToPlayingViaWhistle = 0;
   minWhistleTimestamp = 0;
+}
+
+
+void GameStateProvider::updateFromNaoHri(GameState& gameState)
+{
+  unstiffModeRequested =
+      theEnhancedKeyStates.pressedDuration[KeyStates::headFront] > unstiffHeadButtonPressDuration &&
+      (theEnhancedKeyStates.pressedDuration[KeyStates::headMiddle] > unstiffHeadButtonPressDuration ||
+       theEnhancedKeyStates.pressedDuration[KeyStates::chest] > unstiffHeadButtonPressDuration) &&
+      theEnhancedKeyStates.pressedDuration[KeyStates::headRear] > unstiffHeadButtonPressDuration;
+
+  activeModeRequested = false;
+  calibrationModeRequested = false;
+  manualGameStateChangeRequested = false;
+  manualPhaseChangeRequested = false;
+
+  // Nao chest button
+
+  switch (gameState.playerState)
+  {
+  case GameState::unstiff:
+    if (theEnhancedKeyStates.hitStreak[KeyStates::chest] == 1)
+      activeModeRequested = true;
+    break;
+  case GameState::calibration:
+    break; // do nothing
+  default:
+    if (gameState.isInitial() && (gameState.playerState == GameState::active) &&
+             theEnhancedKeyStates.pressedDuration[KeyStates::headFront] > calibrationHeadButtonPressDuration &&
+             theEnhancedKeyStates.isPressedFor(KeyStates::chest, 1000u))
+      calibrationModeRequested = true;
+    else if (theEnhancedKeyStates.hitStreak[KeyStates::chest] == 1)
+      manualGameStateChangeRequested = true;
+  }
+
+  // Nao foot bumpers
+  if (theEnhancedKeyStates.hitStreak[KeyStates::rFootRight] == 1)
+    manualPhaseChangeRequested = true;
+}
+
+void GameStateProvider::updateFromBoosterK1Hri([[maybe_unused]] GameState& gameState)
+{
+  unstiffModeRequested = false; // handled outside game state
+  prepareModeRequested = false;
+  activeModeRequested = false; // handled outside game state
+  calibrationModeRequested = false; // TODO - gamePad?
+  manualGameStateChangeRequested = false;
+  manualPhaseChangeRequested = false; // TODO - gamePad or not used
+
+#ifdef TARGET_BOOSTER
+  // tmp debug
+  // if (theEnhancedKeyStates.hitStreak[KeyStates::k1_stand] == 1)
+  //   TLOGI(tlogger, "STAND button clicked once");
+  // else if (theEnhancedKeyStates.getHitStreakFor(KeyStates::k1_stand, 3000u, 50u) == 1)
+  //   TLOGI(tlogger, "STAND button long clicked once and timeSinceOperational is {}",
+  //         theFrameInfo.getTimeSince(timeWhenRobotBecameOperational));
+  // else if (theEnhancedKeyStates.hitStreak[KeyStates::k1_walk] == 1)
+  //   TLOGI(tlogger, "WALK button clicked once");
+
+  // buttons only active if we're operational
+  if (theRobotSafetyState.state == RobotSafetyState::operational)
+  {
+    switch (gameState.playerState)
+    {
+    case GameState::unstiff:
+      if (theEnhancedKeyStates.hitStreak[KeyStates::k1_stand] == 1)
+      {
+        TLOGI(tlogger, "Unstiff: STAND button clicked once: prepareModeRequested");
+        prepareModeRequested = true;
+      }
+      else if ((theEnhancedKeyStates.getHitStreakFor(KeyStates::k1_stand, 3000u, 50u) == 1) &&
+               (theFrameInfo.getTimeSince(timeWhenRobotBecameOperational) < 500))
+      {
+        TLOGI(tlogger, "Unstiff: STAND button long-clicked once near switching to operational: prepareModeRequested");
+        prepareModeRequested = true;
+      }
+      else if ((theEnhancedKeyStates.getHitStreakFor(KeyStates::k1_f1, 3000u, 50u) == 1) &&
+               (theFrameInfo.getTimeSince(timeWhenRobotBecameOperational) < 500))
+      {
+        TLOGI(tlogger, "Unstiff: F1 button long-clicked once near switching to operational: stay in unstiff");
+      }
+      break;
+
+    case GameState::prepare:
+      if (theEnhancedKeyStates.hitStreak[KeyStates::k1_walk] == 1)
+      {
+        TLOGI(tlogger, "Prepare: WALK button clicked once: activeModeRequested");
+        activeModeRequested = true;
+      }
+      break;
+
+    case GameState::calibration:
+      if (theEnhancedKeyStates.pressedDuration[KeyStates::k1_stand] > 2000u)
+      {
+        TLOGI(tlogger, "calibration: STAND button long pressed: prepareModeRequested");
+        prepareModeRequested = true;
+      }
+      break;
+
+    default:
+      if (gameState.isInitial() && (gameState.playerState == GameState::active) &&
+          (theEnhancedKeyStates.pressedDuration[KeyStates::k1_walk] > 2000u))
+      {
+        TLOGI(tlogger, "Active: WALK button long pressed: calibrationModeRequested");
+        calibrationModeRequested = true;
+      }
+      else if (theEnhancedKeyStates.hitStreak[KeyStates::k1_walk] == 1)
+      {
+        TLOGI(tlogger, "Active: WALK button clicked: manualGameStateChangeRequested");
+        manualGameStateChangeRequested = true;
+      }
+      else if (theEnhancedKeyStates.pressedDuration[KeyStates::k1_stand] > 2000u)
+      {
+        TLOGI(tlogger, "Active: STAND button long pressed: prepareModeRequested");
+        prepareModeRequested = true;
+      }
+      else // buttons (above) take precedence over any game pad control (in here)
+      {
+        // TODO
+      }
+    }
+  }
+#endif // TARGET_BOOSTER
 }
 
 bool GameStateProvider::checkForWhistle(unsigned from, bool useGameControllerData) const

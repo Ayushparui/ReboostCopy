@@ -1,5 +1,8 @@
 #include "SkillBehaviorControl.h"
 
+DECL_OPTION_TLOGGER(HandlePlayerState, TextLogging::DEBUG);
+
+
 option((SkillBehaviorControl) HandlePlayerState)
 {
   common_transition
@@ -8,6 +11,8 @@ option((SkillBehaviorControl) HandlePlayerState)
     {
       case GameState::unstiff:
         goto unstiff;
+      case GameState::prepare:
+        goto prepare;
       case GameState::calibration:
         goto calibration;
       case GameState::active:
@@ -29,15 +34,30 @@ option((SkillBehaviorControl) HandlePlayerState)
   }
 
   initial_state(playing)
-  {}
+  {
+    TLOGD_STATE_ENTRY(playing);
+    if (stateChanged.valueChanged())
+      TLOGD(tlogger, "PlayerState {}, GameState {}", TypeRegistry::getEnumName(theGameState.playerState),
+            TypeRegistry::getEnumName(theGameState.state));
+  }
 
   state(unstiff)
   {
     action
     {
-      LookAtAngles({.pan = JointAngles::off,
-                    .tilt = JointAngles::off});
+      TLOGD_STATE_ENTRY(unstiff);
+      LookAtAngles({.pan = JointAngles::off, .tilt = JointAngles::off});
       PlayDead();
+    }
+  }
+
+  state(prepare)
+  {
+    action 
+    { 
+      TLOGD_STATE_ENTRY(prepare);
+      LookAtAngles({.pan = theJointAngles.angles[Joints::headYaw], .tilt = theJointAngles.angles[Joints::headPitch]}); 
+      Prepare();
     }
   }
 
@@ -53,6 +73,8 @@ option((SkillBehaviorControl) HandlePlayerState)
   {
     action
     {
+      TLOGD_STATE_ENTRY(penalized);
+
       LookForward();
       Stand({.high = true});
     }

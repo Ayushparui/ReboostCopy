@@ -78,10 +78,17 @@
 #include "Tools/BehaviorControl/Strategy/PositionRole.h"
 #include "Tools/Motion/ReduceWalkSpeedType.h"
 #include "Tools/BehaviorControl/SideWalkingRequest.h"
+
+#include "Tools/RECommon/OnceFlag.h"
+#include "Tools/RECommon/EdgeTrigger.h"
+
 #include "Debugging/Annotation.h"
 #include "Framework/Module.h"
 #include "Platform/SystemCall.h"
+#include "TextLogging/TextLogging.h"
+
 #include <regex> // not needed in header, but would otherwise be broken by CABSL
+
 #include "Tools/BehaviorControl/Cabsl.h"
 
 #ifndef FULL_HEADER
@@ -153,6 +160,7 @@ MODULE(SkillBehaviorControl,
   REQUIRES(TeamData),
   REQUIRES(TeamBallModel),
   REQUIRES(WalkingEngineOutput),
+
   PROVIDES(ActivationGraph),
   REQUIRES(ActivationGraph),
   PROVIDES(ArmMotionRequest),
@@ -222,11 +230,11 @@ private:
   unsigned lastReceivePassRequestTimestamp = 0;
   int receivePassPlayerNumber = -1;
   bool isSlowingDownLookActive = false;
-
 protected:
   /** Executes the skill request. */
   void executeRequest();
 
+  OnceFlag startupAnnouncement;
   unsigned timeWhenAnnouncedEmptySkillRequest = 0; /**< The last time when the robot said that its skill request is empty. */
 
   ArmMotionRequest theArmMotionRequest; /**< The arm motion request that is modified by the behavior. */
@@ -246,3 +254,13 @@ protected:
 #include "Skills/Support/Support.h"
 #include "Skills/Walk/Walk.h"
 };
+
+
+
+#define DECL_OPTION_TLOGGER(ident_, lvl_) DECL_TLOGGER(tlogger, #ident_, lvl_); static EdgeTriggeri stateChanged{0}
+#define TLOGD_STATE_ENTRY(state_)                                                                                      \
+  do                                                                                                                   \
+  {                                                                                                                    \
+    if (stateChanged.update(__LINE__))                                                                                 \
+      TLOGD(tlogger, "Entered state: {}", #state_);                                                                    \
+  } while (0)

@@ -30,7 +30,7 @@ void RollingBallStateProvider::update(RollingBallState& theRollingBallState)
     if(!rampDistanceRange.isInside(theRollingBallState.approxRampDistance))
       theRollingBallState.approxRampDistance = rampDistanceRange.min;
 
-    SystemCall::say((std::to_string(static_cast<int>(theRollingBallState.approxRampDistance))).c_str());
+    SystemCall::say(std::to_string(static_cast<int>(theRollingBallState.approxRampDistance)));
   }
 
   theRollingBallState.maxRampDistance = rampDistanceRange.max;

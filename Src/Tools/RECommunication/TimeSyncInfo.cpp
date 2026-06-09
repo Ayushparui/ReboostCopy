@@ -22,7 +22,7 @@ DECL_TLOGGER(tlogger, "TimeSyncInfo", TextLogging::INFO);
 namespace RE
 {
 
-void TimeSyncInfo::updateGCInfo(uint8_t seqNumGC, unsigned timeReceivedGC, unsigned referenceTime)
+void TimeSyncInfo::updateGCInfo(uint8_t seqNumGC, unsigned timeReceivedGC, unsigned timeNow)
 {
   // ignore duplicate packets (or when no new packet has been received)
   if (!gameControllerInfos.empty() && ((gameControllerInfos.front().seqNumGC == seqNumGC) &&
@@ -31,17 +31,17 @@ void TimeSyncInfo::updateGCInfo(uint8_t seqNumGC, unsigned timeReceivedGC, unsig
 
   // delete any timestamps that are now too old to be useful
   while (!gameControllerInfos.empty() &&
-          (Time::getTimeBetween(gameControllerInfos.back().timeReceivedGC, referenceTime) > GC_TIMEOUT))
+          (Time::getTimeBetween(gameControllerInfos.back().timeReceivedGC, timeNow) > GC_TIMEOUT))
   {
     TLOGV(tlogger, "updateGCInfo: removing old GC seqNum {} that is {} ms old", gameControllerInfos.back().seqNumGC,
-          Time::getTimeBetween(gameControllerInfos.back().timeReceivedGC, referenceTime));
+          Time::getTimeBetween(gameControllerInfos.back().timeReceivedGC, timeNow));
     gameControllerInfos.pop_back();
   }
 
   // add in the new GC packet info
   gameControllerInfos.push_front(GCInfo(seqNumGC, timeReceivedGC));
 
-  TLOGD(tlogger, "updateGCInfo: frameTime {}, timeReceiveGC {}, gameControllerInfos seqNums {}", referenceTime,
+  TLOGD(tlogger, "updateGCInfo: frameTime {}, timeReceiveGC {}, gameControllerInfos seqNums {}", timeNow,
         timeReceivedGC, fmt::join(gameControllerInfos.begin(), gameControllerInfos.end(), ","));
 }
 

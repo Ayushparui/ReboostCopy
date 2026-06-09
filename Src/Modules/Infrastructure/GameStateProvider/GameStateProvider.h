@@ -16,12 +16,26 @@
 #include "Representations/Infrastructure/FrameInfo.h"
 #include "Representations/Infrastructure/GameState.h"
 #include "Representations/Infrastructure/SensorData/KeyStates.h"
+#include "Representations/Infrastructure/RobotSafetyState.h"
 #include "Representations/Modeling/BallInGoal.h"
 #include "Representations/Modeling/BallModel.h"
 #include "Representations/Modeling/Whistle.h"
 #include "Representations/Sensing/IMUValueState.h"
 #include "Framework/Module.h"
 #include "Math/RingBuffer.h"
+#include "Tools/RECommon/EdgeTrigger.h"
+
+
+#if defined TARGET_ROBOT && (defined __arm64__ || defined __aarch64__)
+#define TARGET_BOOSTER
+#endif
+
+#ifdef TARGET_BOOSTER
+#include "Representations/Infrastructure/SensorData/GamePad.h"
+#define BOOSTER_REQUIRES(representation_) REQUIRES(representation_),
+#else
+#define BOOSTER_REQUIRES(representation_)
+#endif
 
 MODULE(GameStateProvider,
 {,
@@ -30,6 +44,7 @@ MODULE(GameStateProvider,
   REQUIRES(BallSpecification),
   USES(BehaviorStatus),
   REQUIRES(EnhancedKeyStates),
+  BOOSTER_REQUIRES(GamePadEx)
   REQUIRES(FieldDimensions),
   REQUIRES(FrameInfo),
   REQUIRES(GameControllerData),
@@ -37,9 +52,11 @@ MODULE(GameStateProvider,
   REQUIRES(MotionInfo),
   REQUIRES(RefereeSignal),
   USES(RobotPose),
+  REQUIRES(RobotSafetyState),
   USES(TeamBallModel),
   REQUIRES(TeamData),
   REQUIRES(Whistle),
+
   PROVIDES(GameState),
   LOADS_PARAMETERS(
   {,
@@ -91,7 +108,12 @@ class GameStateProvider : public GameStateProviderBase
    * Resets the game state and members.
    * @param gameState The reset representation.
    */
-  void reset(GameState& gameState);
+  void reset(GameState &gameState);
+
+  /// handle Nao buttons - only call for Nao robots
+  void updateFromNaoHri(GameState& gameState);
+  /// handle buttons and gamepad from BoosterK1 - only call for K1 robots
+  void updateFromBoosterK1Hri(GameState& gameState);
 
   /**
    * Checks whether a whistle was heard. It is checked whether the average confidence of all
@@ -209,4 +231,15 @@ class GameStateProvider : public GameStateProviderBase
   std::vector<bool> penalizedForPushingOwnTeam; /**< Whether there is a penalty for pushing for all players in the own team. */
   bool isKickingTeam = false; /**< Whether a kick is for the own team. */
   unsigned timeWhenKickingTeamWasOverridden = 0; /**< The last time the kicking team was overridden. */
+
+  // HRI abstractions
+  bool unstiffModeRequested = false;
+  bool prepareModeRequested = false;
+  bool activeModeRequested = false;
+  bool calibrationModeRequested = false;
+  bool manualGameStateChangeRequested = false;
+  bool manualPhaseChangeRequested = false;
+
+  EdgeTrigger<RobotSafetyState::State> robotSafetyStateEdge {RobotSafetyState::operational};
+  unsigned timeWhenRobotBecameOperational = 0; ///< set on transition from anything else to operational, used to detect key
 };

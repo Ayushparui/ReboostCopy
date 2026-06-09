@@ -40,10 +40,15 @@ public:
   /** returns the real time since aTime*/
   static int getRealTimeSince(unsigned aTime);
 
-  /** returns the deltaTime between some referenceTime and timeToCheck;
-   * negative means before reference, positive means after it.
+  // /** returns the deltaTime between some referenceTime and timeToCheck;
+  //  * negative means before reference, positive means after it.
+  //  */
+  // static int getTimeBetween(unsigned referenceTime, unsigned timeToCheck);
+
+  /** returns the deltaTime between time1 and time2;
+   * positive when time2 later than time1, negative when time2 earlier than time1.
    */
-  static int getTimeBetween(unsigned referenceTime, unsigned timeToCheck);
+  static int getTimeBetween(unsigned time1, unsigned time2);
 
 #ifndef TARGET_ROBOT
   /** Initializes the system time. */
@@ -77,7 +82,11 @@ inline int Time::getRealTimeSince(unsigned aTime)
   return static_cast<int>(getRealSystemTime() - aTime);
 }
 
-inline int Time::getTimeBetween(unsigned referenceTime, unsigned timeToCheck)
+// inline int Time::getTimeBetween(unsigned referenceTime, unsigned timeToCheck)
+// {
+//   return static_cast<int>(timeToCheck - referenceTime);
+// }
+inline int Time::getTimeBetween(unsigned time1, unsigned time2)
 {
-  return static_cast<int>(timeToCheck - referenceTime);
+  return static_cast<int>(time2 - time1);
 }

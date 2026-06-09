@@ -81,7 +81,7 @@ bool NaoCamera::captureNew(int timeout)
     OUTPUT_ERROR(TypeRegistry::getEnumName(camera) << " camera : " << timeout << " ms passed and there's still no image to read from the camera. Terminating.");
     if(!pollTimedOut)
     {
-      SystemCall::say((std::string(TypeRegistry::getEnumName(camera)) + " camera timed out").c_str(), true);
+      SystemCall::say(std::string(TypeRegistry::getEnumName(camera)) + " camera timed out", true);
       pollTimedOut = true;
     }
     return false;

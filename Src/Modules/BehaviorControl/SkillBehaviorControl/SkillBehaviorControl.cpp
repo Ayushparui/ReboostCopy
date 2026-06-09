@@ -85,6 +85,9 @@ void SkillBehaviorControl::update(ActivationGraph&)
 
   theRefereeDetectionRequest.detectReferee = false;
 
+  if (startupAnnouncement.once())
+    SystemCall::playSound("startup_chord3.wav");
+
   // On request, tell the user whether a USB drive is mounted.
   if(theEnhancedKeyStates.hitStreak[KeyStates::headMiddle] == 3)
   {
@@ -97,26 +100,23 @@ void SkillBehaviorControl::update(ActivationGraph&)
   // On request, tell the user the temperature of the hottest joint.
   if((theEnhancedKeyStates.hitStreak[KeyStates::headRear] == 3 && theEnhancedKeyStates.pressedDuration[KeyStates::headFront] > 0) ||
      (theEnhancedKeyStates.hitStreak[KeyStates::headFront] == 3 && theEnhancedKeyStates.pressedDuration[KeyStates::headRear] > 0))
-    SystemCall::say((std::string(TypeRegistry::getEnumName(theGameState.color())) + " " + std::to_string(theGameState.playerNumber) + " " +
-                     std::regex_replace(TypeRegistry::getEnumName(theRobotHealth.jointWithMaxTemperature), std::regex("([A-Z])"), " $1") + " " +
-                     std::to_string(theJointSensorData.temperatures[theRobotHealth.jointWithMaxTemperature])).c_str(), true);
+    SystemCall::say(std::string(TypeRegistry::getEnumName(theGameState.color())) + " " +
+                        std::to_string(theGameState.playerNumber) + " " +
+                        std::regex_replace(TypeRegistry::getEnumName(theRobotHealth.jointWithMaxTemperature),
+                                           std::regex("([A-Z])"), " $1") +
+                        " " + std::to_string(theJointSensorData.temperatures[theRobotHealth.jointWithMaxTemperature]),
+                    true);
   else if(theEnhancedKeyStates.hitStreak[KeyStates::headFront] == 3)
   {
     // On request, tell the user the deployed configuration of this robot.
     std::string wavName = Global::getSettings().headName.c_str();
     wavName.append(".wav");
     SystemCall::playSound(wavName.c_str());
-    SystemCall::say(("is wearing a " +
-                     std::string(TypeRegistry::getEnumName(theGameState.color())) +
-                     " jersey with the number " +
-                     std::to_string(theGameState.playerNumber) +
-                     ". It is deployed in " +
-                     std::string(TypeRegistry::getEnumName(theRobotHealth.configuration)) +
-                     " for the " +
-                     theRobotHealth.scenario +
-                     " scenario at the " +
-                     theRobotHealth.location +
-                     " location.").c_str(), true, 0.9f);
+    SystemCall::say("is wearing a " + std::string(TypeRegistry::getEnumName(theGameState.color())) +
+                        " jersey with the number " + std::to_string(theGameState.playerNumber) + ". It is deployed in " +
+                        std::string(TypeRegistry::getEnumName(theRobotHealth.configuration)) + " for the " +
+                        theRobotHealth.scenario + " scenario at the " + theRobotHealth.location + " location.",
+                    true, 0.9f);
   }
 
   beginFrame(theFrameInfo.time);

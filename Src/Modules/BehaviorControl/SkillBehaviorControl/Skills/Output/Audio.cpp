@@ -53,7 +53,7 @@ option((SkillBehaviorControl) Say,
     }
     action
     {
-      SystemCall::say(text.c_str(), force, speed);
+      SystemCall::say(text, force, speed);
       lastTextSaid = text;
     }
   }

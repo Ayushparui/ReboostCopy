@@ -18,7 +18,6 @@
 #include <booster/robot/b1/b1_loco_client.hpp>
 #include <booster/robot/channel/channel_publisher.hpp>
 
-#include <chrono>
 #include <csignal>
 #include <cstdio>
 #include <cstring>
@@ -107,9 +106,71 @@ static Settings::RobotType getRobotType(const std::string& robotName)
   return Settings::nao;
 }
 
+
+/// only returns to the forked child code
+void watchdogMain()
+{
+  for (;;)
+  {
+    roboeireannPid = fork();
+    if (roboeireannPid == -1)
+      exit(EXIT_FAILURE);
+    else if (roboeireannPid == 0) // if this is the newly forked child
+      return; // exit the watchdog-specific code
+
+    // this is the watchdog main code continuing
+    Thread::nameCurrentThread("WatchdogMain");
+    TLOGI(tlogger, "Starting watchdog process");
+
+    int status;
+    signal(SIGTERM, sighandlerRedirect);
+    signal(SIGINT, sighandlerRedirect);
+    if (waitpid(roboeireannPid, &status, 0) != roboeireannPid)
+    {
+      exit(EXIT_FAILURE);
+    }
+    signal(SIGTERM, SIG_DFL);
+    signal(SIGINT, SIG_DFL);
+
+    // we only get here when the child process exited
+    // was it requested/normal exit?
+    bool normalExit = !run || (WIFEXITED(status) && WEXITSTATUS(status) == EXIT_SUCCESS);
+
+    TLOGI(tlogger, "Child process has exited, requested={}, normalExit={}, exitStatus={}", !run, WIFEXITED(status) != 0,
+          WEXITSTATUS(status));
+
+    if (normalExit)
+      exit(WIFEXITED(status) ? WEXITSTATUS(status) : EXIT_FAILURE);
+    else // abnormal exit
+    {
+      // dump trace and assert trace
+      // Dump to file first, because writing to stderr may fail for various reasons.
+      const int sig = WIFSIGNALED(status) ? int(WTERMSIG(status)) : 0;
+      Assert::logDump(false, sig);
+      Assert::logDump(true, sig);
+
+      // Switch Booster back to damping mode.
+      booster::robot::ChannelFactory::Instance()->Init(0);
+      booster::robot::b1::B1LocoClient client;
+
+      client.Init();
+      usleep(10000);
+      
+      TLOGI(tlogger, "Switching robot back to damping mode");
+      const int result = client.ChangeMode(booster::robot::RobotMode::kDamping);
+      if (result != 0)
+        TLOGE(tlogger, "Switching robot back to damping mode failed with error {}!", result);
+
+      exit(EXIT_FAILURE);
+    }
+  }
+}
+
+
 int main(int argc, char* argv[])
 {
-  booster::robot::b1::B1LocoClient client;
+  booster::robot::b1::B1LocoClient client; // here so that it is not destroyed when the next block ends
+  
   {
     // Set stdout to be unbuffered.
     // This has previously been done using stdbuf, but this does not work for a 64-bit program on a 32-bit system.
@@ -117,15 +178,15 @@ int main(int argc, char* argv[])
     setvbuf(stderr, nullptr, _IONBF, 0);
 
     mainThread = pthread_self();
-    Thread::nameCurrentThread("Main"); // for text logging output
+    Thread::nameCurrentThread("StartupMain"); // for text logging output
 
     // parse command-line arguments
     bool watchdog = false;
-    const char* bhDir = "/home/booster";
+    const char* runtimeDataRootDir = "/home/booster";
 
     for(int i = 1; i < argc; ++i)
       if(!strcmp(argv[i], "-c") && i + 1 < argc)
-        bhDir = argv[++i];
+        runtimeDataRootDir = argv[++i];
       else if(!strcmp(argv[i], "-w"))
         watchdog = true;
       else
@@ -146,73 +207,23 @@ Usage: {} [-c <dir>] [-w]\n\
     }
 
     // change working directory
-    if(*bhDir && chdir(bhDir) != 0)
+    if(*runtimeDataRootDir && chdir(runtimeDataRootDir) != 0)
     {
       TLOGE(tlogger, "chdir to base config directory failed!\n");
       exit(EXIT_FAILURE);
     }
 
     // the watchdog
-    if(watchdog)
-    {
-      for(;;)
-      {
-        roboeireannPid = fork();
-        if(roboeireannPid == -1)
-          exit(EXIT_FAILURE);
-        else if(roboeireannPid == 0) // this is the newly forked child
-          break;
-
-        // this is the parent code continuing
-        Thread::nameCurrentThread("WatchdogMain");
-        TLOGI(tlogger, "Starting watchdog process");
-
-        int status;
-        signal(SIGTERM, sighandlerRedirect);
-        signal(SIGINT, sighandlerRedirect);
-        if(waitpid(roboeireannPid, &status, 0) != roboeireannPid)
-        {
-          exit(EXIT_FAILURE);
-        }
-        signal(SIGTERM, SIG_DFL);
-        signal(SIGINT, SIG_DFL);
-
-        // we only get here when the child process exited
-        // was it requested/normal exit?
-        bool normalExit = !run || (WIFEXITED(status) && WEXITSTATUS(status) == EXIT_SUCCESS);
-
-        TLOGI(tlogger, "Child process has exited, requested={}, normalExit={}, exitStatus={}", !run,
-              WIFEXITED(status) == 0, WEXITSTATUS(status));
-
-        // dump trace and assert trace
-        if(!normalExit)
-        {
-          // Dump to file first, because writing to stderr may fail for various reasons.
-          Assert::logDump(false, WIFSIGNALED(status) ? int(WTERMSIG(status)) : 0);
-          Assert::logDump(true, WIFSIGNALED(status) ? int(WTERMSIG(status)) : 0);
-
-          // Switch Booster back to damping mode.
-          booster::robot::ChannelFactory::Instance()->Init(0);
-          booster::robot::b1::B1LocoClient client;
-          client.Init();
-          usleep(10000);
-          TLOGI(tlogger, "Switching robot back to damping mode");
-          const int result = client.ChangeMode(booster::robot::RobotMode::kDamping);
-          if(result)
-          {
-            TLOGE(tlogger, "Switching robot back to damping mode failed with error {}!", result);
-            return EXIT_FAILURE;
-          }
-        }
-
-        // quit
-        exit(WIFEXITED(status) && normalExit ? WEXITSTATUS(status) : EXIT_FAILURE);
-      }
-    }
+    if (watchdog)
+      watchdogMain(); // only returns if this is the child process
 
     // =======================================================================
     // The child process code
     // =======================================================================
+
+    Thread::nameCurrentThread("Main"); // for text logging output
+    TextLogging::logStartupTime(tlogger, TextLogging::INFO);
+
 
     // Initialize connection to robot at realtime priority.
     sched_param param;
@@ -222,6 +233,7 @@ Usage: {} [-c <dir>] [-w]\n\
       TLOGE(tlogger, "Raising priority failed!");
       return EXIT_FAILURE;
     }
+
     booster::robot::ChannelFactory::Instance()->Init(0);
     param.sched_priority = 0;
     if(pthread_setschedparam(pthread_self(), SCHED_OTHER, &param))
@@ -258,17 +270,14 @@ Usage: {} [-c <dir>] [-w]\n\
       return EXIT_FAILURE;
 
 
-    TextLogging::logStartupTime(tlogger, TextLogging::INFO);
-
-
     // print status information
-    TLOGI(tlogger, "Hi, I am {}.", settings.headName.c_str());
+    TLOGI(tlogger, "Hi, I am {}.", settings.headName);
     TLOGI(tlogger, "teamNumber {}", settings.teamNumber);
     TLOGI(tlogger, "fieldPlayerColor {}", TypeRegistry::getEnumName(settings.fieldPlayerColor));
     TLOGI(tlogger, "goalkeeperColor {}", TypeRegistry::getEnumName(settings.goalkeeperColor));
     TLOGI(tlogger, "playerNumber {}", settings.playerNumber);
-    TLOGI(tlogger, "location {}", settings.location.c_str());
-    TLOGI(tlogger, "scenario {}", settings.scenario.c_str());
+    TLOGI(tlogger, "location {}", settings.location);
+    TLOGI(tlogger, "scenario {}", settings.scenario);
     TLOGI(tlogger, "magicNumber {}", settings.magicNumber);
 
     // put the current body name in a file (at the moment only used in downloadCalibration)
