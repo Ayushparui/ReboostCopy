@@ -97,9 +97,9 @@ namespace RE
 
     // game functions
 
-    bool isOurTeamKick() { return theREGameInfo.isOurKick(); }
+    bool isOurTeamKick() { return theGameState.isForOwnTeam(); }
 
-    bool isNoTeamKick() { return theREGameInfo.isNoTeamKick(); }
+    bool isNoTeamKick() { return theGameControllerData.isNoTeamKick(); }
 
     // coordinate systems
 
@@ -144,7 +144,8 @@ namespace RE
     BehaviourEnv& env;
 
     READS(RobotPose);
-    READS(REGameInfo);
+    READS(GameState);
+    READS(GameControllerData);
 
     BehaviorStatusSkills statusSkills {env};
     HeadSkills headSkills {env};

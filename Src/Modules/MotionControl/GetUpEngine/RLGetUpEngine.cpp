@@ -257,7 +257,7 @@ void RLGetUpPhase::update()
       if(engine.theFrameInfo.getTimeSince(startTime) >= engine.breakUpTime
          && tryCounter < engine.maxTryCounter)
       {
-        if(!engine.theGameState.isStopped())
+        if(!engine.theGameState.isMotionStoppedState())
           setUpRecovery();
         else if(engine.theFrameInfo.getTimeSince(lastStopSoundTimestamp) > engine.stopSoundTime)
         {

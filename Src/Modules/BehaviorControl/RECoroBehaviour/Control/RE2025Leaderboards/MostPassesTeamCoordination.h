@@ -50,13 +50,12 @@ namespace Leaderboards
       {
         // NOTE: we completely ignore set plays
 
-        if ((theREGameInfo.state == STATE_INITIAL) || (theREGameInfo.state == STATE_STANDBY) ||
-            (theREGameInfo.state == STATE_READY) || (theREGameInfo.state == STATE_SET))
+        if (theGameState.isInitial(/*orStandby*/ true) || theGameState.isReady() || theGameState.isSet())
         {
           CR_CHECKPOINT(initial_standby_ready_set);
           updateTeamInfoKickoff();
         }
-        else if (theREGameInfo.state == STATE_PLAYING)
+        else if (theGameState.isPlaying())
         {
           CR_CHECKPOINT(normal_play);
           updateTeamInfoPlaying();
@@ -87,7 +86,7 @@ namespace Leaderboards
     // READS(FrameInfo);
     READS(BehaviorStatus);
     READS(RobotPose);
-    READS(REGameInfo);
+    // READS(REGameInfo);
     READS(ExtendedGameState);
     READS(GameState);
     READS(FrameInfo);
@@ -281,7 +280,7 @@ namespace Leaderboards
      */
     void updateOwnTacticInfo()
     {
-      int i = theREGameInfo.playerIndex();
+      int i = theGameState.playerIndex();
 
       theREActiveTactic.formationRole = theREActiveTactic.formationRoles[i];
       theREActiveTactic.situationRole = theREActiveTactic.situationRoles[i];
@@ -322,7 +321,7 @@ namespace Leaderboards
 
       assumedBallPosValid = true;
 
-      if (theREGameInfo.state != STATE_PLAYING) // FIXME add in special cases for penalties etc here
+      if (theGameState.isPlaying()) // FIXME add in special cases for penalties etc here
       {
         assumedBallPos = Vector2f::Zero();
         assumedBallPosValid = false;
@@ -373,7 +372,7 @@ namespace Leaderboards
 //           CIRCLE("behaviour:MostPassesTeamCoordination", pose.translation.x(), pose.translation.y(), 150, 30,
 //                   Drawings::solidPen, posColor, Drawings::noBrush, ColorRGBA::black);
 // 
-//           if (playerNumber == theREGameInfo.playerNumber) // self?          
+//           if (playerNumber == theGameState.playerNumber) // self?          
 //             CIRCLE("behaviour:MostPassesTeamCoordination", pose.translation.x(), pose.translation.y(), 220, 50,
 //                     Drawings::solidPen, posColor, Drawings::noBrush, ColorRGBA::black);
 // 

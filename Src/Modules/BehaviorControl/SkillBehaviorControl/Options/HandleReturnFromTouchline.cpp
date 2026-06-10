@@ -27,7 +27,7 @@ option((SkillBehaviorControl) HandleReturnFromTouchline,
     {
       if((theExtendedGameState.wasPenalized() &&
           theGameState.isPlaying() &&
-          theExtendedGameState.playerStateLastFrame != GameState::penalizedIllegalMotionInSet) ||
+          theExtendedGameState.playerStateLastFrame != GameState::penalizedMotionInSet) ||
          (theExtendedGameState.wasInitial() &&
           theGameState.isReady() &&
           theGameState.kickOffSetupFromTouchlines &&

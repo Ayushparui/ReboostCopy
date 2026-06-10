@@ -33,11 +33,9 @@
   #include "Representations/MotionControl/MotionRequest.h"
   #include "Representations/MotionControl/WalkingEngineOutput.h"
 
-  #include "Representations/Communication/REGameInfo.h" // TODO replace with GameState.h
   #include "Representations/Communication/RETeamData.h"
   #include "Representations/Communication/RETeamMessage2025.h"
 
-  // #include "Representations/Infrastructure/ExtendedGameInfo.h" // now in GameState.h
   #include "Representations/Infrastructure/GameState.h"
 
   #include "Representations/Sensing/FallDownState.h"
@@ -106,7 +104,6 @@ MODULE(TeamBehaviourModule2025,
     X_USES(MotionRequest)
     X_REQUIRES(WalkingEngineOutput)
 
-    X_REQUIRES(REGameInfo)
     X_REQUIRES(GameState)
 
     X_REQUIRES(RETeamData)

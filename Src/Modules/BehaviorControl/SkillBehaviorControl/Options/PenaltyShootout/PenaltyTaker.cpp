@@ -48,8 +48,8 @@ option((SkillBehaviorControl) PenaltyTaker,
     return ((theFrameInfo.time >> 4) & 1) != 0;
   };
 
-  if(theGameState.isPushingFreeKick())
-    Say({.text = "Taking Penalty"});
+  // if(theGameState.isPushingFreeKick())
+  //   Say({.text = "Taking Penalty"});
 
   const int timeSincePenaltyShootoutStarted = theFrameInfo.getTimeSince(theGameState.timeWhenStateStarted);
   const int timeUntilPenaltyShootoutEnds = -theFrameInfo.getTimeSince(theGameState.timeWhenStateEnds);

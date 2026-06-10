@@ -9,17 +9,17 @@
 
 #pragma once
 
+#include "Representations/Modeling/RETeammatesLocationModel.h"
+
+#include "Framework/Module.h"
+
 #include "Representations/Configuration/SetupPoses.h"
 #include "Representations/Infrastructure/FrameInfo.h"
 #include "Representations/BehaviorControl/REActiveTactic.h"
 #include "Representations/BehaviorControl/FieldBall.h"
-#include "Representations/Communication/REGameInfo.h"
 #include "Representations/Communication/RETeamData.h"
 #include "Representations/MotionControl/WalkingEngineOutput.h"
-
-#include "Representations/Modeling/RETeammatesLocationModel.h"
-
-#include "Framework/Module.h"
+#include "Representations/Infrastructure/GameState.h"
 
 #include <vector>
 
@@ -29,7 +29,7 @@ MODULE(RETeammatesLocator,
   REQUIRES(FrameInfo), 
   REQUIRES(RobotPose), 
   REQUIRES(RETeamData),
-  REQUIRES(REGameInfo),
+  REQUIRES(GameState),
 
   USES(REActiveTactic), // must be uses because it is produced by TeamBehaviour which depends on TeammatesLocationModel
   USES(FieldBall), 

@@ -28,10 +28,9 @@
 
 #include "Representations/Modeling/RETeammatesLocationModel.h"
 
-#include "Representations/Communication/REGameInfo.h"
 #include "Representations/Communication/RETeamData.h"
+#include "Representations/Communication/GameControllerData.h"
 
-// #include "Representations/Infrastructure/ExtendedGameInfo.h"
 #include "Representations/Infrastructure/GameState.h"
 
 #include "Representations/Sensing/FallDownState.h"
@@ -67,8 +66,7 @@ MODULE(RETeamMessageHandler2025b,
   REQUIRES(FrameInfo),
   REQUIRES(MotionInfo),
   REQUIRES(WalkingEngineOutput),
-  USES(REGameInfo), // includes whistle based guesses
-  USES(REGameControlDataReceived), // as it came from the game controller
+  USES(GameControllerData), // as it came from the game controller
   
   USES(GameState), // replaces REGameInfo sometimes because of way states have changed
   USES(ExtendedGameState),
@@ -182,6 +180,8 @@ private:
   unsigned receivedMessagesLogTime = 0;
   int receivedMessagePlayerNum = -1;
 
+
+  unsigned timeOfMostRecentRestart() const;
 
   // --------------------------------------------------------------------------
   // output stuff

@@ -209,8 +209,9 @@ void REGameInfoProvider::updateIllegalMotionPenalties(REGameInfo& gameInfo)
   if (gameInfo.stateIsGuessed &&
       ((theREGameControlDataReceived.state == STATE_SET) || (theREGameControlDataReceived.state == STATE_STANDBY)))
   {
-    unsigned penalty = (theREGameControlDataReceived.state == STATE_SET) ? PENALTY_SPL_ILLEGAL_MOTION_IN_SET
-                                                                       : PENALTY_SPL_ILLEGAL_MOTION_IN_STANDBY;
+    // unsigned penalty = (theREGameControlDataReceived.state == STATE_SET) ? PENALTY_SPL_ILLEGAL_MOTION_IN_SET
+    //                                                                    : PENALTY_SPL_ILLEGAL_MOTION_IN_STANDBY;
+    unsigned penalty = PENALTY_MOTION_IN_SET;
 
     for (int iTeam = 0; iTeam < 2; iTeam++)
     {
@@ -298,7 +299,7 @@ void REGameInfoProvider::updateBallMotion(REGameInfo& gameInfo)
   if (!ballMoved) // ballMoved will be set to false at the start of any play where we want to track ball movement
   {
     const bool isPenaltyKick =
-      ((gameInfo.gamePhase == GAME_PHASE_PENALTYSHOOT) || (gameInfo.setPlay == SET_PLAY_PENALTY_KICK));
+      ((gameInfo.gamePhase == GAME_PHASE_PENALTY_SHOOT_OUT) || (gameInfo.setPlay == SET_PLAY_PENALTY_KICK));
     const float closeToRobotDistance = theFieldDimensions.centerCircleRadius - ballMovedCloseToRobotThreshold;
 
     // Did this robot kick the ball?
@@ -401,7 +402,7 @@ void REGameInfoProvider::setBallFree(REGameInfo& gameInfo)
 void REGameInfoProvider::updateKickoffAndSetPlayBallFree(REGameInfo& gameInfo)
 {
   const bool isPenaltyKick =
-    ((gameInfo.gamePhase == GAME_PHASE_PENALTYSHOOT) || (gameInfo.setPlay == SET_PLAY_PENALTY_KICK));
+    ((gameInfo.gamePhase == GAME_PHASE_PENALTY_SHOOT_OUT) || (gameInfo.setPlay == SET_PLAY_PENALTY_KICK));
 
   // have we just started a kickoff period (just transitioned to playing AND not doing a penalty)?
   // (Note: we include a number of different transitions to allow for some direct transitions
@@ -628,7 +629,7 @@ void REGameInfoProvider::updateGuessedState(REGameInfo& gameInfo)
   bool whistleDetected = checkWhistle(gameInfo);
 
   const bool isPenaltyKick =
-      ((gameInfo.gamePhase == GAME_PHASE_PENALTYSHOOT) || (gameInfo.setPlay == SET_PLAY_PENALTY_KICK));
+      ((gameInfo.gamePhase == GAME_PHASE_PENALTY_SHOOT_OUT) || (gameInfo.setPlay == SET_PLAY_PENALTY_KICK));
 
   // Switching from GC SET --> guessed PLAYING (and possibly kickoff):
   //   when the GameController is sending SET, and we are not guessing yet, and we heard a whistle.

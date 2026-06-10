@@ -213,7 +213,7 @@ namespace DBHC
 
       ACTGRAPH_FMT("prevPassKicker {}, receiver {}", prevPassKicker, prevPassReceiver);
 
-      if (theREGameInfo.playerNumber == 1)
+      if (theGameState.playerNumber == 1)
       {
         // Robot 1 make the first pass to either winger
         CR_CHECKPOINT(pass_to_winger);
@@ -286,7 +286,7 @@ namespace DBHC
     READS(FieldBall);
     READS(FieldDimensions);
     READS(RETeamData);
-    READS(REGameInfo);
+    READS(GameState);
     
     CommonSkills commonSkills {env};
     HeadSkills headSkills{env};
@@ -356,13 +356,13 @@ namespace DBHC
 //       // if the robot is close to the half way line, move to forward receive pose
 // 
 // 
-//       passTargetPlayer = (theREGameInfo.playerNumber == 2) ? 3 : 2;
+//       passTargetPlayer = (theGameState.playerNumber == 2) ? 3 : 2;
 //       passTargetOnField = Vector2f(xOffset1, (yOffset1 -250.f) * -side);
 //     }
 // 
     void chooseAdaptivePassTarget()
     {
-      passTargetPlayer = (theREGameInfo.playerNumber == 2) ? 3 : 2;
+      passTargetPlayer = (theGameState.playerNumber == 2) ? 3 : 2;
 
       // get position of pass target
 
@@ -439,7 +439,7 @@ namespace DBHC
       {
         if (theREActiveTactic.situationRole == PlayerRole::ballPlayer)
           attackingBallPlayerPlayingTask(prevPassKicker, prevPassReceiver);
-        else if (theREGameInfo.playerNumber == 1) // if player 1 is no longer the ball player, just support
+        else if (theGameState.playerNumber == 1) // if player 1 is no longer the ball player, just support
           attackingSupporterPlayingTask();
         else
           attackingReceiverPlayingTask();
@@ -456,7 +456,7 @@ namespace DBHC
 
   private:
     READS(REActiveTactic);
-    READS(REGameInfo);
+    READS(GameState);
 
     AttackingBallPlayerPlayingTask attackingBallPlayerPlayingTask {env};
     AttackingReceiverPlayingTask attackingReceiverPlayingTask {env};

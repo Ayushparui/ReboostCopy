@@ -213,7 +213,7 @@ namespace RE
       (Rangef) forwardFastKickRange, ///< the min and max distance of forwardFastLeft/Right kicks (depends on location)
     });
 
-    READS(REGameInfo);
+    READS(GameState);
     READS(FieldBall);
     READS(BallModel);
     READS(KickInfo);
@@ -240,7 +240,7 @@ namespace RE
       float goalieIgnoreObstaclesDistance =
           started ? params.goalkeeperIgnoreObstaclesDistanceStop : params.goalkeeperIgnoreObstaclesDistanceStart;
 
-      return (theREGameInfo.isGoalkeeper() && (kickPose.translation.norm() < goalieIgnoreObstaclesDistance));
+      return (theGameState.isGoalkeeper() && (kickPose.translation.norm() < goalieIgnoreObstaclesDistance));
     }
 
     /**

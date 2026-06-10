@@ -290,7 +290,7 @@ void RETeamMessageHandler2025b::update(RETeamMessage2025OutputGenerator& outputG
        (theFrameInfo.getTimeSince(sentMessagesLogTime) >= 15000)))
   {
     TLOGI(txLogger, "sentMessages {}, sender {}, last timestamp {} and frameTimeSent {}", outputGenerator.sentMessages,
-          theREGameInfo.playerNumber, sentTeamMessage.teamMessage.timestamp, sentTeamMessage.frameTime);
+          theGameState.playerNumber, sentTeamMessage.teamMessage.timestamp, sentTeamMessage.frameTime);
 
     sentMessagesLogged = outputGenerator.sentMessages;
     sentMessagesLogTime = theFrameInfo.time;
@@ -325,24 +325,43 @@ void RETeamMessageHandler2025b::update(RETeamMessage2025OutputGenerator& outputG
   }
 }
 
+unsigned RETeamMessageHandler2025b::timeOfMostRecentRestart() const
+{
+  const auto& startTimes = theExtendedGameState.timeWhenStateStarted;
+  // clang-format off
+  return std::max({
+      startTimes[GameState::playing],
+      startTimes[GameState::ownDirectFreeKick],
+      startTimes[GameState::opponentDirectFreeKick],
+      startTimes[GameState::ownIndirectFreeKick],
+      startTimes[GameState::opponentIndirectFreeKick],
+      startTimes[GameState::ownThrowIn],
+      startTimes[GameState::opponentThrowIn],
+      startTimes[GameState::ownGoalKick],
+      startTimes[GameState::opponentGoalKick],
+      startTimes[GameState::ownCornerKick],
+      startTimes[GameState::opponentCornerKick],
+  });
+  // clang-format on
 
+}
 void RETeamMessageHandler2025b::generateOutputMessage(RETeamMessage2025OutputGenerator& outputGenerator) const
 {
   RETeamMessage2025& teamMessage = outputGenerator.teamMessage;
 
   // outputGenerator.theBSPLStandardMessage.teamNum = static_cast<uint8_t>(Global::getSettings().teamNumber);
 
-  teamMessage.playerNum = static_cast<uint8_t>(theREGameInfo.playerNumber);
+  teamMessage.playerNum = static_cast<uint8_t>(theGameState.playerNumber);
 
   // timeSyncInfo
-  teamMessage.seqNumGC = theREGameControlDataReceived.packetNumber;
-  teamMessage.timeReceivedGC = theREGameControlDataReceived.timeLastPacketReceived;
+  teamMessage.seqNumGC = theGameControllerData.packetNumber;
+  teamMessage.timeReceivedGC = theGameControllerData.timeLastPacketReceived;
 
   // outputGenerator.teamMessage.seqNum = outputGenerator.sentMessages % 15; // TBD not used
 
   teamMessage.timestamp = Time::getCurrentSystemTime();
 
-  teamMessage.isPenalized = (theREGameInfo.isPenalized());
+  teamMessage.isPenalized = (theGameState.isPenalized());
   teamMessage.isUpright = isUpright;
 
   prevFrameKickedSinceRestart = kickedSinceRestart;
@@ -350,21 +369,9 @@ void RETeamMessageHandler2025b::generateOutputMessage(RETeamMessage2025OutputGen
   // int timeSinceLastKick = theFrameInfo.getTimeSince(theMotionInfo.lastKickTimestamp);
   // teamMessage.kickedSinceRestart = (timeSinceLastKick < theExtendedGameState.timeSincePlayingStarted) &&
   //                                  (timeSinceLastKick < theExtendedGameInfo.timeSinceFreeKickStarted);
-  const auto& startTimes = theExtendedGameState.timeWhenStateStarted;
   const unsigned lastKick = theMotionInfo.lastKickTimestamp;
 
-  // clang-format off
-  teamMessage.kickedSinceRestart = 
-      lastKick > startTimes[GameState::playing] &&
-      lastKick > startTimes[GameState::ownPushingFreeKick] &&
-      lastKick > startTimes[GameState::opponentPushingFreeKick] &&
-      lastKick > startTimes[GameState::ownKickIn] &&
-      lastKick > startTimes[GameState::opponentKickIn] &&
-      lastKick > startTimes[GameState::ownGoalKick] &&
-      lastKick > startTimes[GameState::opponentGoalKick] &&
-      lastKick > startTimes[GameState::ownCornerKick] &&
-      lastKick > startTimes[GameState::opponentCornerKick];
-  // clang-format on
+  teamMessage.kickedSinceRestart = lastKick > timeOfMostRecentRestart();  
 
   kickedSinceRestart = teamMessage.kickedSinceRestart;
 
@@ -563,9 +570,9 @@ void RETeamMessageHandler2025b::sendMessageBytes(RETeamMessage2025OutputGenerato
 
   // if ((outputGenerator.sentMessages == 1) || (outputGenerator.sentMessages % 15 == 0))
   //   TLOGI(txLogger, "sent msg from {}, sentMessages {}, timestamp {}, frameTimeSent {}",
-  //         theREGameInfo.playerNumber, outputGenerator.sentMessages, outputGenerator.teamMessage.timestamp, theFrameInfo.time);
+  //         theGameState.playerNumber, outputGenerator.sentMessages, outputGenerator.teamMessage.timestamp, theFrameInfo.time);
   // else
-    TLOGD(txLogger, "sent msg from {}, sentMessages {}, timestamp {}, frameTimeSent {}", theREGameInfo.playerNumber,
+    TLOGD(txLogger, "sent msg from {}, sentMessages {}, timestamp {}, frameTimeSent {}", theGameState.playerNumber,
           outputGenerator.sentMessages, outputGenerator.teamMessage.timestamp, theFrameInfo.time);
 }
 
@@ -587,8 +594,8 @@ void RETeamMessageHandler2025b::update(RETeamData& teamData)
   messageDesirabilityUpdated = false;
 
   // update timeSync with the latest GC times we have before processing received team messages
-  timeSyncInfo.updateGCInfo(theREGameControlDataReceived.packetNumber,
-                            theREGameControlDataReceived.timeLastPacketReceived, theFrameInfo.time);
+  timeSyncInfo.updateGCInfo(theGameControllerData.packetNumber,
+                            theGameControllerData.timeLastPacketReceived, theFrameInfo.time);
 
 //   teamMessageSocketHandler.receive(inputTeamMessageBytesBuffer); // pushes received message onto back of buffer, so oldest message is the front of the buffer
 //   if (!inputTeamMessageBytesBuffer.empty())
@@ -655,7 +662,7 @@ void RETeamMessageHandler2025b::update(RETeamData& teamData)
 
   maintainTeammateList(teamData);
 
-  lastGCPacketReceivedTime = theREGameInfo.timeLastPacketReceived;
+  lastGCPacketReceivedTime = theGameControllerData.timeLastPacketReceived;
 
   if (((teamData.receivedMessages == 1) && (receivedMessagesLogTime == 0)) ||
       ((teamData.receivedMessages > receivedMessagesLogged) &&
@@ -686,7 +693,7 @@ void RETeamMessageHandler2025b::update(RETeamData& teamData)
 
 void RETeamMessageHandler2025b::maintainTeammateList(RETeamData& teamData) const
 {
-  const REGameInfo::TeamInfo& ourTeam = theREGameInfo.ourTeam();
+  // const REGameInfo::TeamInfo& ourTeam = theREGameInfo.ourTeam();
 
   // --------------------------------------------------------------------------
   // update teamData based on GC messages
@@ -695,18 +702,19 @@ void RETeamMessageHandler2025b::maintainTeammateList(RETeamData& teamData) const
 
   for  (auto& teammate : teamData.teammates)
   {
-    const REGameInfo::RobotInfo& teammateRobotInfo = ourTeam.getPlayer(Settings::toPlayerIndex(teammate.number));
+    int playerIndex = Settings::toPlayerIndex(teammate.number);
+    GameState::PlayerState teammatePlayerState = theGameState.ownTeam.playerStates[playerIndex];
     RETeammate::Status newStatus = RETeammate::PLAYING;
 
     // ensure teammates update isPenalized - it won;t be updated by the robot
     // itself since it cannot send messages while penalized
-    if (teammateRobotInfo.isPenalized())
+    if (GameState::isPenalized(teammatePlayerState))
       teammate.isPenalized = true;
 
     if  (teammate.isPenalized)
     {
-      if (teammateRobotInfo.isPenalized(PENALTY_SPL_REQUEST_FOR_PICKUP) ||
-          teammateRobotInfo.isPenalized(PENALTY_SUBSTITUTE))
+      if ((teammatePlayerState == GameState::penalizedSentOff) ||
+          (teammatePlayerState == GameState::penalizedRequestForPickup) || (teammatePlayerState == GameState::substitute))
         newStatus = RETeammate::ABSENT;
       else
         newStatus = RETeammate::PENALIZED;
@@ -725,48 +733,47 @@ void RETeamMessageHandler2025b::maintainTeammateList(RETeamData& teamData) const
     // if ((theExtendedGameInfo.timeSincePlayingStarted == 0) || (theExtendedGameInfo.timeSinceFreeKickStarted == 0))
     //   teammate.kickedSinceRestart = false;
 
-    if ((theFrameInfo.getTimeSince(theExtendedGameState.timeWhenStateStarted[GameState::playing]) == 0) ||
-        (theFrameInfo.getTimeSince(theExtendedGameState.timeWhenStateStarted[GameState::ownPushingFreeKick]) == 0) ||
-        (theFrameInfo.getTimeSince(theExtendedGameState.timeWhenStateStarted[GameState::opponentPushingFreeKick]) == 0) ||
-        (theFrameInfo.getTimeSince(theExtendedGameState.timeWhenStateStarted[GameState::ownKickIn]) == 0) ||
-        (theFrameInfo.getTimeSince(theExtendedGameState.timeWhenStateStarted[GameState::opponentKickIn]) == 0) ||
-        (theFrameInfo.getTimeSince(theExtendedGameState.timeWhenStateStarted[GameState::ownGoalKick]) == 0) ||
-        (theFrameInfo.getTimeSince(theExtendedGameState.timeWhenStateStarted[GameState::opponentGoalKick]) == 0) ||
-        (theFrameInfo.getTimeSince(theExtendedGameState.timeWhenStateStarted[GameState::ownCornerKick]) == 0) ||
-        (theFrameInfo.getTimeSince(theExtendedGameState.timeWhenStateStarted[GameState::opponentCornerKick]) == 0))
-    {
+    // reset teammate.kickedSinceRestart if we are just noting a restart now. We assume the next teammate
+    // message will let us know if they did kick or not.
+    if (theFrameInfo.getTimeSince(timeOfMostRecentRestart()) == 0)
       teammate.kickedSinceRestart = false;
-    }
 
-    teammate.isGoalkeeper = Settings::isGoalkeeper(teammate.number);
+    teammate.isGoalkeeper = theGameState.ownTeam.isGoalkeeper(teammate.number);
   }
 
   // --------------------------------------------------------------------------
   // add robots if they are just now appearing in GC, but only in the INITIAL, STANDBY, or READY states.
   // In other states or if returning from penalty, robots have to announce themselves
   // --------------------------------------------------------------------------
-  if ((theREGameInfo.timeLastPacketReceived != lastGCPacketReceivedTime) // new GC packet received
-      && ((theREGameInfo.state == STATE_INITIAL) || (theREGameInfo.state == STATE_STANDBY) ||
-          (theREGameInfo.state == STATE_READY)))
+  if ((theGameControllerData.timeLastPacketReceived != lastGCPacketReceivedTime) // new GC packet received
+      && (theGameState.isInitial() || //(theREGameInfo.state == STATE_STANDBY) ||
+          theGameState.isReady()))
   {
     // first make it easy to lookup the existing set of known robots
     std::vector<RETeammate *> teammatesByNumber(Settings::highestValidPlayerNumber + 1, nullptr);
     for (auto &teammate : teamData.teammates)
       teammatesByNumber[teammate.number] = &teammate;
 
-    for (unsigned i = 0; i < theREGameInfo.playersPerTeam; i++)
+    for (unsigned i = 0; i < Settings::numPlayerNumbers; i++)
     {
-      const REGameInfo::RobotInfo &teammateRobotInfo = ourTeam.getPlayer(i);
+      if (theGameState.ownTeam.playerStates[i] == GameState::substitute) // not a valid player (yet anyway)
+        continue;
+
+      GameState::PlayerState teammatePlayerState = theGameState.ownTeam.playerStates[i];
+
+      // const REGameInfo::RobotInfo &teammateRobotInfo = ourTeam.getPlayer(i);
       int teammateNumber = Settings::toPlayerNumber(i);
 
       // don't include self in teammates
-      if (teammateNumber == theREGameInfo.playerNumber)
+      if (teammateNumber == theGameState.playerNumber)
         continue;
 
+      const bool playerInTheGame = (teammatePlayerState != GameState::penalizedSentOff) &&
+                                   (teammatePlayerState != GameState::penalizedRequestForPickup) &&
+                                   (teammatePlayerState != GameState::substitute);
+
       // is player[i] in the game but not in RETeamData
-      if (teammatesByNumber[teammateNumber] == nullptr &&
-          !teammateRobotInfo.isPenalized(PENALTY_SPL_REQUEST_FOR_PICKUP) &&
-          !teammateRobotInfo.isPenalized(PENALTY_SUBSTITUTE))
+      if (playerInTheGame && (teammatesByNumber[teammateNumber] == nullptr))
       {
         TLOGI(rxLogger, "maintainTeammateList: adding teammate {} based on GC info", teammateNumber);
 
@@ -777,8 +784,8 @@ void RETeamMessageHandler2025b::maintainTeammateList(RETeamData& teamData) const
 
         // initialise teammate from game controller info
         teammate.number = teammateNumber;
-        teammate.isGoalkeeper = Settings::isGoalkeeper(teammate.number);
-        teammate.isPenalized = (ourTeam.players[i].penalty != PENALTY_NONE);
+        teammate.isGoalkeeper = theGameState.ownTeam.isGoalkeeper(teammate.number);
+        teammate.isPenalized = GameState::isPenalized(theGameState.ownTeam.playerStates[i]);
         teammate.status = (teammate.isPenalized ? RETeammate::PENALIZED : RETeammate::PLAYING);
         teammate.timeWhenStatusChanged = theFrameInfo.time;
         teammate.timeWhenLastUpdated = theFrameInfo.time;
@@ -821,7 +828,7 @@ void RETeamMessageHandler2025b::maintainTeammateList(RETeamData& teamData) const
       teammate = teamData.teammates.erase(teammate);
     }
     // FIXME - this will lead to immediate timeout after penalty ends
-    else if ((theREGameInfo.state == STATE_PLAYING) &&
+    else if ((theGameState.isPlaying()) &&
               (theFrameInfo.getTimeSince(teammate->timeWhenLastPacketReceived) > networkTimeout))
     {
       TLOGV(rxLogger, "maintainTeammateList: remove teammate (player {}) because no packets received in {} ms",
@@ -872,7 +879,7 @@ bool RETeamMessageHandler2025b::readInputMessageBytes(const TeamMessageChannel::
 
   // timeSyncInfo
 #ifndef SELF_TEST
-  if(inputTeamMessage.playerNum == theREGameInfo.playerNumber)
+  if(inputTeamMessage.playerNum == theGameState.playerNumber)
   {
     TLOGV(rxLogger,
           "readInputMessageBytes: ***myOwnMessage, seqNumGC {}, timeReceivedGC {}, timestamp {} (all before timesync)",
@@ -1109,11 +1116,11 @@ bool RETeamMessageHandler2025b::checkStateAllowsSending()
   bool playingDead = false;
 #endif
 
-  if (!wasPenalized && theREGameInfo.isPenalized())
+  if (!wasPenalized && theGameState.isPenalized())
     wasPenalized = true; // note: gets reseet to false in checkReturnFromPenalty
 
-  bool gameSituationAllows = (theREGameInfo.state != STATE_INITIAL) && (theREGameInfo.state != STATE_FINISHED) &&
-                             (!theREGameInfo.isPenalized()) && (theREGameInfo.gamePhase != GAME_PHASE_PENALTYSHOOT);
+  bool gameSituationAllows = !(theGameState.isInitial() || theGameState.isFinished() || theGameState.isPenalized() ||
+                               theGameState.isPenaltyShootout());
 
   if (playingDead || !gameSituationAllows)
     messageDesirability.reasonNotToSend = REMessageDesirability::statePreventsSending;
@@ -1125,22 +1132,22 @@ bool RETeamMessageHandler2025b::checkStateAllowsSending()
 void RETeamMessageHandler2025b::updateMessageRate()
 {
   // update message budget remaining
-  messageDesirability.messageBudgetThisHalf = theREGameInfo.ourTeam().messageBudget;
-  if (theREGameInfo.firstHalf)
+  messageDesirability.messageBudgetThisHalf = theGameState.ownTeam.messageBudget;
+  if (theGameControllerData.firstHalf)
     messageDesirability.messageBudgetThisHalf -= theREGameConfig.messageBudget / 2;
 
   // corresponding actual message rate remaining
   float messageRateRemaining =
-      theREGameInfo.secsRemaining > 0
-          ? static_cast<float>(messageDesirability.messageBudgetThisHalf) / theREGameInfo.secsRemaining
+      theGameControllerData.secsRemaining > 0
+          ? static_cast<float>(messageDesirability.messageBudgetThisHalf) / theGameControllerData.secsRemaining
           : 0.f;
 
   // use extraSecs so that we have the chance to send messages during the ready state if needed
   // (when secsRemaining is not going down). Interpolate extra down to zero as we get near the
   // end of the half
-  int extraSecs = theREGameInfo.secsRemaining > messageRateExtraSecs * 2
+  int extraSecs = theGameControllerData.secsRemaining > messageRateExtraSecs * 2
                       ? messageRateExtraSecs
-                      : std::max(0, theREGameInfo.secsRemaining - messageRateExtraSecs);
+                      : std::max(0, theGameControllerData.secsRemaining - messageRateExtraSecs);
 
   float messageRateTarget = static_cast<float>(theREGameConfig.messageBudget / 2) / (theREGameConfig.secsInHalf + extraSecs);
 
@@ -1193,7 +1200,7 @@ unsigned RETeamMessageHandler2025b::addJitter(unsigned time, unsigned jitterAmou
 bool RETeamMessageHandler2025b::checkReadySetPlay()
 {
   // initial to ready (i.e. walk in from side at the start of a game)
-  if (theREGameInfo.state == STATE_READY) 
+  if (theGameState.isReady()) 
   {
     // if ((theExtendedGameInfo.gameStateBeforeCurrent == STATE_INITIAL) && (theExtendedGameInfo.timeSinceReadyStarted == 0))
     if ((theExtendedGameState.wasInitial()) &&
@@ -1204,7 +1211,7 @@ bool RETeamMessageHandler2025b::checkReadySetPlay()
 
     // in the case of transition from PLAYING to READY we don't do anything and rely on normal timeout based ping behaviour
   }
-  else if (theREGameInfo.state == STATE_SET)
+  else if (theGameState.isSet())
   {
     messageDesirability.reasonNotToSend = REMessageDesirability::readySetConstrainsSending;
 
@@ -1213,7 +1220,7 @@ bool RETeamMessageHandler2025b::checkReadySetPlay()
     // heard a whistle and then found out that we should not be in PLAYING state.
     // Again, however, it doesn't seem that we would need to send any additional messages
   }
-  else if (theREGameInfo.state == STATE_PLAYING)
+  else if (theGameState.isPlaying())
   {
     // we get here either via GC signalling the SET state or by guessing the
     // state if we think we heard a whistle.
@@ -1309,7 +1316,7 @@ bool RETeamMessageHandler2025b::checkBallMoved()
 //   // Compare with what Teamdata says our ball model says
 //   for (auto teammate : theRETeamData.teammates)
 //   {
-//     if (teammate.number == theREGameInfo.playerNumber)
+//     if (teammate.number == theGameState.playerNumber)
 //     {
 //       lastBallGiven = teammate.theBallModel.estimate.position;
 //       minDistanceBallSent = (theBallModel.estimate.position - lastBallGiven).norm();
@@ -1412,15 +1419,15 @@ bool RETeamMessageHandler2025b::checkUprightStatusChanged()
 bool RETeamMessageHandler2025b::checkStandbyReadyGesture()
 {
   // have we receive a new signal at least specified time after previous signal
-  unsigned frameTimeLastDetection = sentTeamMessage.teamMessage.standbyReadyGesture.frameTimeLastDetection;
-  if (frameTimeLastDetection > 0)
-    frameTimeLastDetection += 30000;
-
-  if ((theREGameInfo.state == STATE_STANDBY) && (theREStandbyReadyGesture.frameTimeLastDetection > frameTimeLastDetection))
-  {
-    messageDesirability.reasonToSend = REMessageDesirability::standbyReadyGestureDetected;
-    return true;
-  }
+//   unsigned frameTimeLastDetection = sentTeamMessage.teamMessage.standbyReadyGesture.frameTimeLastDetection;
+//   if (frameTimeLastDetection > 0)
+//     frameTimeLastDetection += 30000;
+// 
+//   if ((theREGameInfo.state == STATE_STANDBY) && (theREStandbyReadyGesture.frameTimeLastDetection > frameTimeLastDetection))
+//   {
+//     messageDesirability.reasonToSend = REMessageDesirability::standbyReadyGestureDetected;
+//     return true;
+//   }
 
   return false;
 }
@@ -1430,44 +1437,44 @@ bool RETeamMessageHandler2025b::checkSetPlayRefereeGesture()
 {
   bool ret = false;
 
-  // Are we in a set play with kicking team previously NONE and it has just changed
-  if (theREGameInfo.setPlay == SET_PLAY_NONE)
-  {
-    frameTimeLastKickingTeamUpdate = theFrameInfo.time;
-    prevKickingTeam = KICKING_TEAM_NONE;
-  }
-  else // a set play is active
-  {
-    // has this robot detected a gesture since start of set play
-    if (theGameState.isKickIn() &&
-        theRESetPlayRefereeGesture.frameTimeLastDetection >= theGameState.timeWhenStateStarted)
-    {
-      // during this set play, have we changed gestures since the last one we detected
-      if ((theRESetPlayRefereeGesture.lastDetection != RESetPlayRefereeGesture::NONE) &&
-          (theRESetPlayRefereeGesture.lastDetection != sentTeamMessage.teamMessage.setPlayRefereeGesture.lastDetection) &&
-          (theRESetPlayRefereeGesture.frameTimeLastDetection >=
-           sentTeamMessage.teamMessage.setPlayRefereeGesture.frameTimeLastDetection))
-      {
-        messageDesirability.reasonToSend = REMessageDesirability::setPlayRefereeGestureDetected;
-        ret = true;
-      }
-    }
-
-    // // has this robot detected the gesture (and not sent it in a recent frame)?
-    // if ((theRESetPlayRefereeGesture.frameTimeLastDetection >= frameTimeLastKickingTeamUpdate) &&
-    //     (theRESetPlayRefereeGesture.lastDetection != sentTeamMessage.teamMessage.setPlayRefereeGesture.lastDetection) &&
-    //     (theRESetPlayRefereeGesture.lastDetection != RESetPlayRefereeGesture::NONE))
-    // {
-    //   messageDesirability.reasonToSend = REMessageDesirability::setPlayRefereeGestureDetected;
-    //   ret = true;
-    // }
-
-    if (theREGameInfo.kickingTeam != prevKickingTeam)
-    {
-      frameTimeLastKickingTeamUpdate = theFrameInfo.time;
-      prevKickingTeam = theREGameInfo.kickingTeam;
-    }
-  }
+//   // Are we in a set play with kicking team previously NONE and it has just changed
+//   if (theREGameInfo.setPlay == SET_PLAY_NONE)
+//   {
+//     frameTimeLastKickingTeamUpdate = theFrameInfo.time;
+//     prevKickingTeam = KICKING_TEAM_NONE;
+//   }
+//   else // a set play is active
+//   {
+//     // has this robot detected a gesture since start of set play
+//     if (theGameState.isThrowIn() &&
+//         theRESetPlayRefereeGesture.frameTimeLastDetection >= theGameState.timeWhenStateStarted)
+//     {
+//       // during this set play, have we changed gestures since the last one we detected
+//       if ((theRESetPlayRefereeGesture.lastDetection != RESetPlayRefereeGesture::NONE) &&
+//           (theRESetPlayRefereeGesture.lastDetection != sentTeamMessage.teamMessage.setPlayRefereeGesture.lastDetection) &&
+//           (theRESetPlayRefereeGesture.frameTimeLastDetection >=
+//            sentTeamMessage.teamMessage.setPlayRefereeGesture.frameTimeLastDetection))
+//       {
+//         messageDesirability.reasonToSend = REMessageDesirability::setPlayRefereeGestureDetected;
+//         ret = true;
+//       }
+//     }
+// 
+//     // // has this robot detected the gesture (and not sent it in a recent frame)?
+//     // if ((theRESetPlayRefereeGesture.frameTimeLastDetection >= frameTimeLastKickingTeamUpdate) &&
+//     //     (theRESetPlayRefereeGesture.lastDetection != sentTeamMessage.teamMessage.setPlayRefereeGesture.lastDetection) &&
+//     //     (theRESetPlayRefereeGesture.lastDetection != RESetPlayRefereeGesture::NONE))
+//     // {
+//     //   messageDesirability.reasonToSend = REMessageDesirability::setPlayRefereeGestureDetected;
+//     //   ret = true;
+//     // }
+// 
+//     if (theREGameInfo.kickingTeam != prevKickingTeam)
+//     {
+//       frameTimeLastKickingTeamUpdate = theFrameInfo.time;
+//       prevKickingTeam = theREGameInfo.kickingTeam;
+//     }
+//   }
 
   return ret;
 }

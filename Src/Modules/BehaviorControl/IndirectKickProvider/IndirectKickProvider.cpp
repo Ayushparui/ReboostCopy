@@ -4,6 +4,7 @@
  * This file implements a module that provides a representation that determines whether a Nao is allowed to shoot a goal.
  *
  * @author Ingo Kelm
+ * @author Rudi Villing (modifications)
  */
 
 #include "IndirectKickProvider.h"
@@ -16,7 +17,7 @@ void IndirectKickProvider::update(IndirectKick& indirectKick)
   // If the GameState switches from one set play to the next, indirectKick has to be reset
   // Same if the player is penalized for illegal position after a set play
   if((theGameState.state != previousGameState && theGameState.state != GameState::playing) ||
-     ((theGameState.isFreeKick() || theGameControllerData.setPlay >= 1 || theGameControllerData.setPlay <= 4 ||
+     ((theGameState.isFreeKick() || // theGameControllerData.setPlay >= 1 || theGameControllerData.setPlay <= 4 ||
      theFrameInfo.time < timeSinceFreeKickEnded + refereePenaltyDelay) && playerIllegalPosition()))
     reset(indirectKick);
 
@@ -29,19 +30,21 @@ void IndirectKickProvider::update(IndirectKick& indirectKick)
     timeSinceFreeKickStarted = theFrameInfo.time;
 
   // Check if a kick-in for the opponent team was detected
-  if(!theGameState.kickingTeamKnown && theGameState.isKickIn())
-    kickInOpponentTeamDetected = checkForRefereeSignal(theGameState.leftHandTeam ? RefereeSignal::kickInLeft : RefereeSignal::kickInRight);
+  // if(!theGameState.kickingTeamKnown && theGameState.isThrowIn())
+  //   kickInOpponentTeamDetected = checkForRefereeSignal(theGameState.leftHandTeam ? RefereeSignal::kickInLeft : RefereeSignal::kickInRight);
 
   // If the game state switches from a set play of the opponent team to playing, direct kicks can be allowed
-  if((previousGameState == GameState::opponentGoalKick || previousGameState == GameState::opponentPushingFreeKick ||
-     ((kickInOpponentTeamDetected || theGameState.kickingTeamKnown) && previousGameState == GameState::opponentKickIn)) &&
-    theGameState.state == GameState::playing)
+  // if ((previousGameState == GameState::opponentGoalKick || previousGameState == GameState::opponentPushingFreeKick ||
+  //      ((kickInOpponentTeamDetected || theGameState.kickingTeamKnown) && previousGameState == GameState::opponentThrowIn)) &&
+  //     theGameState.state == GameState::playing)
+  if (GameState::isFreeKick(previousGameState) && GameState::isForOpponentTeam(previousGameState) &&
+      theGameState.state == GameState::playing)
   {
     indirectKick.directKickAfterFreeKick = true;
     timeSinceFreeKickEnded = theFrameInfo.time;
     ballPositions.clear();
-  } else if((theGameState.isFreeKick(previousGameState)) &&
-            theGameState.state == GameState::playing)
+  }
+  else if ((theGameState.isFreeKick(previousGameState)) && theGameState.state == GameState::playing)
     timeSinceFreeKickEnded = theFrameInfo.time;
 
   if(theGameState.isFreeKick())
@@ -81,7 +84,7 @@ void IndirectKickProvider::update(IndirectKick& indirectKick)
 
       for(const unsigned lastBallContactTimestamp : lastBallContactTimestamps)
       {
-        // If another team member has played the ball after the last reset, direct kicks are allowed for this NAO
+        // If another team member has played the ball after the last reset, direct kicks are allowed for this robot
         if(lastBallContactTimestamp > indirectKick.lastSetPlayTime + minOwnFreeKickDelay)
         {
           indirectKick.allowDirectKick = true;
@@ -133,7 +136,7 @@ void IndirectKickProvider::updatePlayerStates()
 bool IndirectKickProvider::playerIllegalPosition()
 {
   for(unsigned i = 0; i < theGameState.numOfPlayerStates; i++)
-    if(theGameState.ownTeam.playerStates[i] != playerStates[i] && theGameState.ownTeam.playerStates[i] == GameState::PlayerState::penalizedIllegalPosition)
+    if(theGameState.ownTeam.playerStates[i] != playerStates[i] && theGameState.ownTeam.playerStates[i] == GameState::PlayerState::penalizedIllegalPositioning)
       return true;
   return false;
 }
@@ -147,10 +150,11 @@ bool IndirectKickProvider::checkBallHasMoved() const
                  { return teammate.theIndirectKick.lastKickTimestamp > theGameState.timeWhenStateStarted; }))
     return true;
 
-  if(theBallModel.timeWhenLastSeen > theFrameInfo.time - 500
-     && (theGameState.isFreeKick(previousFreeKick) || previousFreeKick == GameState::ownPenaltyKick || previousFreeKick == GameState::opponentPenaltyKick) &&
-     !theGameState.isPushingFreeKick(previousFreeKick))
+  if ((theBallModel.timeWhenLastSeen > theFrameInfo.time - 500) &&
+      (theGameState.isConstrainedFreeKick(previousFreeKick) || GameState::isPenaltyKickExecution(previousFreeKick)))
   {
+    // FIXME: this code is close to a duplicate of GameStateProvider::checkBallLegal - should just be in one place
+
     const Vector2f globalBall = theRobotPose * theBallModel.estimate.position;
     //compute the covariance of the global ball model
     //start with the covariance of the local model
@@ -165,7 +169,7 @@ bool IndirectKickProvider::checkBallHasMoved() const
 
     //get the direction to the nearest legal position
     Vector2f direction(0.f, 0.f);
-    if(theGameState.isKickIn(previousFreeKick))
+    if(theGameState.isThrowIn(previousFreeKick))
       direction << 0.f, (globalBall.y() > 0 ? theFieldDimensions.yPosLeftTouchline : theFieldDimensions.yPosRightTouchline) - globalBall.y();
     else if(theGameState.isGoalKick(previousFreeKick))
     {

@@ -490,7 +490,7 @@ namespace DBHC
       {
         if (theTeamBehaviorStatus.role.isGoalkeeper())
           defendingGoaliePlayingTask();
-        else if (theREGameInfo.playerNumber == 3)
+        else if (theGameState.playerNumber == 3)
           defendingForwardPlayingTask();
         else
           defendingDefenderPlayingTask();
@@ -501,7 +501,7 @@ namespace DBHC
 
   private:
     READS(TeamBehaviorStatus);
-    READS(REGameInfo);
+    READS(GameState);
     
     CommonSkills commonSkills {env};
 

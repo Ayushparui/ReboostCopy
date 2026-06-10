@@ -1,9 +1,10 @@
 /**
  * @file GameState.cpp
  *
- * This file implements methods of the \c GameState representation.
+ * This file implements methods of the @c GameState representation.
  *
  * @author Arne Hasselbring
+ * @author Rudi Villing (modifications)
  */
 
 #include "GameState.h"
@@ -15,24 +16,89 @@
 #include "Debugging/Plot.h"
 #include "Framework/Blackboard.h"
 #include "Framework/Settings.h"
-#include "Math/Eigen.h"
+// #include "Math/Eigen.h"
 #include "Platform/SystemCall.h"
 #include "Streaming/Global.h"
 #include <algorithm>
 
+#include <fmt/core.h>
+
+static_assert(GAMECONTROLLER_STRUCT_VERSION == 20,
+              "This version of GameState was designed for the 2026 Game Controller packet (v20). "
+              "Review all field/enum mappings before updating this assert.");
+
 GameState::State GameState::stateForOtherTeam(const State state)
 {
-  std::string name = TypeRegistry::getEnumName(state);
-  size_t pos = name.find("wn");
-  if(pos != std::string::npos)
-    name.replace(pos, 2, "pponent");
-  else
+  // std::string name = TypeRegistry::getEnumName(state);
+  // size_t pos = name.find("wn");
+  // if(pos != std::string::npos)
+  //   name.replace(pos, 2, "pponent");
+  // else
+  // {
+  //   pos = name.find("pponent");
+  //   if(pos != std::string::npos)
+  //     name.replace(pos, 7, "wn");
+  // }
+  // return static_cast<State>(TypeRegistry::getEnumValue(typeid(State).name(), name));
+
+  switch(state)
   {
-    pos = name.find("pponent");
-    if(pos != std::string::npos)
-      name.replace(pos, 7, "wn");
+  // each Own state returns Opponent state and vice versa
+  case setupOwnKickOff: return setupOpponentKickOff;
+  case setupOpponentKickOff: return setupOwnKickOff;
+
+  case waitForOwnKickOff: return waitForOpponentKickOff;
+  case waitForOpponentKickOff: return waitForOwnKickOff;
+
+  case ownKickOff: return opponentKickOff;
+  case opponentKickOff: return ownKickOff;
+
+  case setupOwnPenaltyKick: return setupOpponentPenaltyKick;
+  case setupOpponentPenaltyKick: return setupOwnPenaltyKick;
+
+  case waitForOwnPenaltyKick: return waitForOpponentPenaltyKick;
+  case waitForOpponentPenaltyKick: return waitForOwnPenaltyKick;
+
+  case ownPenaltyKick: return opponentPenaltyKick;
+  case opponentPenaltyKick: return ownPenaltyKick;
+
+  case ownDirectFreeKick: return opponentDirectFreeKick;
+  case opponentDirectFreeKick: return ownDirectFreeKick;
+
+  case ownIndirectFreeKick: return opponentIndirectFreeKick;
+  case opponentIndirectFreeKick: return ownIndirectFreeKick;
+
+  case ownThrowIn: return opponentThrowIn;
+  case opponentThrowIn: return ownThrowIn;
+
+  case ownGoalKick: return opponentGoalKick;
+  case opponentGoalKick: return ownGoalKick;
+
+  case ownCornerKick: return opponentCornerKick;
+  case opponentCornerKick: return ownCornerKick;
+
+  case waitForOwnPenaltyShot: return waitForOpponentPenaltyShot;
+  case waitForOpponentPenaltyShot: return waitForOwnPenaltyShot;
+
+  case ownPenaltyShot: return opponentPenaltyShot;
+  case opponentPenaltyShot: return ownPenaltyShot;
+
+  case afterOwnPenaltyShot: return afterOpponentPenaltyShot;
+  case afterOpponentPenaltyShot: return afterOwnPenaltyShot;
+
+  // States with no team polarity- intentionally listed rather than written as default
+  // so that compiler can catch missing states if we add some in future
+  case beforeHalf:
+  case standby:
+  case afterHalf:
+  case timeout:
+  case playing:
+  case setupDropBall:
+  case waitForDropBall:
+  case beforePenaltyShootout: return state;
   }
-  return static_cast<State>(TypeRegistry::getEnumValue(typeid(State).name(), name));
+  ASSERT(false);
+  return beforeHalf; // should be unreachable
 }
 
 static void drawChar(int character, const Vector3f& pos, float size, [[maybe_unused]] const ColorRGBA& color)
@@ -159,6 +225,8 @@ void GameState::draw() const
     std::string gameState = "INITIAL";
     if(state == standby)
       gameState = "STANDBY";
+    else if (state == stopped)
+      gameState = "STOPPED";
     else if(isReady())
       gameState = "READY";
     else if(isSet())
@@ -169,14 +237,18 @@ void GameState::draw() const
       gameState = "FINISHED";
 
     std::string setPlay;
-    if(isPushingFreeKick())
-      setPlay = "PUSHING";
+    if(isDirectFreeKick())
+      setPlay = "DIRECT";
+    if(isIndirectFreeKick())
+      setPlay = "INDIRECT";
+    // else if(isPushingFreeKick())
+    //   setPlay = "PUSHING";
     else if(isGoalKick())
       setPlay = "GOAL";
     else if(isCornerKick())
       setPlay = "CORNER";
-    else if(isKickIn())
-      setPlay = "KICKIN";
+    else if(isThrowIn())
+      setPlay = "THROWIN";
     else if(isPenaltyKick())
       setPlay = "PENALTY";
 
@@ -306,3 +378,14 @@ void GameState::draw() const
 
   PLOT("representation:GameState:budget", ownTeam.messageBudget);
 }
+
+
+std::string GameState::getPlayerNumberAndColorString() const
+{
+  // Note we believe our settings in preference to the GC info for colour
+  return fmt::format("{} {}",
+                     TypeRegistry::getEnumName(isGoalkeeper() ? ownTeam.goalkeeperColor
+                                                              : ownTeam.fieldPlayerColor),
+                     playerNumber);
+}
+

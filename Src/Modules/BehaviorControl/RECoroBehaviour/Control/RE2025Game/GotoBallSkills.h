@@ -143,7 +143,7 @@ namespace v2025
     READS(FieldDimensions);
     READS(ObstacleModel);
     READS(FieldBall);
-    READS(REGameInfo);
+    READS(GameState);
     READS(REBehaviourParams);
     READS(FrameInfo);
     READS(RobotDimensions);
@@ -296,7 +296,7 @@ namespace v2025
         return decision;
       }
       // we never want to duel as a goalie
-      if (theREGameInfo.isGoalkeeper())
+      if (theGameState.isGoalkeeper())
       {
         decision = true;
         return true;
@@ -328,7 +328,7 @@ namespace v2025
       Vector2f centreHalfwayLine {theFieldDimensions.xPosHalfwayLine, 0.f};
       Rangea bestKickSector;
       bool left = theFieldBall.endPositionOnField.y() > 0.f ? true : false;
-      if (theREGameInfo.isGoalkeeper())
+      if (theGameState.isGoalkeeper())
       {
         if (left)
         {
@@ -473,7 +473,7 @@ namespace v2025
         kickType = kickToLeft.state ? KickInfo::forwardFastLeft : KickInfo::forwardFastRight;
       else if (canTakeLongShot && theREBehaviourParams.walkForwardsLongKickAtGoalRange.isInside(kickDistance))
         kickType = kickToLeft.state ? KickInfo::walkForwardsLeftLong : KickInfo::walkForwardsRightLong;
-      else if (theREGameInfo.isGoalkeeper()) // clearance kick
+      else if (theGameState.isGoalkeeper()) // clearance kick
         kickType = kickToLeft.state ? KickInfo::walkForwardsLeftLong : KickInfo::walkForwardsRightLong;
       else
       {
@@ -768,7 +768,7 @@ namespace v2025
     READS(FieldDimensions);
     READS(ObstacleModel);
     READS(FieldBall);
-    READS(REGameInfo);
+    READS(GameState);
 
     Angle kickAngle;
     float kickDistance;
@@ -876,7 +876,8 @@ namespace v2025
     READS(FieldDimensions);
     READS(ObstacleModel);
     READS(FieldBall);
-    READS(REGameInfo);
+    // READS(REGameInfo);
+    READS(GameState);
     READS(REBehaviourParams);
     READS(FrameInfo);
     READS(RobotDimensions);
@@ -904,10 +905,10 @@ namespace v2025
       // From the obstacle sectors, detect the best teammate sector and distance
       (void)kickSectors;
       std::tuple <Rangea, float, bool> bestPassSector = obstacleSkills.getBestPassSector(kickSectors);
-      std::tuple <Rangea, bool> bestFreeSector = obstacleSkills.getBestFreeSector(kickSectors, getFreeSectorRange(theREGameInfo.setPlay));
+      std::tuple <Rangea, bool> bestFreeSector = obstacleSkills.getBestFreeSector(kickSectors, getFreeSectorRange());
 
       // For the goal kick in, we try to shoot the ball upfield long as a priority
-      if (theREGameInfo.setPlay == SET_PLAY_GOAL_KICK)
+      if (theGameState.isGoalKick())
       { // Try shooting upfield 5m
         if (std::get<1>(bestFreeSector) && isRelativeKickInsideField(std::get<0>(bestFreeSector), params.goalKickInLongShot))
         {
@@ -924,10 +925,10 @@ namespace v2025
         { 
           ACTGRAPH_FMT("GOAL_KICK: default shot");
           kickDistance = params.goalKickInLongShot;
-          kickAngle = theRobotPose.toRobotCoordinates(getDefaultShotLocation(theREGameInfo.setPlay, kickDistance)).angle();
+          kickAngle = theRobotPose.toRobotCoordinates(getDefaultShotLocation(kickDistance)).angle();
         }
       } // For the other kick-ins, we first try to pass as a priority. Then attempt to shoot upfield with obstacle avoidance. If none work, just shoot upfield
-      else if (theREGameInfo.setPlay == SET_PLAY_CORNER_KICK || theREGameInfo.setPlay == SET_PLAY_KICK_IN || theREGameInfo.setPlay == SET_PLAY_PUSHING_FREE_KICK)
+      else if (theGameState.isFreeKick())
       { // Try passing to a teammate
         // if (std::get<2>(bestPassSector) && isRelativeKickInsideField(std::get<0>(bestPassSector), std::get<1>(bestPassSector)))
         // {
@@ -945,7 +946,7 @@ namespace v2025
         {
           ACTGRAPH_FMT("KI/FK/CK: default shot");
           kickDistance = params.maxKickInDistanceNonGoalie;
-          kickAngle = theRobotPose.toRobotCoordinates(getDefaultShotLocation(theREGameInfo.setPlay, kickDistance)).angle();
+          kickAngle = theRobotPose.toRobotCoordinates(getDefaultShotLocation(kickDistance)).angle();
         }
       } 
 
@@ -984,16 +985,16 @@ namespace v2025
     ///         Used when there are no free sectors or when no teammates are found.
     /// @param  setPlay the current set play 
     /// @return Returns the target position on the field for the ball.
-    Vector2f getDefaultShotLocation(uint8_t setPlay, float shotDistance) {
+    Vector2f getDefaultShotLocation(float shotDistance) {
       // Side Kick-in: 85cm and _|_ to the side line
-      if (setPlay == SET_PLAY_KICK_IN) {
+      if (theGameState.isThrowIn()) {
         return Vector2f(
             theFieldBall.recentBallEndPositionOnField().x(), 
             theFieldDimensions.yPosLeftTouchline - shotDistance *
                   ((sign(theFieldBall.recentBallEndPositionOnField().y())) ? (1) : (-1))
         ); 
       } // Corner Kick-in: 85cm and 45_deg from the corner
-      else if (setPlay == SET_PLAY_CORNER_KICK) 
+      else if (theGameState.isCornerKick()) 
       {
         return Vector2f(
             theFieldDimensions.xPosOpponentGoalLine - 
@@ -1002,7 +1003,7 @@ namespace v2025
                   ((sign(theFieldBall.recentBallEndPositionOnField().y())) ? (1) : (-1))
         );
       } // Goal Kick-in: 85cm and upfield from the ball's location
-      else if (setPlay == SET_PLAY_GOAL_KICK)
+      else if (theGameState.isGoalKick())
       {
         return Vector2f(
             theFieldBall.recentBallEndPositionOnField().x() +
@@ -1010,37 +1011,35 @@ namespace v2025
             theFieldBall.recentBallEndPositionOnField().y()
         );
       } // Pushing free kick
-      else if (setPlay == SET_PLAY_PUSHING_FREE_KICK) {
+      else if (theGameState.isDirectFreeKick()) {
                 // If we can shoot upfield, shoot upfield
-        return (theFieldDimensions.isInsideField(Vector2f(
-                              theFieldBall.recentBallEndPositionOnField().x() + shotDistance,
-                              theFieldBall.recentBallEndPositionOnField().y())) ?
-                  Vector2f(theFieldBall.recentBallEndPositionOnField().x() + shotDistance,
-                           theFieldBall.recentBallEndPositionOnField().y()) :
-                // If we can't shoot left/right based on if we are on the right/left side of the field
-                  Vector2f(theFieldBall.recentBallEndPositionOnField().x(),
-                          (theFieldBall.recentBallEndPositionOnField().y() > 0.0f ?
-                              theFieldBall.recentBallEndPositionOnField().y() - shotDistance :
-                              theFieldBall.recentBallEndPositionOnField().y() + shotDistance))
-        );
+                return (theFieldDimensions.isInsideField(
+                            Vector2f(theFieldBall.recentBallEndPositionOnField().x() + shotDistance,
+                                     theFieldBall.recentBallEndPositionOnField().y()))
+                            ? Vector2f(theFieldBall.recentBallEndPositionOnField().x() + shotDistance,
+                                       theFieldBall.recentBallEndPositionOnField().y())
+                            :
+                            // If we can't shoot left/right based on if we are on the right/left side of the field
+                            Vector2f(theFieldBall.recentBallEndPositionOnField().x(),
+                                     (theFieldBall.recentBallEndPositionOnField().y() > 0.0f
+                                          ? theFieldBall.recentBallEndPositionOnField().y() - shotDistance
+                                          : theFieldBall.recentBallEndPositionOnField().y() + shotDistance)));
+                // TODO indirect free kick
       } // Default case
       else 
         return Vector2f(0.0f, 0.0f);
     }
 
     /// @brief Forms a limit range within which the kick must happen
-    /// @param setPlay < The current set play
     /// @return Returns the angle range for the kick (Field relative)
-    Rangea getFreeSectorRange(uint8_t setPlay) 
+    Rangea getFreeSectorRange() 
     {
-      if (setPlay == SET_PLAY_GOAL_KICK) 
+      if (theGameState.isGoalKick()) 
         return Rangea(-30_deg, 30_deg);
-      else if (setPlay == SET_PLAY_KICK_IN)
-        return theFieldBall.recentBallEndPositionOnField().y() > 0 ?
-            Rangea(-180_deg, 0_deg) : Rangea(0_deg, 180_deg);
-      else if (setPlay == SET_PLAY_CORNER_KICK)
-        return theFieldBall.recentBallEndPositionOnField().y() > 0 ?
-            Rangea(-180_deg, -90_deg) : Rangea(180_deg, 90_deg);
+      else if (theGameState.isThrowIn())
+        return theFieldBall.recentBallEndPositionOnField().y() > 0 ? Rangea(-180_deg, 0_deg) : Rangea(0_deg, 180_deg);
+      else if (theGameState.isCornerKick())
+        return theFieldBall.recentBallEndPositionOnField().y() > 0 ? Rangea(-180_deg, -90_deg) : Rangea(180_deg, 90_deg);
       else
         return Rangea(-180_deg, 180_deg);
     }

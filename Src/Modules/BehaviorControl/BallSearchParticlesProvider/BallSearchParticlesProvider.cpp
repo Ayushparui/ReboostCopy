@@ -27,14 +27,14 @@ void BallSearchParticlesProvider::update(BallSearchParticles& theBallSearchParti
     const std::list<SectorWheel::Sector> wheel = calculateObstacleSectors();
 
     //give the referee some time to place the ball
-    bool refereeToleranceNeeded = theGameState.isCornerKick() || theGameState.isKickIn() || theGameState.isGoalKick();
+    bool refereeToleranceNeeded = theGameState.isCornerKick() || theGameState.isThrowIn() || theGameState.isGoalKick();
     if(!refereeToleranceNeeded || theFrameInfo.getTimeSince(theGameState.timeWhenStateStarted) > refereeTolerance)
     {
       for(size_t i = 0; i < theBallSearchParticles.particles.size();)
       {
         if(isParticleInView(theBallSearchParticles.particles[i], polygon) && !isBlockedByObstacle(theBallSearchParticles.particles[i], wheel))
         {
-          if(theGameState.isCornerKick() || theGameState.isKickIn() || theGameState.isGoalKick())
+          if(theGameState.isCornerKick() || theGameState.isThrowIn() || theGameState.isGoalKick())
           {
             theBallSearchParticles.particles.erase(theBallSearchParticles.particles.begin() + i);
             continue;
@@ -81,7 +81,7 @@ void BallSearchParticlesProvider::reset(BallSearchParticles& theBallSearchPartic
 {
   theBallSearchParticles.particles.clear();
 
-  if(theGameState.isKickIn())
+  if(theGameState.isThrowIn())
   {
     // place half of the particles on each touchline
     const int particlesPerSide = numOfParticles / 2;

@@ -35,13 +35,12 @@ namespace DBHC
       {
         // NOTE: we completely ignore set plays
 
-        if ((theREGameInfo.state == STATE_INITIAL) || (theREGameInfo.state == STATE_STANDBY) ||
-            (theREGameInfo.state == STATE_READY) || (theREGameInfo.state == STATE_SET))
+        if (theGameState.isInitial(/*orStandby*/ true) || theGameState.isReady() || theGameState.isSet())
         {
           CR_CHECKPOINT(initial_standby_ready_set);
           updateTeamInfoKickoff();
         }
-        else if (theREGameInfo.state == STATE_PLAYING)
+        else if (theGameState.isPlaying())
         {
           CR_CHECKPOINT(normal_play);
           updateTeamInfoPlaying();
@@ -72,7 +71,8 @@ namespace DBHC
     READS(FrameInfo);
     READS(BehaviorStatus);
     READS(RobotPose);
-    READS(REGameInfo);
+    // READS(REGameInfo);
+    READS(GameState);
     READS(FieldBall);
     READS(MotionInfo);
 
@@ -170,7 +170,7 @@ namespace DBHC
      */
     void updateOwnTacticInfo()
     {
-      int i = theREGameInfo.playerIndex();
+      int i = theGameState.playerIndex();
 
       theREActiveTactic.formationRole = theREActiveTactic.formationRoles[i];
       theREActiveTactic.situationRole = theREActiveTactic.situationRoles[i];
@@ -206,7 +206,7 @@ namespace DBHC
       // FIXME - is some of this logic duplicated from FieldBall or TeamBall?
       // calc ball effect and key parameters for formation movement
 
-      if (theREGameInfo.state != STATE_PLAYING) // FIXME add in special cases for penalties etc here
+      if (theGameState.isPlaying()) // FIXME add in special cases for penalties etc here
         assumedBallPos = Vector2f::Zero();
       else if (theFieldBall.timeSinceBallWasSeen < 2000) // FIXME param
         assumedBallPos = theFieldBall.endPositionOnField;
@@ -228,7 +228,7 @@ namespace DBHC
 // 
 //       if(!captainTeammate)
 //       {
-//         teammateRoles.captain = theREGameInfo.playerNumber;
+//         teammateRoles.captain = theGameState.playerNumber;
 //         teammateRoles.timestamp = theFrameInfo.time;
 //         assignRoles(teammateRoles);
 //       }
@@ -264,10 +264,10 @@ namespace DBHC
 //         using RobotNumberToTime = std::pair<int, unsigned>;
 //         std::vector<RobotNumberToTime> timeToBall;
 // 
-//         teammateRoles[theREGameInfo.playerNumber] = PlayerRole::none;
+//         teammateRoles[theGameState.playerNumber] = PlayerRole::none;
 // 
-//         if (!theREGameInfo.isPenalized() && isGoalkeeper(theREGameInfo.playerNumber)) // are we the goalie?
-//           teammateRoles[theREGameInfo.playerNumber] = PlayerRole::goalkeeper;
+//         if (!theREGameInfo.isPenalized() && isGoalkeeper(theGameState.playerNumber)) // are we the goalie?
+//           teammateRoles[theGameState.playerNumber] = PlayerRole::goalkeeper;
 //         else // no, perhaps a teammate is goalie
 //         {
 //           for (const RETeammate& teammate : theRETeamData.teammates)
@@ -275,14 +275,14 @@ namespace DBHC
 //             if (!teammate.isPenalized && isGoalkeeper(teammate.number))
 //             {
 //               teammateRoles[teammate.number] = PlayerRole::goalkeeper;
-//               TLOGD(tlogger, "robot{}: assignRoles goalkeeper is {}\n", theREGameInfo.playerNumber, teammate.number);
+//               TLOGD(tlogger, "robot{}: assignRoles goalkeeper is {}\n", theGameState.playerNumber, teammate.number);
 //               break;
 //             }
 //           }
 //         }
 // 
 //         // add in players to list
-//         timeToBall.emplace_back(theREGameInfo.playerNumber, getTimeToReachBall(theREGameInfo.playerNumber, theTeamBehaviorStatus));
+//         timeToBall.emplace_back(theGameState.playerNumber, getTimeToReachBall(theGameState.playerNumber, theTeamBehaviorStatus));
 //         for (const RETeammate& teammate : theRETeamData.teammates)
 //         {
 //             timeToBall.emplace_back(teammate.number, getTimeToReachBall(teammate.number, teammate.theTeamBehaviorStatus));
@@ -312,9 +312,9 @@ namespace DBHC
 //         std::vector<RobotNumber> robotNumbersVec;
 // 
 //         // add the current player if they aren't the ball player
-//         if(teammateRoles[theREGameInfo.playerNumber] == PlayerRole::none) 
+//         if(teammateRoles[theGameState.playerNumber] == PlayerRole::none) 
 //         {
-//             robotNumbersVec.emplace_back(theREGameInfo.playerNumber, theTeamBehaviorStatus.role.supporterIndex());
+//             robotNumbersVec.emplace_back(theGameState.playerNumber, theTeamBehaviorStatus.role.supporterIndex());
 //         }
 // 
 //         // add the other player that isn't the ball player
@@ -340,7 +340,7 @@ namespace DBHC
 //       // we assume that the TeammateRoles have already been updated by the time this runs
 //       // so we can pull our values from there
 // 
-//       role.role = static_cast<PlayerRole::Type>(theTeamBehaviorStatus.teammateRoles[theREGameInfo.playerNumber]);
+//       role.role = static_cast<PlayerRole::Type>(theTeamBehaviorStatus.teammateRoles[theGameState.playerNumber]);
 //       role.numOfActiveSupporters = 0;
 //       for (int teammateRole : theTeamBehaviorStatus.teammateRoles.roles)
 //         if (teammateRole >= PlayerRole::firstSupporterRole)
@@ -362,7 +362,7 @@ namespace DBHC
 // 
 //       passStatus.numPasses = theTeamBehaviorStatus.passStatus.numPasses; 
 // 
-//       if ((passState == NO_PASS) && (theREGameInfo.playerNumber == theTeamBehaviorStatus.passStatus.passKicker) &&
+//       if ((passState == NO_PASS) && (theGameState.playerNumber == theTeamBehaviorStatus.passStatus.passKicker) &&
 //           // ball is close to the robot
 //           (theFieldBall.positionRelative.norm() < 250.f) &&
 //           // ball is stopped or nearly stopped
@@ -417,7 +417,7 @@ namespace DBHC
 //       {
 //         if (theBehaviorStatus.passTarget != -1)
 //         {
-//           passStatus.passKicker = theREGameInfo.playerNumber;
+//           passStatus.passKicker = theGameState.playerNumber;
 //           passStatus.passReceiver = theBehaviorStatus.passTarget;
 //         }
 //       }
@@ -464,7 +464,7 @@ namespace DBHC
           CIRCLE("behaviour:DynamicBallHandlingTeamCoordination", pose.translation.x(), pose.translation.y(), 150, 30,
                   Drawings::solidPen, posColor, Drawings::noBrush, ColorRGBA::black);
 
-          if (playerNumber == theREGameInfo.playerNumber) // self?          
+          if (playerNumber == theGameState.playerNumber) // self?          
             CIRCLE("behaviour:DynamicBallHandlingTeamCoordination", pose.translation.x(), pose.translation.y(), 220, 30,
                     Drawings::solidPen, posColor, Drawings::noBrush, ColorRGBA::black);
 

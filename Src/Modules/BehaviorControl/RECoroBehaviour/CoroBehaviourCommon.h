@@ -30,7 +30,7 @@
 #include "Representations/MotionControl/ArmMotionInfo.h"
 
 #include "Representations/Communication/RETeamData.h"
-#include "Representations/Communication/REGameInfo.h"
+// #include "Representations/Communication/REGameInfo.h"
 #include "Representations/Infrastructure/GameState.h"
 
 #include "Representations/Infrastructure/SensorData/KeyStates.h"

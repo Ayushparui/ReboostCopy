@@ -35,20 +35,19 @@ namespace v2025
     {
       CRBEHAVIOUR_LOOP()
       {
-        if ((theREGameInfo.state == STATE_INITIAL) || (theREGameInfo.state == STATE_STANDBY))
+        if (theGameState.isInitial(/*orStandby:*/ true))
         {
           CR_CHECKPOINT(initial_or_standby);
           updateKickoffSetupTeamInfo();
         }
-        else if (theREGameInfo.setPlay == SET_PLAY_NONE)
+        else if (!theGameState.isFreeKick())
         {
-          if ((theREGameInfo.state == STATE_READY) || (theREGameInfo.state == STATE_SET) ||
-              ((theREGameInfo.state == STATE_PLAYING) && (theREGameInfo.stateIsGuessed)))
+          if (theGameState.isReady() || theGameState.isSet() || theGameState.isKickOff())
           {
             CR_CHECKPOINT(prepare_for_kickoff);
             updateKickoffSetupTeamInfo();
           }
-          else if ((theREGameInfo.state == STATE_PLAYING) && (theREGameInfo.setPlay == SET_PLAY_NONE))
+          else if (theGameState.isPlaying())
           {
             CR_CHECKPOINT(normal_play);
             // TODO deal with kickoff
@@ -97,7 +96,8 @@ namespace v2025
     READS(RETeamData);
     READS(FrameInfo);
     READS(RobotPose);
-    READS(REGameInfo);
+    // READS(REGameInfo);
+    READS(GameState);
     READS(ExtendedGameState);
     READS(FieldBall);
     READS(WalkingEngineOutput);
@@ -142,7 +142,7 @@ namespace v2025
      */
     void updateKickoffSetupTeamInfo()
     {
-      if (theREGameInfo.isOurKick())
+      if (theGameState.isForOwnTeam())
         updateTeamTacticInfo(theRETactics.ourKickoffFormation, /* useBall */ false);
       else
         updateTeamTacticInfo(theRETactics.opponentKickoffFormation, /* useBall */ false);
@@ -226,7 +226,7 @@ namespace v2025
 //       if (prevFramePlayerIndexToFormationRole.size() < theREGameInfo.playersPerTeam)
 //         prevFramePlayerIndexToFormationRole.resize(theREGameInfo.playersPerTeam, REFormations::noFormationRole);
 // 
-//       size_t numActivePlayers = theRETeamData.activeTeammates.size() + (theREGameInfo.isPenalized() ? 0 : 1);
+//       size_t numActivePlayers = theRETeamData.activeTeammates.size() + (theGameState.isPenalized() ? 0 : 1);
 // 
 //       // has the formation or number of players changed? Nothing to do if not.
 //       if ((prevFrameFormationId == theREActiveTactic.formationId) && (prevFrameNumActivePlayers == numActivePlayers))
@@ -315,7 +315,7 @@ namespace v2025
     {
       // calc ball effect and key parameters for formation movement
 
-      if (theREGameInfo.state != STATE_PLAYING) // FIXME add in special cases for penalties etc here
+      if (theGameState.isPlaying()) // FIXME add in special cases for penalties etc here
         assumedBallPos = Vector2f::Zero();
       else if (theFieldBall.timeSinceBallWasSeen < 2000) // FIXME param
         assumedBallPos = theFieldBall.endPositionOnField;
@@ -409,7 +409,7 @@ namespace v2025
     REFormations::FormationId findBestFormation(const std::vector<REFormations::FormationId>& formationIds)
     {
       size_t numPlayersOnField = theRETeamData.activeTeammates.size();
-      if (!theREGameInfo.isPenalized())
+      if (!theGameState.isPenalized())
         numPlayersOnField += 1; // self is not in activeTeammates so add 1 if it is an active player
 
       // find the formation which most closely matches the number of players
@@ -455,8 +455,8 @@ namespace v2025
       int bestPlayerNumber = -1;
 
       bool recentlyPenalized =
-          theREGameInfo.isPenalized() ||
-          (theFrameInfo.getTimeSince(theExtendedGameState.timeWhenLastUnpenalised) <= params.afterPenaltyMs);
+          theGameState.isPenalized() ||
+          (theFrameInfo.getTimeSince(theExtendedGameState.timeWhenLastUnpenalized) <= params.afterPenaltyMs);
 
       if (!useBall)
       {
@@ -464,7 +464,7 @@ namespace v2025
         // (TODO: Do we need something more sophisticated here?)
 
         if (!recentlyPenalized) // FIXME: should we treat MOTION_IN_SET/STANDBY differently here
-          bestPlayerNumber = theREGameInfo.playerNumber;
+          bestPlayerNumber = theGameState.playerNumber;
 
         for (auto pTeammate : theRETeamData.activeTeammates)
         {
@@ -488,7 +488,7 @@ namespace v2025
         // if we're the only active robot
         int tmp;
 
-        if (!recentlyPenalized && (!theREGameInfo.isGoalkeeper() || theRETeamData.activeTeammates.empty()))
+        if (!recentlyPenalized && (!theGameState.isGoalkeeper() || theRETeamData.activeTeammates.empty()))
         {
           // what role do all other teammates believe we have
           PlayerRole::Type currentRole = PlayerRole::none;
@@ -502,11 +502,11 @@ namespace v2025
           tmp = getTimeToBall(theRobotPose, currentRole, isUpright); // includes hysteresis
           if (tmp < bestTimeToBall)
           {
-            bestPlayerNumber = theREGameInfo.playerNumber;
+            bestPlayerNumber = theGameState.playerNumber;
             bestTimeToBall = tmp;
           }
 
-          TLOGV(tlogger, "assignBallPlayer: robot {} (self): {} ms from ball", theREGameInfo.playerNumber, tmp);
+          TLOGV(tlogger, "assignBallPlayer: robot {} (self): {} ms from ball", theGameState.playerNumber, tmp);
         }
 
         // then check active teammates
@@ -535,7 +535,7 @@ namespace v2025
       else
       {
         // if we didn't find a ball player, we'll have to do it ourselves
-        bestPlayerNumber = theREGameInfo.playerNumber;
+        bestPlayerNumber = theGameState.playerNumber;
         TLOGV(tlogger, "assignBallPlayer: ballPlayer is self (robot {}), no alternative found", bestPlayerNumber);
       }
 
@@ -670,8 +670,7 @@ namespace v2025
     void updateTeamPlayStatus()
     {
       // have we just started a set play?
-      if ((theREGameInfo.state != STATE_PLAYING) &&
-          ((theREGameInfo.setPlay != SET_PLAY_NONE) && (!GameState::isFreeKick(theExtendedGameState.stateLastFrame))))
+      if (theGameState.isFreeKick() && !theExtendedGameState.wasFreeKick())
       {
         numKickingRobotsSinceLastSetPlay = 0;
       }
@@ -684,7 +683,7 @@ namespace v2025
         if (theBehaviorStatus.shootingTo.has_value() && (theBehaviorStatus.shootingTo->squaredNorm() > sqr(300.f)))
         {
           shootingTo = *theBehaviorStatus.shootingTo;
-          playerWhoIsShooting = theREGameInfo.playerNumber;
+          playerWhoIsShooting = theGameState.playerNumber;
         }
         else
         {
@@ -705,7 +704,7 @@ namespace v2025
     {
       // FIXME naive: use player index to select from TeamInfo (i.e. formation role never changes)
       // In future we need to look this up via a map
-      int i = theREGameInfo.playerIndex();
+      int i = Settings::toPlayerIndex(theGameState.playerNumber);
 
       // theREActiveTactic.formationId - already updated with TeamTacticInfo
       theREActiveTactic.formationRole = theREActiveTactic.formationRoles[i];
@@ -769,7 +768,7 @@ namespace v2025
           CIRCLE("behaviour:TeamCoordination:formation", pose.translation.x(), pose.translation.y(), 150, 30,
                   Drawings::solidPen, posColor, Drawings::noBrush, ColorRGBA::black);
 
-          if (playerNumber == theREGameInfo.playerNumber) // self?          
+          if (playerNumber == theGameState.playerNumber) // self?          
             CIRCLE("behaviour:TeamCoordination:formation", pose.translation.x(), pose.translation.y(), 220, 30,
                     Drawings::solidPen, posColor, Drawings::noBrush, ColorRGBA::black);
 

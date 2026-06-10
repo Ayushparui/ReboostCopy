@@ -52,7 +52,7 @@ namespace v2025
   private:
     READS(RobotPose);
     READS(FieldDimensions);
-    READS(REGameInfo);
+    READS(GameState);
 
     HeadSkills headSkills {env};
     MotionSkills motionSkills {env};
@@ -62,7 +62,7 @@ namespace v2025
     {
       // when playing left to right, robots on the right side of the field
       // are at the GC side and can see the ref
-      bool canSeeReferee = theREGameInfo.isPlayingLeftToRight() ? (theRobotPose.translation.y() < 0) : (theRobotPose.translation.y() > 0);
+      bool canSeeReferee = theGameState.leftHandTeam ? (theRobotPose.translation.y() < 0) : (theRobotPose.translation.y() > 0);
 
       if (canSeeReferee)
       {

@@ -8,7 +8,7 @@
 
 #include "REActiveTactic.h"
 
-#include "Representations/Communication/REGameInfo.h"
+#include "Representations/Infrastructure/GameState.h"
 #include "Representations/Configuration/FieldDimensions.h"
 
 void REActiveTactic::draw() const
@@ -44,10 +44,10 @@ void REActiveTactic::draw() const
 
     if (Blackboard::getInstance().exists("REGameInfo"))
     {
-      const REGameInfo &theGameInfo =
-          static_cast<const REGameInfo &>(Blackboard::getInstance()["REGameInfo"]);
+      const GameState &theGameState =
+          static_cast<const GameState &>(Blackboard::getInstance()["GameState"]);
 
-      if (playerNumber == theGameInfo.playerNumber) // self?          
+      if (playerNumber == theGameState.playerNumber) // self?          
         CIRCLE("representation:REActiveTactic", pose.translation.x(), pose.translation.y(), 220, 50,
                 Drawings::solidPen, posColor, Drawings::noBrush, ColorRGBA::black);
     }

@@ -317,7 +317,7 @@ CRBEHAVIOUR(QuickSearchForBallTask)
     READS(RETeamData);
     READS(RETeammatesLocationModel);
     READS(REActiveTactic);
-    READS(REGameInfo);
+    READS(GameState);
 
     CommonSkills commonSkills {env};
     LookLeftAndRightTask lookLeftAndRightTask {env};
@@ -525,7 +525,7 @@ CRBEHAVIOUR(QuickSearchForBallTask)
     READS(RETeamData);
     READS(RETeammatesLocationModel);
     READS(REActiveTactic);
-    READS(REGameInfo);
+    READS(GameState);
     READS(BallSpecification);
     
     CommonSkills commonSkills {env};
@@ -549,13 +549,13 @@ CRBEHAVIOUR(QuickSearchForBallTask)
 
     int getTeammateNumber()
     {
-      return (theREGameInfo.playerNumber == 1) ? 2 : 1;
+      return (theGameState.playerNumber == 1) ? 2 : 1;
     }
 
     bool tooFarToPass()
     {
       const float formationY =
-          theREActiveTactic.formationPoses[Settings::toPlayerIndex(theREGameInfo.playerNumber)].translation.y();
+          theREActiveTactic.formationPoses[Settings::toPlayerIndex(theGameState.playerNumber)].translation.y();
       const float passingZoneY = std::abs(formationY) + 500.f;
 
       const bool ballInDribbleSafeZone = (std::abs(theFieldBall.endPositionOnField.y()) >
@@ -570,7 +570,7 @@ CRBEHAVIOUR(QuickSearchForBallTask)
     {
       // get angle from ball to formationPose
       Vector2f ballToFormationPos =
-          theREActiveTactic.formationPoses[Settings::toPlayerIndex(theREGameInfo.playerNumber)].translation -
+          theREActiveTactic.formationPoses[Settings::toPlayerIndex(theGameState.playerNumber)].translation -
           theFieldBall.endPositionOnField;
       return theRobotPose.toRobotCoordinates(ballToFormationPos).angle();
     }
@@ -756,7 +756,7 @@ CRBEHAVIOUR(QuickSearchForBallTask)
     {
       CRBEHAVIOUR_LOOP()
       {
-        if ((theREGameInfo.playerNumber == 1) || (theREGameInfo.playerNumber == 2))
+        if ((theGameState.playerNumber == 1) || (theGameState.playerNumber == 2))
         {
           if (theREActiveTactic.situationRole == PlayerRole::ballPlayer)
             ballPlayerPlayingTask();
@@ -770,7 +770,7 @@ CRBEHAVIOUR(QuickSearchForBallTask)
 
   private:
     READS(REActiveTactic);
-    READS(REGameInfo);
+    READS(GameState);
 
     MostPassesBallPlayerPlayingTask ballPlayerPlayingTask {env};
     MostPassesReceiverPlayingTask receiverPlayingTask {env};

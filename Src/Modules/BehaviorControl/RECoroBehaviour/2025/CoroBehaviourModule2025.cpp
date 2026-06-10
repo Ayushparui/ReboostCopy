@@ -232,7 +232,7 @@ void CoroBehaviourModule2025::executeBehaviourTick()
 
   // handle basic player active/playing status
   {
-    TLOGD(tlogger, "{} [{}]: playing", theREGameInfo.playerNumber, theFrameInfo.time);
+    TLOGD(tlogger, "{} [{}]: playing", theGameState.playerNumber, theFrameInfo.time);
 
     // execute the top level normal play behaviour
     CALL_BASIC_CORO(topLevelBehaviour);
@@ -318,7 +318,7 @@ void CoroBehaviourModule2025::checkJointTemperatureButtonRequest()
        theEnhancedKeyStates.pressedDuration[KeyStates::headRear] > 0))
   {
     SystemCall::say(fmt::format("{} hottest joint is {}. It is {} degrees.", 
-                                theREGameInfo.getPlayerNumberAndColorString(), 
+                                theGameState.getPlayerNumberAndColorString(), 
                                 Joints::jointLongNames[theRobotHealth.jointWithMaxTemperature],
                                 theJointSensorData.temperatures[theRobotHealth.jointWithMaxTemperature]));
   }
