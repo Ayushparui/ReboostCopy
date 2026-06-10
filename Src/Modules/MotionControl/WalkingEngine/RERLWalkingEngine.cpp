@@ -771,7 +771,7 @@ void RERLWalkPhaseDummy::calcJoints(const MotionRequest&, JointRequest& jointReq
   jointRequest.angles[Joints::lShoulderPitch] = engine.armParameters.armShoulderPitch + engine.theRobotModel.soleLeft.translation.x() * engine.armParameters.armShoulderPitchFactor / 1000.f;
   jointRequest.angles[Joints::lShoulderRoll] = engine.armParameters.armShoulderRoll + std::abs(engine.theRobotModel.soleLeft.translation.y()) * engine.armParameters.armShoulderRollIncreaseFactor / 1000.f;
   jointRequest.angles[Joints::lElbowYaw] = engine.armParameters.armElbowYaw;
-  jointRequest.angles[Joints::lElbowRoll] = 30_deg; // FIXME - was 0_deg - decide which is correct
+  jointRequest.angles[Joints::lElbowRoll] = -30_deg; // FIXME - was 0_deg - decide which is correct
   jointRequest.angles[Joints::lWristYaw] = -90_deg;
   jointRequest.angles[Joints::lHand] = 0.f;
   jointRequest.angles[Joints::rShoulderPitch] = engine.armParameters.armShoulderPitch + engine.theRobotModel.soleRight.translation.x() * engine.armParameters.armShoulderPitchFactor / 1000.f;
