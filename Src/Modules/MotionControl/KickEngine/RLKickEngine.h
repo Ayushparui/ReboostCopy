@@ -23,12 +23,16 @@
 #include "Representations/MotionControl/KickRequest.h"
 #include "Representations/MotionControl/MotionInfo.h"
 #include "Representations/MotionControl/MotionRequest.h"
+#include "Representations/MotionControl/OdometryData.h"
 #include "Representations/MotionControl/WalkGenerator.h"
 #include "Representations/Sensing/InertialData.h"
+#include "Representations/Sensing/RobotModel.h"
+#include "Representations/Sensing/TorsoMatrix.h"
 #include "Tools/Motion/MotionPhase.h"
 
 #include "Platform/File.h"
 #include <CompiledNN2ONNX/CompiledNN.h>
+#include <array>
 
 using namespace NeuralNetworkONNX;
 
@@ -41,6 +45,9 @@ MODULE(RLKickEngine,
   USES(JointRequest),
   REQUIRES(KickInfo),
   REQUIRES(MotionRequest),
+  REQUIRES(OdometryDataPreview),
+  REQUIRES(RobotModel),
+  REQUIRES(TorsoMatrix),
   REQUIRES(WalkGenerator),
   PROVIDES(KickGenerator),
   LOADS_PARAMETERS(
@@ -79,8 +86,6 @@ struct RLKickPhase : MotionPhase
 {
   RLKickPhase(RLKickEngine& engine,
               const KickRequest& kickRequest,
-              const Vector2f& ballInRobot,
-              const Vector2f& ballVelInRobot,
               Angle targetDirection,
               float kickLength,
               bool isLeftKick);
@@ -96,6 +101,7 @@ private:
   void update() override;
 
   void executePolicy(JointRequest& target);
+  Pose2f supportSolePose() const;
 
   RLKickEngine& engine;
 
@@ -104,11 +110,20 @@ private:
   float executedTime = 0.f;
   bool done = false;
 
-  // Snapshotted command at phase construction so the policy sees a stable target.
-  Vector2f ballInRobot;
-  Vector2f ballVelInRobot;
+  // Kick command snapshotted at phase construction. The ball estimate is read live from
+  // theMotionRequest each inference instead; the target direction is committed here so a
+  // mid-kick behavior change cannot retarget the policy, and is re-expressed in the current
+  // robot frame each inference via the odometry it was created in.
   Angle targetDirection;
   float kickLength;
+  Pose2f requestOdometry; /**< theMotionRequest.odometryData at phase construction. */
+
+  // Support-sole pose in the ground frame from the previous frame, for odometry translation.
+  Pose2f lastSupportSole;
+
+  // Raw network output of the previous inference (pre-offset, pre-clip), matching
+  // Isaac Lab's last_action observation, which is zeroed at episode reset.
+  std::array<float, 12> lastAction;
 
   JointRequest nextRequest;
 };

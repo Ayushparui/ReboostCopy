@@ -8,9 +8,9 @@
  *   [3:6]   base_ang_vel             gyro x/y/z (rad/s)
  *   [6:18]  dof_pos - default        12 leg joints (rad)
  *   [18:30] dof_vel * 0.1            12 leg joints (scaled rad/s)
- *   [30:42] last_action              12 leg joints (rad, relative to default)
- *   [42:44] ball_position_xy         relative to robot (m)
- *   [44:46] ball_velocity_xy         relative to robot (m/s)
+ *   [30:42] last_action              previous raw network output (zero on first inference)
+ *   [42:44] ball_position_xy         relative to robot (m), live estimate
+ *   [44:46] ball_velocity_xy         relative to robot (m/s), live estimate
  *   [46:48] kick_direction           (cos, sin) of motionRequest.targetDirection
  *   [48]    kick_length_normalized   kickLength / maxKickLength, clipped to [0,1]
  *   [49]    phase_progress           executedTime / maxKickTime, clipped to [0,1]
@@ -117,15 +117,12 @@ void RLKickEngine::update(KickGenerator& kickGenerator)
       return std::unique_ptr<MotionPhase>();
     }
 
-    // Snapshot the kick context from MotionRequest. ballEstimate is in mm / mm·s^-1 relative to the robot.
-    const Vector2f ballInRobot = theMotionRequest.ballEstimate.position;
-    const Vector2f ballVelInRobot = theMotionRequest.ballEstimate.velocity;
+    // Snapshot the kick command; the ball estimate is read live from theMotionRequest each inference.
     const Angle targetDirection = theMotionRequest.targetDirection;
     const float kickLength = theMotionRequest.kickLength;
     const bool isLeftKick = theKickInfo[theMotionRequest.kickType].kickLeg == Legs::left;
 
-    return std::make_unique<RLKickPhase>(*this, kickRequest, ballInRobot, ballVelInRobot,
-                                         targetDirection, kickLength, isLeftKick);
+    return std::make_unique<RLKickPhase>(*this, kickRequest, targetDirection, kickLength, isLeftKick);
   };
 
   kickGenerator.wasLeftPhase = [](const MotionPhase& lastPhase) -> bool
@@ -142,8 +139,6 @@ void RLKickEngine::update(KickGenerator& kickGenerator)
 
 RLKickPhase::RLKickPhase(RLKickEngine& engine,
                          const KickRequest& /*kickRequest*/,
-                         const Vector2f& ballInRobot,
-                         const Vector2f& ballVelInRobot,
                          const Angle targetDirection,
                          const float kickLength,
                          const bool isLeftKick) :
@@ -151,14 +146,23 @@ RLKickPhase::RLKickPhase(RLKickEngine& engine,
   isLeftKick(isLeftKick),
   engine(engine),
   startTime(engine.theFrameInfo.time),
-  ballInRobot(ballInRobot),
-  ballVelInRobot(ballVelInRobot),
   targetDirection(targetDirection),
-  kickLength(kickLength)
+  kickLength(kickLength),
+  requestOdometry(engine.theMotionRequest.odometryData),
+  lastSupportSole(supportSolePose())
 {
+  // Training zeroes the last_action observation at episode reset.
+  lastAction.fill(0.f);
+
   // Seed with current measurements so the first leg target is a smooth handoff from the previous phase.
   nextRequest.angles = engine.theJointAngles.angles;
   nextRequest.stiffnessData.stiffnesses.fill(100);
+}
+
+Pose2f RLKickPhase::supportSolePose() const
+{
+  const Pose3f sole3D = engine.theTorsoMatrix * (isLeftKick ? engine.theRobotModel.soleRight : engine.theRobotModel.soleLeft);
+  return Pose2f(sole3D.rotation.getZAngle(), sole3D.translation.head<2>());
 }
 
 void RLKickPhase::executePolicy(JointRequest& target)
@@ -192,9 +196,20 @@ void RLKickPhase::executePolicy(JointRequest& target)
   for(Joints::Joint j : engine.boosterLegJoints)
     *input++ = engine.lastMeasurement.velocity[j] * 0.1f;
 
-  // [30:42] last action
-  for(Joints::Joint j : engine.boosterLegJoints)
-    *input++ = engine.theJointRequest.angles[j] - engine.offset.angles[j];
+  // [30:42] last action: raw network output of the previous inference (zero on the first),
+  // matching Isaac Lab's last_action observation (pre-offset, pre-clip).
+  for(const float a : lastAction)
+    *input++ = a;
+
+  // [42:46] live ball estimate, re-expressed in the current robot frame via the odometry
+  // the estimate was created in. Training recomputes these from sim state every step, so a
+  // frozen snapshot would make both the pre-kick foot servo and the post-kick recovery
+  // (gated on observed ball motion) open-loop.
+  const Pose2f ballToCurrent = engine.theOdometryDataPreview.inverse() * engine.theMotionRequest.odometryData;
+  const Vector2f ballInRobot = ballToCurrent * engine.theMotionRequest.ballEstimate.position;
+  // Training observes the ball's world velocity in the robot yaw frame; the relative
+  // velocity estimate matches it up to the robot's own velocity, which is small here.
+  const Vector2f ballVelInRobot = Pose2f(ballToCurrent.rotation) * engine.theMotionRequest.ballEstimate.velocity;
 
   // [42:44] ball position in robot frame (m)
   *input++ = ballInRobot.x() * 0.001f;
@@ -204,9 +219,12 @@ void RLKickPhase::executePolicy(JointRequest& target)
   *input++ = ballVelInRobot.x() * 0.001f;
   *input++ = ballVelInRobot.y() * 0.001f;
 
-  // [46:48] kick direction
-  *input++ = std::cos(static_cast<float>(targetDirection));
-  *input++ = std::sin(static_cast<float>(targetDirection));
+  // [46:48] kick direction, committed at phase start but re-expressed in the current robot
+  // frame (training computes it against the robot's current heading every step).
+  const Angle currentTargetDirection = Angle::normalize(
+    targetDirection + requestOdometry.rotation - engine.theOdometryDataPreview.rotation);
+  *input++ = std::cos(static_cast<float>(currentTargetDirection));
+  *input++ = std::sin(static_cast<float>(currentTargetDirection));
 
   // [48] kick length normalized
   *input++ = Rangef::ZeroOneRange().limit(kickLength / engine.maxKickLength);
@@ -220,9 +238,13 @@ void RLKickPhase::executePolicy(JointRequest& target)
   STOPWATCH("module:RLKickEngine:apply")
     engine.policy.apply();
 
+  // Isaac Lab applies the offset first and clips the result (processed = raw + default, then clip).
   const float* output = engine.policy.output(0).data();
-  for(Joints::Joint j : engine.boosterLegJoints)
-    target.angles[j] = engine.clipActions.limit(*output++) + engine.offset.angles[j];
+  for(std::size_t i = 0; i < engine.boosterLegJoints.size(); ++i)
+  {
+    lastAction[i] = *output++;
+    target.angles[engine.boosterLegJoints[i]] = engine.clipActions.limit(lastAction[i] + engine.offset.angles[engine.boosterLegJoints[i]]);
+  }
 
   lastInference = engine.theFrameInfo.time;
 }
@@ -263,7 +285,13 @@ void RLKickPhase::calcJoints(const MotionRequest&, JointRequest& jointRequest, P
   motionInfo.isWalkPhaseInWalkKick = false;
   motionInfo.speed = Pose2f();
 
-  odometryOffset = Pose2f(0_deg, 0.f, 0.f);
+  // Approximate odometry from the support sole: assuming it stays put on the ground, the
+  // robot's motion is the inverse of the sole's motion in the robot frame. Without this the
+  // step into the ball never reaches the ball model and the live estimate drifts.
+  // MotionEngine overrides the rotation from the IMU, so only the translation matters here.
+  const Pose2f supportSole = supportSolePose();
+  odometryOffset = lastSupportSole * supportSole.inverse();
+  lastSupportSole = supportSole;
 }
 
 unsigned RLKickPhase::freeLimbs() const
