@@ -23,5 +23,6 @@ STREAMABLE(RobotSafetyState,
   // the platform supports e-stop, e.g. Booster K1, or not, e.g. Nao). Each
   // robot platform will set its own appropriate initialisation values
   (State)(operational) state,
-  (bool)(true) hardwareConnected, ///< is the interface to hardware working fine? 
+  (bool)(true) hardwareConnected, ///< is the interface to hardware working fine?
+  (unsigned)(0) timeWhenStateStarted,
 });

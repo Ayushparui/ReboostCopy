@@ -46,21 +46,28 @@ private:
   {,
     softwareStart,
     safetyStateOperational,
+    safetyStateSafetyTripped,
     playerStateUnstiff,
     playerStatePrepare,
     playerStateActive,
-    gcStateInitial,
-    gcStateReady,
-    gcStateSet,
-    gcStatePlaying,
-    gcStateFinished,
+    stateInitial,
+    stateReady,
+    stateSet,
+    statePlaying,
+    stateFinished,
+    penaltyShootoutInitial,
+    penaltyShootoutShotSet,
+    penaltyShootoutShotPlaying,
+    penaltyShootoutShotFinished,
   });
 
+  /// Note: it is up to the config file writer to ensure that the stop condition and start conditions do not overlap, i.e.
+  /// that a startCondition cannot already be present when a stopCondition fires
   STREAMABLE(Params,
   {,
-    (LoggingCondition)(gcStateReady) startCondition,
-    (LoggingCondition)(gcStateFinished) stopCondition,
-    (int)(10000) stopConditionTimeout,
+    (std::vector<LoggingCondition>)({stateReady}) startConditions, ///< any of the listed conditions will start logging
+    (std::vector<LoggingCondition>)({stateFinished}) stopConditions, ///< any of the listed conditions will stop logging (after timeout)
+    (int)(10000) stopConditionTimeout, ///< stop condition must be present for this time before logging stops
   });
 
   /**
@@ -89,5 +96,6 @@ private:
   std::unordered_map<std::uint8_t, std::string> teams; /**< The map from team numbers to team names for naming the log file after the opponent. */
   const GameState& gameState; /**< The game state in the current thread's blackboard. */
   const RobotSafetyState& robotSafetyState; ///< from the blackboard
-  mutable Params params;
+  Params params;
+  mutable bool isSoftwareStartup = true;
 };

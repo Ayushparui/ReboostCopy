@@ -223,17 +223,7 @@ class BoosterK1Provider : public BoosterK1ProviderBase
   /**
    * Update the RobotSafetyState
    */
-  void update(RobotSafetyState &theRobotSafetyState) override
-  {
-#ifdef TARGET_BOOSTER
-    theRobotSafetyState.state = robotSafetyState.load();
-    SYNC;
-    theRobotSafetyState.hardwareConnected = hardwareDataAvailable;
-#else
-    theRobotSafetyState.state = RobotSafetyState::operational;
-    theRobotSafetyState.hardwareConnected = true;
-#endif
-  }
+  void update(RobotSafetyState &theRobotSafetyState) override;
 
 
 #ifdef TARGET_BOOSTER

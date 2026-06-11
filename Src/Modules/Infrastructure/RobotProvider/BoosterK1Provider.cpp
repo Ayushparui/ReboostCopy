@@ -197,6 +197,26 @@ void BoosterK1Provider::update(GamePad &theGamePad)
   theGamePad = gamePad;
 }
 
+void BoosterK1Provider::update(RobotSafetyState &theRobotSafetyState)
+{
+  RobotSafetyState::State stateLastCycle = theRobotSafetyState.state;
+
+#ifdef TARGET_BOOSTER
+  theRobotSafetyState.state = robotSafetyState.load(); // update the state as needed
+  {
+    SYNC;
+    theRobotSafetyState.hardwareConnected = hardwareDataAvailable;
+  }
+#else
+  theRobotSafetyState.state = RobotSafetyState::operational;
+  theRobotSafetyState.hardwareConnected = true;
+#endif
+
+  if (theRobotSafetyState.state != stateLastCycle)
+    theRobotSafetyState.timeWhenStateStarted = theFrameInfo.time;
+}
+
+
 
 #ifdef TARGET_BOOSTER
 void BoosterK1Provider::handleLowStateMsg(const booster_interface::msg::LowState& lowState)

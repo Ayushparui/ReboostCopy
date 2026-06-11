@@ -47,38 +47,84 @@ bool BHLoggingController::shouldLog(bool wasLogging) const
   //          || (gameState.isFinished() && !(wasLogging && Time::getTimeSince(gameState.timeWhenStateStarted) < 10000)));
   // return !((gameState.isFinished() && !(wasLogging && Time::getTimeSince(gameState.timeWhenStateStarted) < 10000)));
 
+  bool isSoftwareStartupNow = isSoftwareStartup;
+  isSoftwareStartup = false;
+
   if (!wasLogging) // should we start logging
   {
-    switch (params.startCondition)
-    {
-    case softwareStart: params.startCondition = playerStatePrepare; return true;
-    case safetyStateOperational: return robotSafetyState.state == RobotSafetyState::operational;
-    case playerStatePrepare: return gameState.playerState == GameState::prepare;
-    case playerStateActive: return gameState.playerState == GameState::active;
-    case gcStateInitial: return gameState.isInitial(false);
-    case gcStateReady: return gameState.isReady();
-    case gcStateSet: return gameState.isSet();
-    case gcStatePlaying: return gameState.isPlaying();
-    default: // unstiff, finished, etc don't make sense for start conditions
-      return gameState.isReady() || gameState.isSet() || gameState.isPlaying();
-    }
+    // Start if ANY start condition is met
+    return std::any_of(params.startConditions.begin(), params.startConditions.end(),
+                       [this,isSoftwareStartupNow](LoggingCondition cond) -> bool
+                       {
+                         switch (cond)
+                         {
+                         case softwareStart: return isSoftwareStartupNow; // recommend prepare as an alternative if you need logging to restart after finishing
+                         case safetyStateOperational: return robotSafetyState.state == RobotSafetyState::operational;
+                         case safetyStateSafetyTripped: return robotSafetyState.state == RobotSafetyState::safetyTripped;
+                         case playerStatePrepare: return gameState.playerState == GameState::prepare;
+                         case playerStateActive: return gameState.playerState == GameState::active;
+                         case stateInitial: return gameState.isInitial(false);
+                         case stateReady: return gameState.isReady();
+                         case stateSet: return gameState.isSet();
+                         case statePlaying: return gameState.isPlaying();
+                         case penaltyShootoutInitial: return gameState.state == GameState::beforePenaltyShootout;
+                         case penaltyShootoutShotSet:
+                           return (gameState.state == GameState::waitForOwnPenaltyShot) ||
+                                  (gameState.state == GameState::waitForOpponentPenaltyShot);
+                         case penaltyShootoutShotPlaying:
+                           return (gameState.state == GameState::ownPenaltyShot) ||
+                                  (gameState.state == GameState::opponentPenaltyShot);
+                         case penaltyShootoutShotFinished:
+                           return (gameState.state == GameState::afterOwnPenaltyShot) ||
+                                  (gameState.state == GameState::afterOpponentPenaltyShot);
+                         default: // unstiff, finished, etc don't make sense for start conditions
+                           return gameState.isReady() || gameState.isSet() || gameState.isPlaying();
+                         }
+                       });
   }
   else // should we continue logging (true) or stop logging (false)?
   {
-    const bool playerStateLongEnough = Time::getTimeSince(gameState.timeWhenPlayerStateStarted) >= params.stopConditionTimeout;
+    const bool safetyStateLongEnough =
+        Time::getTimeSince(robotSafetyState.timeWhenStateStarted) > params.stopConditionTimeout;
+    const bool playerStateLongEnough =
+        Time::getTimeSince(gameState.timeWhenPlayerStateStarted) >= params.stopConditionTimeout;
     const bool gameStateLongEnough = Time::getTimeSince(gameState.timeWhenStateStarted) >= params.stopConditionTimeout;
 
-    switch (params.stopCondition)
-    {
-    case playerStateUnstiff: return !(gameState.playerState == GameState::unstiff && playerStateLongEnough);
-    case playerStatePrepare: return !(gameState.playerState == GameState::prepare && playerStateLongEnough);
-    case gcStateReady: return !(gameState.isReady() && gameStateLongEnough);
-    case gcStateSet: return !(gameState.isSet() && gameStateLongEnough);
-    case gcStatePlaying: return !(gameState.isPlaying() && gameStateLongEnough);
-    case gcStateFinished: return !(gameState.isFinished() && gameStateLongEnough);
-    default: // most states don't make sense to stop logging
-      return true; // continue logging
-    }
+    // Stop logging (return false) if ANY stop condition triggers
+    const bool anyStopTriggered = std::any_of(
+        params.stopConditions.begin(), params.stopConditions.end(),
+        [this, playerStateLongEnough, gameStateLongEnough, safetyStateLongEnough](LoggingCondition cond) -> bool
+        {
+          switch (cond)
+          {
+          case safetyStateOperational:
+            return (robotSafetyState.state == RobotSafetyState::operational) && safetyStateLongEnough;
+          case safetyStateSafetyTripped:
+            return (robotSafetyState.state == RobotSafetyState::safetyTripped) && safetyStateLongEnough;
+          case playerStateUnstiff: return (gameState.playerState == GameState::unstiff && playerStateLongEnough);
+          case playerStatePrepare: return (gameState.playerState == GameState::prepare && playerStateLongEnough);
+          case stateReady: return (gameState.isReady() && gameStateLongEnough);
+          case stateSet: return (gameState.isSet() && gameStateLongEnough);
+          case statePlaying: return (gameState.isPlaying() && gameStateLongEnough);
+          case stateFinished: return (gameState.isFinished() && gameStateLongEnough);
+          case penaltyShootoutShotSet:
+            return ((gameState.state == GameState::waitForOwnPenaltyShot) ||
+                    (gameState.state == GameState::waitForOpponentPenaltyShot)) &&
+                   gameStateLongEnough;
+          case penaltyShootoutShotPlaying:
+            return ((gameState.state == GameState::ownPenaltyShot) ||
+                    (gameState.state == GameState::opponentPenaltyShot)) &&
+                   gameStateLongEnough;
+          case penaltyShootoutShotFinished:
+            return ((gameState.state == GameState::afterOwnPenaltyShot) ||
+                    (gameState.state == GameState::afterOpponentPenaltyShot)) &&
+                   gameStateLongEnough;
+          default:       // most states don't make sense to stop logging
+            return true; // continue logging
+          }
+        });
+
+    return anyStopTriggered ? false : true; // should we continue logging?
   }
 }
 
