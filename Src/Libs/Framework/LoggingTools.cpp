@@ -187,7 +187,8 @@ void LoggingTools::parseName(const std::string& logfileName, std::string* headNa
     if (location)
       *location = match[4];
   }
-  else {
+  else
+  {
     TLOGE(tlogger, "could not parse head/body/scenario/location from log file name");
     return;
   }

@@ -10,6 +10,10 @@
 #include "Streaming/InStreams.h"
 #include "Streaming/Output.h"
 
+#include "TextLogging/TextLogging.h"
+
+DECL_TLOGGER(tlogger, "Settings", TextLogging::INFO);
+
 Settings::Settings(const std::string& headName, const std::string& bodyName, float motionCycleTime, RobotType robotType) :
   headName(headName),
   bodyName(bodyName),
@@ -64,6 +68,15 @@ settingsRead:
   if(scenario)
     this->scenario = *scenario;
   updateSearchPath();
+
+  TLOGI(tlogger, "Settings from log file:");
+  TLOGI(tlogger, "head={}, body={}, robotType={}", headName, bodyName, TypeRegistry::getEnumName(robotType));
+  TLOGI(tlogger, "teamNumber={}, playerNumber={}, fieldPlayerColor={}, goalKeeperColor={}", teamNumber, playerNumber,
+        TypeRegistry::getEnumName(fieldPlayerColor), TypeRegistry::getEnumName(goalkeeperColor));
+  TLOGI(tlogger, "location={}, scenario={}", this->location, this->scenario);
+  TLOGI(tlogger, "search path:");
+  for (auto p : searchPath)
+    TLOGI(tlogger, "    {}", p);
 }
 
 void Settings::updateSearchPath()
