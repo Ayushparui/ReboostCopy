@@ -36,6 +36,7 @@ BHLoggingController::BHLoggingController() :
 BHLoggingController::~BHLoggingController()
 {
   Blackboard::getInstance().free("GameState");
+  Blackboard::getInstance().free("RobotSafetyState");
 }
 
 bool BHLoggingController::shouldLog(bool wasLogging) const
