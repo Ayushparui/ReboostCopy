@@ -112,6 +112,8 @@ ENUM(MessageID,
   idWalkStepData,
   idWalkingEngineOutput,
   idWhistle,
+  idGamePad,
+  idGamePadEx,
   numOfDataMessageIDs, /**< everything below this does not belong into log files */
 
   // infrastructure

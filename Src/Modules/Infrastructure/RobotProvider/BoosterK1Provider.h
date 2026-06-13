@@ -147,6 +147,7 @@ class BoosterK1Provider : public BoosterK1ProviderBase
   IntervalTriggerMs logIntervalRobotStatus;
   IntervalTriggerMs logIntervalUpdateHardwareDataAvailable;
   IntervalTriggerMs logIntervalWaitForFrameData;
+  IntervalTriggerMs logIntervalRemoteController;
   float lastReportedStateOfCharge = 1.f;
 
   IntervalTimingStats robotStatusIntervalStats;
