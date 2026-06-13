@@ -137,7 +137,6 @@ class BoosterK1Provider : public BoosterK1ProviderBase
   booster::robot::ChannelSubscriber<booster_interface::msg::RobotStatesMsg> robotStatesSubscriber;
   booster::robot::light::LightControlClient lightControlClient; ///< client for back panel LED control
 
-
   /// essentially is the lowState subscriber getting all the data it needs
   bool hardwareDataAvailable = false; // default is disconnected initially
   size_t connectedJoints;             /**< How many joints are connected? */
@@ -172,6 +171,10 @@ class BoosterK1Provider : public BoosterK1ProviderBase
 
   enum Button : int32_t { button_f1, button_stand, button_walk };
   std::array<bool, 3> buttonPressed = {}; // all false initially
+
+  // timeWhenButtonPressed is only used in handleButtonMsg (Callback thread) so no SYNC needed to use it there
+  std::array<unsigned, 3> timeWhenButtonPressed = {}; // all zero initially
+
 
   // mSentColor: packed RGB of last SetLEDLightColor call; UINT32_MAX = uninitialised sentinel.
   uint32_t mSentLedColor = UINT32_MAX;

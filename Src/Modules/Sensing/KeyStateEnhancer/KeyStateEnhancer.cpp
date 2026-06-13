@@ -9,7 +9,7 @@
 
 MAKE_MODULE(KeyStateEnhancer);
 
-DECL_TLOGGER(tlogger, "KeyStateEnhancer", TextLogging::DEBUG);
+DECL_TLOGGER(tlogger, "KeyStateEnhancer", TextLogging::INFO);
 
 void KeyStateEnhancer::update(EnhancedKeyStates& enhancedKeyStates)
 {
@@ -18,6 +18,7 @@ void KeyStateEnhancer::update(EnhancedKeyStates& enhancedKeyStates)
     return getHitStreakOf(key, enhancedKeyStates.pressed[key], timeOut, allowedTimeBetweenHitStreak);
   };
 
+  // clear lambda before resetting to eliminate stale captures etc.
   enhancedKeyStates.isPressedFor = FunctionImpl::Function<bool(KeyStates::Key, unsigned)>();
   enhancedKeyStates.isPressedFor = [&enhancedKeyStates, lastEnhancedKeyStates = enhancedKeyStates](KeyStates::Key key, unsigned duration) -> bool
   {
@@ -40,11 +41,19 @@ void KeyStateEnhancer::update(EnhancedKeyStates& enhancedKeyStates)
         hitStreakDurations[i].front().add(theFrameInfo.time);
 
       enhancedKeyStates.pressedDuration[i] = hitStreakDurations[i].front().getSize(); // non-zero duration while pressed
+      enhancedKeyStates.clickedDuration[i] = 0; // no click while pressed
     }
-    else
+    else // not pressed
     {
       if (enhancedKeyStates.pressedDuration[i]) // was it just released now?
+      {
         pressedOrReleased[i] = true;
+        enhancedKeyStates.clickedDuration[i] = hitStreakDurations[i].front().getSize();
+      }
+      else
+      {
+        enhancedKeyStates.clickedDuration[i] = 0; // no click after the cycle where it was released
+      }
 
       enhancedKeyStates.pressedDuration[i] = 0; // zero duration once release
     }
@@ -57,12 +66,12 @@ void KeyStateEnhancer::update(EnhancedKeyStates& enhancedKeyStates)
   if ((pressedOrReleased[KeyStates::k1_f1]) || (pressedOrReleased[KeyStates::k1_stand]) ||
       (pressedOrReleased[KeyStates::k1_walk]))
   {
-    auto keyStr = [&](KeyStates::Key k) -> std::string
+    auto keyStr = [&, enhancedKeyStates](KeyStates::Key k) -> std::string
     {
       if (pressedOrReleased[k])
-        return theKeyStates.pressed[k] ? "PRESS" : fmt::format("REL({}ms)", hitStreakDurations[k].front().getSize());
-      if (!theKeyStates.pressed[k])
-        return "HOLD";
+        return theKeyStates.pressed[k] ? "PRESS" : fmt::format("REL({}ms)", enhancedKeyStates.clickedDuration[k]); //hitStreakDurations[k].front().getSize());
+      if (theKeyStates.pressed[k])
+        return fmt::format("HOLD({})", enhancedKeyStates.pressedDuration[k]);
       else
         return "idle";
       
@@ -70,6 +79,33 @@ void KeyStateEnhancer::update(EnhancedKeyStates& enhancedKeyStates)
 
     TLOGI(tlogger, "pressed/released: F1={}, Stand={}, Walk={}", keyStr(KeyStates::k1_f1), keyStr(KeyStates::k1_stand),
           keyStr(KeyStates::k1_walk));
+
+    if (tlogger.isEnabled(TextLogging::DEBUG))
+    {
+      TLOGD(tlogger, "hitStreakDurations [(T_now-timeSincePress ms, duration ms), ...]:");
+      for (auto key : {KeyStates::k1_f1, KeyStates::k1_stand, KeyStates::k1_walk})
+      {
+        fmt::memory_buffer buf;
+        const char *keyName = TypeRegistry::getEnumName(key);
+        fmt::format_to(std::back_inserter(buf), "  {:8s}: [", keyName);
+
+        bool first = true;
+        for (const auto &r : hitStreakDurations[key])
+        {
+          const int ageSince = theFrameInfo.getTimeSince(r.min);
+          if (ageSince > 10000)
+            break; // ring buffer is newest-first, so everything beyond here is older
+
+          if (!first)
+            fmt::format_to(std::back_inserter(buf), ", ");
+          first = false;
+
+          fmt::format_to(std::back_inserter(buf), "(T-{}, {})", theFrameInfo.getTimeSince(r.min), r.getSize());
+        }
+        fmt::format_to(std::back_inserter(buf), "]");
+        TLOGD(tlogger, "{}", fmt::string_view(buf.data(), buf.size()));
+      }
+    }
   }
 
   if ((enhancedKeyStates.hitStreak[KeyStates::k1_f1] != prevHitStreak[KeyStates::k1_f1]) ||

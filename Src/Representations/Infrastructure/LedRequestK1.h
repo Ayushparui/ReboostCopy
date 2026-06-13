@@ -45,10 +45,18 @@ STREAMABLE(LedColorK1,
   bool operator==(const LedColorK1& o) const { return r == o.r && g == o.g && b == o.b; };
 
   /// make a colour from float r,g,b values
-  LedColorK1 make(float r, float g, float b)
+  static LedColorK1 make(float r, float g, float b)
   {
-    return LedColorK1(uint8_t(255.f * std::clamp(r, 0.f, 1.f)), uint8_t(255.f * std::clamp(g, 0.f, 1.f)),
-                      uint8_t(255.f * std::clamp(b, 0.f, 1.f)));
+    return LedColorK1(static_cast<uint8_t>(255.f * std::clamp(r, 0.f, 1.f)),
+                      static_cast<uint8_t>(255.f * std::clamp(g, 0.f, 1.f)),
+                      static_cast<uint8_t>(255.f * std::clamp(b, 0.f, 1.f)));
+  }
+
+  LedColorK1 scaled(float scale)
+  {
+    return LedColorK1(static_cast<uint8_t>(r * scale),
+                      static_cast<uint8_t>(g * scale),
+                      static_cast<uint8_t>(b * scale));
   }
 
   /**** separate header from streamable fields - comma at end of comment ****/,
@@ -114,6 +122,7 @@ STREAMABLE(LedRequestK1,
   static constexpr uint32_t BLINK2      = 0b11111111'00000000'11111111'00000000; // antiphase to blink
   static constexpr uint32_t FAST_BLINK  = 0b00110011'00110011'00110011'00110011;
   static constexpr uint32_t FAST_BLINK2 = 0b11001100'11001100'11001100'11001100; // antiphase to fast blink
+  static constexpr uint32_t VERY_FAST_BLINK  = 0b01001001'00100100'10010010'01001001;
   static constexpr uint32_t SLOW_DOUBLE = 0b00000000'00000000'00001111'00001111; // double blink, gap
   static constexpr uint32_t FAST_DOUBLE = 0b00000000'00110011'00000000'00110011; // fast double blink, gap
   static constexpr uint32_t TRIPLE      = 0b00000000'00010101'00000000'00010101; // triple blink, gap

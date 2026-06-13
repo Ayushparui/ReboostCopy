@@ -136,6 +136,8 @@ void GameStateProvider::update(GameState& gameState)
         setToUnstiff("after half"); // FIXME - needs to be different for K1
       else if (calibrationModeRequested)
         setToCalibration();
+      else if (prepareModeRequested)
+        setToPrepare();
     }
   }
   else // safety state not operational
@@ -697,25 +699,34 @@ void GameStateProvider::updateFromBoosterK1Hri([[maybe_unused]] GameState& gameS
   // else if (theEnhancedKeyStates.hitStreak[KeyStates::k1_walk] == 1)
   //   TLOGI(tlogger, "WALK button clicked once");
 
+  constexpr unsigned fromSafetyTrippedMs = 2000u;
+  constexpr unsigned toCalibrationMs = 2000u;
+
   // buttons only active if we're operational
   if (theRobotSafetyState.state == RobotSafetyState::operational)
   {
+    // if (theEnhancedKeyStates.clickedDuration[KeyStates::k1_f1] >= fromSafetyTrippedMs)
+    //   TLOGD(tlogger, "detected F1 button long-clicked >{} ms once", fromSafetyTrippedMs);
+    // else if (theEnhancedKeyStates.clickedDuration[KeyStates::k1_stand] >= fromSafetyTrippedMs)
+    //   TLOGD(tlogger, "detected STAND button long-clicked >{} ms once", fromSafetyTrippedMs);
+
+    bool nearSwitchToOperational = theFrameInfo.getTimeSince(timeWhenRobotBecameOperational) < 300;
+
     switch (gameState.playerState)
     {
     case GameState::unstiff:
-      if (theEnhancedKeyStates.hitStreak[KeyStates::k1_stand] == 1)
+      if (!nearSwitchToOperational &&
+          (theEnhancedKeyStates.hitStreak[KeyStates::k1_stand] == 1))
       {
         TLOGI(tlogger, "Unstiff: STAND button clicked once: prepareModeRequested");
         prepareModeRequested = true;
       }
-      else if ((theEnhancedKeyStates.getHitStreakFor(KeyStates::k1_stand, 3000u, 50u) == 1) &&
-               (theFrameInfo.getTimeSince(timeWhenRobotBecameOperational) < 500))
+      else if (nearSwitchToOperational && (theEnhancedKeyStates.clickedDuration[KeyStates::k1_stand] >= fromSafetyTrippedMs))
       {
         TLOGI(tlogger, "Unstiff: STAND button long-clicked once near switching to operational: prepareModeRequested");
         prepareModeRequested = true;
       }
-      else if ((theEnhancedKeyStates.getHitStreakFor(KeyStates::k1_f1, 3000u, 50u) == 1) &&
-               (theFrameInfo.getTimeSince(timeWhenRobotBecameOperational) < 500))
+      else if (nearSwitchToOperational && (theEnhancedKeyStates.clickedDuration[KeyStates::k1_f1] >= fromSafetyTrippedMs))
       {
         TLOGI(tlogger, "Unstiff: F1 button long-clicked once near switching to operational: stay in unstiff");
       }
@@ -730,16 +741,16 @@ void GameStateProvider::updateFromBoosterK1Hri([[maybe_unused]] GameState& gameS
       break;
 
     case GameState::calibration:
-      if (theEnhancedKeyStates.pressedDuration[KeyStates::k1_stand] > 2000u)
+      if (theEnhancedKeyStates.hitStreak[KeyStates::k1_stand] == 1)
       {
-        TLOGI(tlogger, "calibration: STAND button long pressed: prepareModeRequested");
+        TLOGI(tlogger, "calibration: STAND button clicked once: prepareModeRequested");
         prepareModeRequested = true;
       }
       break;
 
     default:
       if (gameState.isInitial() && (gameState.playerState == GameState::active) &&
-          (theEnhancedKeyStates.pressedDuration[KeyStates::k1_walk] > 2000u))
+          (theEnhancedKeyStates.pressedDuration[KeyStates::k1_walk] > toCalibrationMs))
       {
         TLOGI(tlogger, "Active: WALK button long pressed: calibrationModeRequested");
         calibrationModeRequested = true;
@@ -749,9 +760,9 @@ void GameStateProvider::updateFromBoosterK1Hri([[maybe_unused]] GameState& gameS
         TLOGI(tlogger, "Active: WALK button clicked: manualGameStateChangeRequested");
         manualGameStateChangeRequested = true;
       }
-      else if (theEnhancedKeyStates.pressedDuration[KeyStates::k1_stand] > 2000u)
+      else if (theEnhancedKeyStates.hitStreak[KeyStates::k1_stand] == 1)
       {
-        TLOGI(tlogger, "Active: STAND button long pressed: prepareModeRequested");
+        TLOGI(tlogger, "Active: STAND button clicked: prepareModeRequested");
         prepareModeRequested = true;
       }
       else // buttons (above) take precedence over any game pad control (in here)

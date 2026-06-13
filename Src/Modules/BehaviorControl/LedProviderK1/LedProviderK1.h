@@ -10,12 +10,13 @@
 #include "Representations/Infrastructure/FrameInfo.h"
 #include "Representations/Infrastructure/GameState.h"
 #include "Representations/Infrastructure/LedRequestK1.h"
-#include "Representations/Infrastructure/SensorData/SystemSensorData.h"
+// #include "Representations/Infrastructure/SensorData/SystemSensorData.h"
+#include "Representations/Infrastructure/SensorData/KeyStates.h"
 #include "Representations/Modeling/GlobalTeammatesModel.h"
 #include "Representations/Sensing/GroundContactState.h"
 #include "Representations/Infrastructure/RobotSafetyState.h"
+// #include "Representations/Infrastructure/RobotHealth.h"
 #include "Framework/Module.h"
-#include "Representations/Infrastructure/RobotHealth.h"
 
 MODULE(LedProviderK1,
 {,
@@ -24,6 +25,7 @@ MODULE(LedProviderK1,
   REQUIRES(GlobalTeammatesModel),
   REQUIRES(GroundContactState),
   REQUIRES(RobotSafetyState),
+  REQUIRES(EnhancedKeyStates),
   // REQUIRES(JointSensorData),
   // USES(RobotHealth),
   // REQUIRES(SystemSensorData),
@@ -53,5 +55,6 @@ private:
   void updateFromGameState(LedRequestK1 &ledRequest);
   void updateFromGroundState(LedRequestK1 &ledRequest);
   void updateFromTeammates(LedRequestK1 &ledRequest);
+  void updateFromKeyStates(LedRequestK1 &ledRequest);
   void updateFromRobotSafetyState(LedRequestK1 &ledRequest);
 };

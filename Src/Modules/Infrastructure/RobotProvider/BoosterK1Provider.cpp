@@ -58,7 +58,7 @@
 
 MAKE_MODULE(BoosterK1Provider);
 
-DECL_TLOGGER(tlogger, "BoosterK1Provider", TextLogging::VERBOSE);
+DECL_TLOGGER(tlogger, "BoosterK1Provider", TextLogging::DEBUG);
 
 // convenience shorthand for annotation in a callback (Booster SDK thread)
 #define ANNOTATION_K1_CB(...)                                                                                          \
@@ -443,6 +443,8 @@ void BoosterK1Provider::handleButtonEventMsg(const booster_interface::msg::Butto
   TLOG_IMPL(tlogger, level, "button {} ({}), event {} ({})", buttonEvent.button(), buttonNames[buttonEvent.button()],
             static_cast<uint32_t>(buttonEvent.event()), eventNames[buttonEvent.event()]);
 
+  unsigned timeNow = Time::getCurrentSystemTime();
+
   // -------------------------------------------------------------------------
   // top level safety handling
   // -------------------------------------------------------------------------
@@ -458,6 +460,12 @@ void BoosterK1Provider::handleButtonEventMsg(const booster_interface::msg::Butto
   // If already in resetPending, we confirm again that the hardware interface is
   // OK AND that the MotionRequest is safe, before transitioning to operational.
   // Otherwise we failsafe back to safetyTripped. 
+
+  // Note: our guide says that the button should be pressed for 3 secs here, but since the handleButtonMessage
+  // method is not called that frequently (approx every 500ms during a long press) we just
+  // check that the button is held for something longer than 2 secs
+  constexpr int resetPendingPressMs = 2000;
+
   switch (robotSafetyState.load())
   {
   case RobotSafetyState::operational:
@@ -466,11 +474,15 @@ void BoosterK1Provider::handleButtonEventMsg(const booster_interface::msg::Butto
     break;
 
   case RobotSafetyState::safetyTripped:
-    if ((buttonEvent.button() == button_f1 || buttonEvent.button() == button_stand) &&
-        (buttonEvent.event() == booster_interface::msg::LONG_PRESS_START))
+    if (((buttonEvent.button() == button_f1) && (timeWhenButtonPressed[button_f1] > 0) &&
+         (Time::getTimeBetween(timeWhenButtonPressed[button_f1], timeNow) > resetPendingPressMs)) ||
+        ((buttonEvent.button() == button_stand) && (timeWhenButtonPressed[button_stand] > 0) &&
+         (Time::getTimeBetween(timeWhenButtonPressed[button_stand], timeNow) > resetPendingPressMs)))
     {
       robotSafetyState.store(RobotSafetyState::resetPending); // checks will happen in waitForFrameData2 + delegates
-      TLOGI(tlogger, "**** from safetyTripped: {} long press detected ==> resetPending", buttonNames[buttonEvent.button()]);
+      TLOGI(tlogger, "**** from safetyTripped: {} long press ({} ms) detected ==> resetPending",
+            buttonNames[buttonEvent.button()],
+            Time::getTimeBetween(timeWhenButtonPressed[buttonEvent.button()], timeNow));
       ANNOTATION_K1_CB("safetyState: safetyTripped ==> resetPending");
     }
     break;
@@ -492,6 +504,13 @@ void BoosterK1Provider::handleButtonEventMsg(const booster_interface::msg::Butto
 
     break;
   }
+
+  // update button press times (not shared with the main motion thread so not SYNC'd)
+  if (buttonEvent.event() == booster_interface::msg::PRESS_DOWN)
+    timeWhenButtonPressed[buttonEvent.button()] = timeNow;
+  else if ((buttonEvent.event() == booster_interface::msg::PRESS_UP) ||
+           (buttonEvent.event() == booster_interface::msg::LONG_PRESS_END))
+    timeWhenButtonPressed[buttonEvent.button()] = 0;
 
   // -------------------------------------------------------------------------
   // store basic button info for the KeyStates representation
