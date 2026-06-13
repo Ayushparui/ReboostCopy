@@ -59,12 +59,16 @@ void KeyStateEnhancer::update(EnhancedKeyStates& enhancedKeyStates)
   {
     auto keyStr = [&](KeyStates::Key k) -> std::string
     {
-      if (!pressedOrReleased[k])
-        return "--";
-      return theKeyStates.pressed[k] ? "P" : fmt::format("R({}ms)", hitStreakDurations[k].front().getSize());
+      if (pressedOrReleased[k])
+        return theKeyStates.pressed[k] ? "PRESS" : fmt::format("REL({}ms)", hitStreakDurations[k].front().getSize());
+      if (!theKeyStates.pressed[k])
+        return "HOLD";
+      else
+        return "idle";
+      
     };
 
-    TLOGI(tlogger, "pressed/released: F1 {}, Stand {}, Walk {}", keyStr(KeyStates::k1_f1), keyStr(KeyStates::k1_stand),
+    TLOGI(tlogger, "pressed/released: F1={}, Stand={}, Walk={}", keyStr(KeyStates::k1_f1), keyStr(KeyStates::k1_stand),
           keyStr(KeyStates::k1_walk));
   }
 
