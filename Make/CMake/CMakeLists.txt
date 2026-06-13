@@ -269,7 +269,11 @@ target_compile_options(Flags::OptimizedDebugInDevelop INTERFACE
     $<${_is_clang}:$<$<CONFIG:Release>:-fomit-frame-pointer>>)
 target_link_options(Flags::OptimizedDebugInDevelop INTERFACE
     $<$<AND:${_not_mac},${_is_clang}>:$<$<CONFIG:Release>:-s>>)
-    
+
+# RV add - only if tracking down memory corruptions - doesn't work, the sanitizer library is missing from the buildchain
+# add_library(Flags::SanitizerFlags INTERFACE IMPORTED)
+# target_compile_options(Flags::SanitizerFlags INTERFACE -fsanitize=address -fno-omit-frame-pointer)
+# target_link_options(Flags::SanitizerFlags INTERFACE -fsanitize=address)
 
 if(BUILD_DESKTOP)
   if(NOT PYTHON_ONLY)

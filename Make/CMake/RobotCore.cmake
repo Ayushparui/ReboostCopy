@@ -130,6 +130,11 @@ else() # not desktop
     target_link_libraries(RobotCore${TARGET_SUFFIX} PRIVATE Booster::FastRTPS::FastRTPS)
     target_link_libraries(RobotCore${TARGET_SUFFIX} PRIVATE Booster::FooNathan::Memory)
     target_link_libraries(RobotCore${TARGET_SUFFIX} PRIVATE Booster::WakeupAPI::WakeupAPI)
+
+    # address sanitizer - comment out when done - doesn't work currently
+    # target_link_libraries(RobotCore${TARGET_SUFFIX} PUBLIC Flags::SanitizerFlags)  
+    # set_property(SOURCE ${ROBOT_CORE_OPTIMIZED_SOURCES} APPEND PROPERTY COMPILE_OPTIONS -fno-sanitize=address) 
+    # set_property(SOURCE ${ROBOT_CORE_OPTIMIZED_SOURCES} APPEND PROPERTY SKIP_PRECOMPILE_HEADERS ON) 
   endif()
   target_include_directories(RobotCore${TARGET_SUFFIX} SYSTEM PRIVATE "${PROJECT_ROOT_PREFIX}/Util/MD5")
   target_compile_definitions(RobotCore${TARGET_SUFFIX} PUBLIC TARGET_ROBOT)
