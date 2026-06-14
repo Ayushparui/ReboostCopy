@@ -195,14 +195,14 @@ echo BACKGROUND=${BACKGROUND}
 if ${DEBUG}; then
   gdb --args "${BINARY}" ${ARGS}
 elif ${BACKGROUND}; then
-	echo "starting in background"
+  echo "starting in background"
   # "${BINARY}" ${ARGS} -w 2>&1 | mawk -W interactive -F '\n' '{print strftime("%H:%M:%S", systime()) " " $0}' >"${LOGFILE}"
-	set -x
-	"${BINARY}" ${ARGS} -w >"${LOGFILE}" 2>&1 
-	set +x
+  set -x
+  "${BINARY}" ${ARGS} -w >"${LOGFILE}" 2>&1 
+  set +x
 else # foreground
   # "${BINARY}" ${ARGS} -w 2>&1 | mawk -W interactive -F '\n' '{print strftime("%H:%M:%S", systime()) " " $0}' | tee "${LOGFILE}"
-	"${BINARY}" ${ARGS} -w 2>&1 | tee "${LOGFILE}"
+  "${BINARY}" ${ARGS} -w 2>&1 | tee "${LOGFILE}"
 fi
 RESULT=${PIPESTATUS[0]}
 
