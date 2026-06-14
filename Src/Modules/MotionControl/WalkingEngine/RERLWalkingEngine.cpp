@@ -27,7 +27,6 @@ DECL_TLOGGER(walkPhaseLogger, "RERLWalkPhaseDummy", TextLogging::DEBUG);
 RERLWalkingEngine::RERLWalkingEngine():
   network(&Global::getAsmjitRuntime())
 {
-  compile(false);
   // https://github.com/BoosterRobotics/booster_gym/blob/main/deploy/configs/T1.yaml#L19
   offset.angles[Joints::lHipPitch] = -0.2f;
   offset.angles[Joints::lKneePitch] = 0.4f;
@@ -37,9 +36,6 @@ RERLWalkingEngine::RERLWalkingEngine():
   offset.angles[Joints::rAnklePitch] = -0.25f;
   while(!lastMeasurements.full())
     lastMeasurements.push_front(JointAngles());
-
-  const DummyPhase dummy(MotionPhase::playDead);
-  RERLWalkPhaseDummy phase(*this, Pose2f(), dummy);
 
   const float stepDuration = configuredParameters.baseWalkPeriod / 1000.f;
   translationPolygon.emplace_back(stepDuration * Vector2f(configuredParameters.maxSpeed.translation.x() / 2.f, configuredParameters.maxSpeed.translation.y()));
@@ -83,6 +79,11 @@ RERLWalkingEngine::RERLWalkingEngine():
     Joints::rAnklePitch,
     Joints::rAnkleRoll
   };
+
+  compile(false);
+
+  const DummyPhase dummy(MotionPhase::playDead);
+  RERLWalkPhaseDummy phase(*this, Pose2f(), dummy);
 }
 
 void RERLWalkingEngine::compile(bool output)
@@ -98,18 +99,54 @@ void RERLWalkingEngine::compile(bool output)
   else
     ASSERT(std::filesystem::exists(modelPath + reboostWalkNNParameters.modelName));
 
+  // set up the expected number of inputs
+  constexpr unsigned numGyroInputs = 3;
+  constexpr unsigned numGravityInputs = 3;
+  constexpr unsigned numWalkCmdInputs = 3;
+  constexpr unsigned numPhaseInputs = 2;
+  constexpr unsigned numFreqInputs = 1;
+  constexpr unsigned numBallInputs = 3 + 3+ 2 + 1 + 1 + 1;
+  const unsigned numJoints = static_cast<unsigned>(boosterJoints.size());
+
+  networkInputSize = numGyroInputs + numGravityInputs + numWalkCmdInputs + numJoints * 3; /* angles, velocities, lastRequests*/
+  if (reboostWalkNNParameters.enablePhaseInputs)
+    networkInputSize += numPhaseInputs;
+  if (frequencyParameters.active)
+    networkInputSize += numFreqInputs;
+  if (ballNetworkParameters.active)
+    networkInputSize += numBallInputs;
+
+  // set the expected number of outputs
+  constexpr unsigned numFreqOutputs = 1;
+
+  networkOutputSize = numJoints;
+  if (frequencyParameters.active)
+    networkOutputSize += numFreqOutputs;
+
   network.compile(Model(modelPath + reboostWalkNNParameters.modelName));
   ASSERT(network.valid());
+
+  TLOGI(tlogger, "Walking RL model inputs:");
+  TLOGI(tlogger, "  expected: inputSize={}, rank=1, numInputTensors=1", networkInputSize);
+  TLOGI(tlogger, "  model:    inputSize={}, rank={}, numInputTensors={}", network.input(0).dims(0),
+        network.input(0).rank(), network.numOfInputs());
+
+  TLOGI(tlogger, "Walking RL model outputs:");
+  TLOGI(tlogger, "  expected: outputSize={}, rank=1, numOutputTensors=1", networkOutputSize);
+  TLOGI(tlogger, "  model:    outputSize={}, rank={}, numOutputTensors={}", network.output(0).dims(0),
+        network.output(0).rank(), network.numOfOutputs());
 
   // Input shape: (47)
   ASSERT(network.numOfInputs() == 1);
   ASSERT(network.input(0).rank() == 1); // (Batch, Time, Features)
-  ASSERT(network.input(0).dims(0) == reboostWalkNNParameters.numInput);
+  // ASSERT(network.input(0).dims(0) == reboostWalkNNParameters.numInput);
+  ASSERT(network.input(0).dims(0) == networkInputSize);
 
   // Output shape: (1, 11)
   ASSERT(network.numOfOutputs() == 1);
   ASSERT(network.output(0).rank() == 1); // (Batch, Time, Features)
-  ASSERT(network.output(0).dims(0) == reboostWalkNNParameters.numOutput); // TODO
+  // ASSERT(network.output(0).dims(0) == reboostWalkNNParameters.numOutput); // TODO
+  ASSERT(network.output(0).dims(0) == networkOutputSize); // TODO
 }
 
 void RERLWalkingEngine::update(WalkStepData& walkStepData)
@@ -644,6 +681,7 @@ RERLWalkPhaseDummy::RERLWalkPhaseDummy(RERLWalkingEngine& engine, Pose2f useStep
 void RERLWalkPhaseDummy::getNextTargetRequest(JointAngles& target)
 {
   float* input = engine.network.input(0).data();
+  [[maybe_unused]] float* startOfInput = input;
 
   const Vector3f gravity = engine.theInertialData.orientation3D.inverse() * Vector3f(0.f, 0.f, -1.f);
 
@@ -721,12 +759,16 @@ void RERLWalkPhaseDummy::getNextTargetRequest(JointAngles& target)
     *input++ = 1;
   }
 
+  ASSERT((input - startOfInput) == engine.networkInputSize);
+
   // Run network.
   STOPWATCH("module:RERLWalkingEngine:apply")
     engine.network.apply();
 
   // Get next request
   const float* output = engine.network.output(0).data();
+  [[maybe_unused]] const float* startOfOutput = output;
+
   for(Joints::Joint j : jointList)
     target.angles[j] = engine.reboostWalkNNParameters.actionClipRange.limit(*output++) + engine.offset.angles[j];
 
@@ -735,6 +777,8 @@ void RERLWalkPhaseDummy::getNextTargetRequest(JointAngles& target)
     rawFrequency = Rangef::OneRange().limit(*output++);
     frequency = engine.frequencyParameters.clipRange.limit(rawFrequency) + engine.frequencyParameters.base;
   }
+
+  ASSERT((output - startOfOutput) == engine.networkOutputSize);
 }
 
 void RERLWalkPhaseDummy::update()
