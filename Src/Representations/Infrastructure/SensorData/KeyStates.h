@@ -5,6 +5,7 @@
  *
  * @author unknown
  * @author Jesse Richter-Klug
+ * @author Rudi Villing (modifications)
  */
 
 #pragma once
@@ -87,4 +88,6 @@ STREAMABLE_WITH_BASE(EnhancedKeyStates, KeyStates,
                                                        ///< the provider. Valid for just one tick, shortly after key last released.
   (ENUM_INDEXED_ARRAY(unsigned, Key)) pressedDuration, ///< duration per key while the key is pressed.
                                                        ///< Zero if the key is just pressed this frame, or has been released.
+  (ENUM_INDEXED_ARRAY(unsigned, Key)) clickedDuration, ///< duration of a click (release) just detected for key, values for each key.
+                                                       ///< Non zero in the cycle where a key release is detected. Zero at all other times.
 });

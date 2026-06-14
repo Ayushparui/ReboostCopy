@@ -1,7 +1,7 @@
 /**
  * @file: REWhistleDetector.h
  *
- * @description This is the RoboEireann whistle detector source ported the
+ * This is the RoboEireann whistle detector source ported the
  * BH2025 framework.
  *
  * @author: Shauna Recto
@@ -22,31 +22,29 @@
 
 /* Module Declaration */
 MODULE(REWhistleDetector,
-    {
-        ,
-        REQUIRES(AudioData),
-        REQUIRES(FrameInfo),
-        PROVIDES(Whistle),
+{,
+  REQUIRES(AudioData),
+  REQUIRES(FrameInfo),
+  PROVIDES(Whistle),
 
-        LOADS_PARAMETERS(
-            {
-                ,
-                (std::string)whistleDetName,
-                (int)detectionDelayMs,
-                (int)fftSize,
-                (int)fftStep,
-                (unsigned)bufferSize,
-                (int) numChannels,
-                (float)whistleConfidenceThresh,
-                (float)sampleGain,
-                (unsigned)noiseAvgLenMs,
-            }),
-    });
+  LOADS_PARAMETERS(
+  {,
+    (std::string) whistleDetName,
+    (int) detectionDelayMs,
+    (int) fftSize,
+    (int) fftStep,
+    (unsigned) bufferSize,
+    (int) numChannels,
+    (float) whistleConfidenceThresh,
+    (float) sampleGain,
+    (unsigned) noiseAvgLenMs,
+  }),
+});
 
 class REWhistleDetector : public REWhistleDetectorBase {
 public:
-    REWhistleDetector();
-    ~REWhistleDetector();
+  REWhistleDetector();
+  ~REWhistleDetector();
 
 private:
 
@@ -65,30 +63,30 @@ private:
     void update(const std::vector<float>&);
   };
 
+  using SampleBuffer = RingBuffer<AudioData::Sample>;
+  std::vector<SampleBuffer> channelBuffers;  // Sample buffers for all channels.
+  SampleBuffer monoBuffer;         // Mono mixdown buffer.
 
-    std::vector<RingBuffer<AudioData::Sample>> channelBuffers;  // Sample buffers for all channels.
-    RingBuffer<AudioData::Sample> monoBuffer;         // Mono mixdown buffer.
+  /* FFTW related members */
+  float* samples;             // The samples that will be used with the FFT
+  fftwf_complex* spectrum;     // the spectrum of the samples
+  fftwf_plan fft;              // The plan to compute the FFT.
 
-    /* FFTW related members */
-    float* samples;             // The samples that will be used with the FFT
-    fftwf_complex* spectrum;     // the spectrum of the samples
-    fftwf_plan fft;              // The plan to compute the FFT.
+  /* magSpectrums Contains numFFTs FFTs of size spectrumSize */
+  RingBuffer<std::vector<float>> magSpectrums;
+  int spectrumSize;
+  int maxFFTs;
 
-    /* magSpectrums Contains numFFTs FFTs of size spectrumSize */
-    RingBuffer<std::vector<float>> magSpectrums;
-    int spectrumSize;
-    int maxFFTs;
+  NoiseFilter noisefilter;
 
-    NoiseFilter noisefilter;
+  /* Other FFT Related members */
+  std::vector<float> hannWindow;
 
-    /* Other FFT Related members */
-    std::vector<float> hannWindow;
+  /* CompiledNN members */
+  NeuralNetworkONNX::CompiledNN whistleDetector;
+  std::unique_ptr<NeuralNetworkONNX::Model> model;
 
-    /* CompiledNN members */
-    NeuralNetworkONNX::CompiledNN whistleDetector;
-    std::unique_ptr<NeuralNetworkONNX::Model> model;
-
-    void update(Whistle&);              /* Runs update cycle for WD */
-    void processAudio(Whistle&, bool);  /* Processes Audio for inferrence */
-    float inferenceCheck();             /* Checks audio contents against NN for whistles */
+  void update(Whistle&);              /* Runs update cycle for WD */
+  void processAudio(Whistle&, bool);  /* Processes Audio for inferrence */
+  float inferenceCheck();             /* Checks audio contents against NN for whistles */
 };

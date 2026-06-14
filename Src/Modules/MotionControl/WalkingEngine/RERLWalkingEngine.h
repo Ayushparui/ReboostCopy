@@ -92,8 +92,8 @@ STREAMABLE(ReboostWalkNNParameters,
   (float) velocityFactor, /**< Factor for the joint velocities. */
   (Rangef) actionClipRange, /**< Clip action output. */
   (bool) useWaist, /**< Is the waist also part of the action output. */
-  (unsigned) numInput, /**< Neural Network input size. */
-  (unsigned) numOutput, /**< Neural Network output size. */
+  (unsigned) numInput, /**< DEPRECATED (no point having it here) Neural Network input size. */
+  (unsigned) numOutput, /**< DEPRECATED (no point having it here) Neural Network output size. */
   (bool) enablePhaseInputs, /**< Allows you to disable the phase inputs to the model */
   (int) walkToStandSlowdownMs, /**< To allow standing, the robot must walk slow for this time. */
   (Pose2f) slowWalkStepSpeed, /**< Speed values to classify slow walking. This is based on the step size. */
@@ -140,6 +140,8 @@ public:
   const float motionCycleTime = Global::getSettings().motionCycleTime;
   RingBuffer<JointAngles, 10> lastMeasurements;
   CompiledNN network; /**< The compiled neural network. */
+  unsigned networkInputSize = 0; // will be populated in ctor based on real code usage
+  unsigned networkOutputSize = 0; // will be populated in ctor based on real code usage
   JointAngles offset;
 
   std::vector<Joints::Joint> boosterJoints;

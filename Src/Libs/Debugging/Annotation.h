@@ -24,12 +24,12 @@
  * ANNOTATION("TacticProvider", "Changed Tactic from " << oldTactic << " to " << newTactic << ".");
  * </pre>
  */
-#define ANNOTATION(name_, message_)                                                                                      \
+#define ANNOTATION(name_, message_)                                                                                    \
   do                                                                                                                   \
   {                                                                                                                    \
     char buf_[1024];                                                                                                   \
     OutTextMemory text_(sizeof(buf_), buf_);                                                                           \
-    text_ << name_ << message_;                                                                                          \
+    text_ << name_ << message_;                                                                                        \
     Global::getAnnotationManager().add().write(text_.data(), text_.size());                                            \
   } while (false)
 
@@ -41,11 +41,11 @@
  * 
  *   ANNOTATON_FMT("someName", "someFormatString {}", argsToSubstituteIntoFormatString...);
  */
-#define ANNOTATION_FMT(name_, ...)                                                                                      \
+#define ANNOTATION_FMT(name_, ...)                                                                                     \
   do                                                                                                                   \
   {                                                                                                                    \
     fmt::memory_buffer msgBuf_;                                                                                        \
     fmt::format_to(std::back_inserter(msgBuf_), __VA_ARGS__);                                                          \
     msgBuf_.push_back('\0');                                                                                           \
-    ANNOTATION(name_, msgBuf_.data());                                                                                  \
+    ANNOTATION(name_, fmt::to_string(msgBuf_));                                                                        \
   } while (false)

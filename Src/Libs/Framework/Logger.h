@@ -95,6 +95,7 @@ public:
 
 private:,
   (bool) enabled, /**< Is logging enabled? */
+  (bool) sayWhenLoggingStarts, ///< whether or not to say when log file writing starts
   (std::string) path, /**< The directory that will contain the log file. */
   (unsigned) numOfBuffers, /**< The number of buffers allocated. */
   (unsigned) sizeOfBuffer, /**< The size of each buffer in bytes. */

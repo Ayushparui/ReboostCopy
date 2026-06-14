@@ -26,6 +26,7 @@ void LedProviderK1::update(LedRequestK1& ledRequest)
   updateFromGroundState(ledRequest);
   updateFromTeammates(ledRequest);
   updateFromRobotSafetyState(ledRequest);
+  updateFromKeyStates(ledRequest);
 
   MODIFY("module:LedProviderK1:ledRequest", ledRequest);
 
@@ -106,6 +107,33 @@ void LedProviderK1::updateFromRobotSafetyState(LedRequestK1 &ledRequest)
   }
   // operational defaults back to normal LEDs in other functions
 }
+
+
+void LedProviderK1::updateFromKeyStates(LedRequestK1 &ledRequest)
+{
+  constexpr unsigned minLongClickMs = 500;
+
+  // allow the pending safety transition to show since there isn't much colour contrast
+  // to show the switch of state otherwise
+  if (theRobotSafetyState.state == RobotSafetyState::resetPending)
+    return;
+
+  // otherwise show when a long press is in action
+  if ((theEnhancedKeyStates.pressedDuration[KeyStates::k1_f1] > minLongClickMs) ||
+      (theEnhancedKeyStates.pressedDuration[KeyStates::k1_stand] > minLongClickMs) ||
+      (theEnhancedKeyStates.pressedDuration[KeyStates::k1_walk] > minLongClickMs))
+  { // add a foreground flash that contrasts with the background once a key is being held down
+    // (less contrast for colours that are already dark)
+    float scale = (std::max({ledRequest.bgColor.r, ledRequest.bgColor.g, ledRequest.bgColor.b}) > 80) ? 0.35f : 0.7f;
+
+    LedColorK1 fgColor = ledRequest.bgColor.scaled(scale);
+
+    ledRequest.setFgPattern(fgColor, LedRequestK1::VERY_FAST_BLINK);
+    // ledRequest.setFgPattern(LedColorK1::RED, LedRequestK1::VERY_FAST_BLINK);
+  }
+}
+
+
 
 
 MAKE_MODULE(LedProviderK1);

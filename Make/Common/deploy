@@ -91,7 +91,12 @@ copy()
   fi
 
   echo "updating roboeireann with $CONFIG version"
-  rsync --del --exclude=.* --exclude=/Images --exclude=/Logs --exclude=/Scenes --chmod=u+rw,go+r,Dugo+x -rzce "ssh $SSHOPTIONS" ../../Build/Linux/$TARGET_NAME/$CONFIG/roboeireann ../../Util/onnxruntime/lib/Linux$TARGET_ARCH/libonnxruntime.so.1.10.0 ../../Config/. $TARGET_USER@$REMOTE:/home/$TARGET_USER/Config
+	rsync --del --exclude=.* --exclude=/Images --exclude=/Logs --exclude=/Scenes --chmod=u+rw,go+r,Dugo+x -rzce \
+					"ssh $SSHOPTIONS" ../../Build/Linux/$TARGET_NAME/$CONFIG/roboeireann \
+					../../Util/onnxruntime/lib/Linux$TARGET_ARCH/libonnxruntime.so.1.10.0 \
+					../../Util/WakeupAPI/lib/libduerwen_wakeup_DOA.so \
+					../../Util/WakeupAPI/lib/libduerwen_wakeup_DOA_v1.1.0_20251113.so \
+					../../Config/. $TARGET_USER@$REMOTE:/home/$TARGET_USER/Config
 
   # Define optional binaries to deploy alongside roboeireann
   # These must be located in Build/Linux/<appname>/<config>/<appname>
