@@ -141,6 +141,8 @@ void Logger::update(const LoggingController& controller)
     }
     else
     {
+      TLOGI(tlogger, "Tell writer thread that logging should end");
+
       // Tell the writer thread that this logging period has ended.
       SYNC;
       buffersToWrite.push_back(nullptr);
@@ -342,8 +344,10 @@ void Logger::writer()
         break;
       }
 
-      // On the robot, we want this to end up in bhumand.log.
+      // On the robot, we want this to end up in our roboeireannd tlog file.
       TLOGI(tlogger, "writer: Start logging to \"{}\"", completeFilename);
+      if (sayWhenLoggingStarts)
+        SystemCall::say("logging started");
 
       *file << LoggingTools::logFileSettings;
       file->write(settings.data(), settings.size());

@@ -44,6 +44,7 @@ private:
   /// config params for the logging controller
   ENUM(LoggingCondition,
   {,
+    undefined, // don't use this in configuration files
     softwareStart,
     safetyStateOperational,
     safetyStateSafetyTripped,
