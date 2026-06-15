@@ -1034,7 +1034,7 @@ void BoosterK1Provider::finishFrame2()
       motorCmd.kd(0.f);
       motorCmd.tau(0.f);
     }
-    else if (index != Joints::headPitch && index != Joints::headYaw /* && (index >= Joints::firstLegJoint) */) // FIXME: TESTING with limited joints only
+    else //if (index != Joints::headPitch && index != Joints::headYaw /* && (index >= Joints::firstLegJoint) */) // FIXME: TESTING with limited joints only
     {
       motorCmd.q(theJointRequest.angles[index] + theJointCalibration.offsets[index]);
       const float stiffness = Rangef::ZeroOneRange().limit(theJointRequest.stiffnessData.stiffnesses[index] * 0.01f);
@@ -1042,13 +1042,13 @@ void BoosterK1Provider::finishFrame2()
       motorCmd.kd(controlParameters[joint].d * stiffness);
       motorCmd.tau(0);
     }
-    else
-    {
-      motorCmd.q(jointSensorData.angles[index]);
-      motorCmd.kp(0.f);
-      motorCmd.kd(0.f);
-      motorCmd.tau(0.f);
-    }
+    // else
+    // {
+    //   motorCmd.q(jointSensorData.angles[index]);
+    //   motorCmd.kp(0.f);
+    //   motorCmd.kd(0.f);
+    //   motorCmd.tau(0.f);
+    // }
     motorCmd.weight(1.f);
   }
 
