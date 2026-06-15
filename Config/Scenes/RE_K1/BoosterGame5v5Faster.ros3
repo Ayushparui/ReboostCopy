@@ -85,7 +85,7 @@
     <Compound ref="field"/>
 
     <Compound name="scenarios">
-      <Compound name="5vs5"/>
+      <Compound name="RE_5v5"/>
     </Compound>
 
     <Compound ref="robot type"/>

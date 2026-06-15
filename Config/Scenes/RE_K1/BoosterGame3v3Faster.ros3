@@ -1,7 +1,7 @@
 <Simulation>
 
   <Include href="../Includes/K1/K1_new.rsi3"/>
-  <Include href="../Includes/BallFifa1.rsi3"/>
+  <Include href="../Includes/BallFifa3.rsi3"/>
   <Include href="../Includes/Field2020SPL.rsi3"/>
 
   <Scene name="RoboCup" controller="SimulatedNao" stepLength="0.002" color="rgb(65%, 65%, 70%)">
@@ -11,27 +11,17 @@
       <Body ref="K1" name="robot1">
         <Translation x="4" y="-3" z="525mm"/>
         <Rotation z="-90degree"/>
-        <Set name="TeamColor" value="purple"/>
+        <Set name="TeamColor" value="white"/>
       </Body>
       <Body ref="K1" name="robot2">
         <Translation x="3" y="-3" z="525mm"/>
         <Rotation z="-90degree"/>
-        <Set name="TeamColor" value="black"/>
+        <Set name="TeamColor" value="green"/>
       </Body>
       <Body ref="K1" name="robot3">
         <Translation x="2" y="-3" z="525mm"/>
         <Rotation z="-90degree"/>
-        <Set name="TeamColor" value="black"/>
-      </Body>
-      <Body ref="K1" name="robot4">
-        <Translation x="1" y="-3" z="525mm"/>
-        <Rotation z="-90degree"/>
-        <Set name="TeamColor" value="black"/>
-      </Body>
-      <Body ref="K1" name="robot5">
-        <Translation x="0" y="-3" z="525mm"/>
-        <Rotation z="-90degree"/>
-        <Set name="TeamColor" value="black"/>
+        <Set name="TeamColor" value="green"/>
       </Body>
 
       <Body ref="K1" name="robot21">
@@ -49,23 +39,13 @@
         <Rotation z="90degree"/>
         <Set name="TeamColor" value="red"/>
       </Body>
-      <Body ref="K1" name="robot24">
-        <Translation x="-1" y="3" z="525mm"/>
-        <Rotation z="90degree"/>
-        <Set name="TeamColor" value="red"/>
-      </Body>
-      <Body ref="K1" name="robot25">
-        <Translation x="0" y="3" z="525mm"/>
-        <Rotation z="90degree"/>
-        <Set name="TeamColor" value="red"/>
-      </Body>
     </Compound>
 
     <Compound name="teams">
-      <Compound name="B-Human">
-        <Compound name="5"/>
-        <Compound name="black"/>
-        <Compound name="purple"/>
+      <Compound name="RoboEireann">
+        <Compound name="17"/>
+        <Compound name="green"/>
+        <Compound name="white"/>
       </Compound>
       <Compound name="B-Team">
         <Compound name="70"/>
@@ -85,7 +65,7 @@
     <Compound ref="field"/>
 
     <Compound name="scenarios">
-      <Compound name="5vs5"/>
+      <Compound name="RE_3v3"/>
     </Compound>
 
     <Compound ref="robot type"/>
