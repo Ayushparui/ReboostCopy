@@ -194,7 +194,12 @@ void BoosterK1Provider::update([[maybe_unused]] KeyStates& theKeyStates)
 
 void BoosterK1Provider::update(GamePad &theGamePad)
 {
+  // bool changed = (gamePad.hat != theGamePad.hat || gamePad.buttons != theGamePad.buttons);
+
   theGamePad = gamePad;
+
+  // if (changed) 
+  //   TLOGI(tlogger, "GamePad changed: hat={} buttons={:#014b}", TypeRegistry::getEnumName(theGamePad.hat), theGamePad.buttons);
 }
 
 void BoosterK1Provider::update(RobotSafetyState &theRobotSafetyState)
@@ -529,18 +534,31 @@ void BoosterK1Provider::handleRemoteControllerMsg(const booster_interface::msg::
 {
   if (rc.event() != 0)
   {
-    TLOGD(tlogger, "remoteController event {:#05}", rc.event());
-    TLOGV(tlogger, "  left=({:.2f},{:.2f}), right=({:.2f},{:.2f}), hat={}{}{}{}{}{}{}{}{}", rc.lx(), rc.ly(), rc.rx(),
-          rc.ry(), rc.hat_c(), rc.hat_u(), rc.hat_d(), rc.hat_l(), rc.hat_r(), rc.hat_lu(), rc.hat_ld(), rc.hat_ru(),
-          rc.hat_rd());
-    TLOGV(tlogger, "  abxy={}{}{}{} lbrb={}{}, ltrt={}{} lsrs={}{} back/start={}{}", rc.a(), rc.b(), rc.x(), rc.y(),
-          rc.lb(), rc.rb(), rc.lt(), rc.rt(), rc.ls(), rc.rs(), rc.back(), rc.start());
+    // remote controller input events come fast when the analogue sticks are 
+    // manipulated, so we need to reduce the logging output in that situation
+    if ((rc.event() != booster::robot::b1::AXIS) ||
+        logIntervalRemoteController.updateTriggered(Time::getCurrentSystemTime(), 1000))
+    {
+      TLOGD(tlogger, "remoteController event {:#05x}", rc.event());
+      TLOGV(tlogger,
+            "rc: lstk=({:.2f},{:.2f}), rstk=({:.2f},{:.2f}), hat={:d}'{:d}{:d}{:d}{:d}'{:d}{:d}{:d}{:d}, "
+            "abxy={:d}{:d}{:d}{:d} lbrb={:d}{:d}, ltrt={:d}{:d} lsrs={:d}{:d} (-)/(+)={:d}{:d}",
+            rc.lx(), rc.ly(), rc.rx(), rc.ry(), rc.hat_c(), rc.hat_u(), rc.hat_d(), rc.hat_l(), rc.hat_r(), rc.hat_lu(),
+            rc.hat_ld(), rc.hat_ru(), rc.hat_rd(), rc.a(), rc.b(), rc.x(), rc.y(), rc.lb(), rc.rb(), rc.lt(), rc.rt(),
+            rc.ls(), rc.rs(), rc.back(), rc.start());
+    }
   }
   else
     TLOGV(tlogger, "remoteController event 0 received");
 
   
   SYNC;
+
+  // we detected something so we must be connected, right?
+  if (rc.event() == booster::robot::b1::REMOVE)
+    gamePad.connected = false;
+  else
+    gamePad.connected = true;
 
   gamePad.buttons = (GamePad::maskA * rc.a()) | (GamePad::maskB * rc.b()) | (GamePad::maskX * rc.x()) |
                     (GamePad::maskY * rc.y()) | (GamePad::maskLB * rc.lb()) | (GamePad::maskRB * rc.rb()) |
@@ -567,9 +585,9 @@ void BoosterK1Provider::handleRemoteControllerMsg(const booster_interface::msg::
     gamePad.hat = GamePad::upLeft;
 
   gamePad.lStickX = rc.lx();
-  gamePad.lStickY = -rc.ly(); // we want forward to be +1
+  gamePad.lStickY = rc.ly(); // we want forward to be +1
   gamePad.rStickX = rc.rx();
-  gamePad.rStickY = -rc.ry(); // we want forward to be +1
+  gamePad.rStickY = rc.ry(); // we want forward to be +1
 }
 
 // It seems that this message arrives with a delay of anything between 100
@@ -1034,7 +1052,7 @@ void BoosterK1Provider::finishFrame2()
       motorCmd.kd(0.f);
       motorCmd.tau(0.f);
     }
-    else if (index != Joints::headPitch && index != Joints::headYaw /* && (index >= Joints::firstLegJoint) */) // FIXME: TESTING with limited joints only
+    else //if (index != Joints::headPitch && index != Joints::headYaw /* && (index >= Joints::firstLegJoint) */) // FIXME: TESTING with limited joints only
     {
       motorCmd.q(theJointRequest.angles[index] + theJointCalibration.offsets[index]);
       const float stiffness = Rangef::ZeroOneRange().limit(theJointRequest.stiffnessData.stiffnesses[index] * 0.01f);
@@ -1042,13 +1060,13 @@ void BoosterK1Provider::finishFrame2()
       motorCmd.kd(controlParameters[joint].d * stiffness);
       motorCmd.tau(0);
     }
-    else
-    {
-      motorCmd.q(jointSensorData.angles[index]);
-      motorCmd.kp(0.f);
-      motorCmd.kd(0.f);
-      motorCmd.tau(0.f);
-    }
+    // else
+    // {
+    //   motorCmd.q(jointSensorData.angles[index]);
+    //   motorCmd.kp(0.f);
+    //   motorCmd.kd(0.f);
+    //   motorCmd.tau(0.f);
+    // }
     motorCmd.weight(1.f);
   }
 
