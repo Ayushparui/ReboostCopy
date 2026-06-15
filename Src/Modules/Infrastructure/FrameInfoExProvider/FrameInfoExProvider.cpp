@@ -27,7 +27,7 @@ void FrameInfoExProvider::update(FrameInfoEx& theFrameInfoEx)
 
 
   // if ((theFrameInfoEx.frameInterval < 10) || (60 < theFrameInfoEx.frameInterval))
-  if ((theFrameInfoEx.frameInterval > 60) && (SystemCall::getMode() != SystemCall::logFileReplay))
+  if ((theFrameInfoEx.frameInterval > 60) && (SystemCall::getMode() == SystemCall::physicalRobot))
     TLOGW(tlogger, "unexpected frame interval: {}", theFrameInfoEx.frameInterval);
 
   TLOGV(tlogger, "number={}, time={}, prevTime={}, interval={}", theFrameInfoEx.frameNumber, theFrameInfoEx.time,

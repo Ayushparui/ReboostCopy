@@ -1,6 +1,6 @@
 #include "SkillBehaviorControl.h"
 
-DECL_OPTION_TLOGGER(HandlePlayerState, TextLogging::DEBUG);
+DECL_OPTION_TLOGGER(HandlePlayerState, TextLogging::INFO);
 
 
 option((SkillBehaviorControl) HandlePlayerState)
