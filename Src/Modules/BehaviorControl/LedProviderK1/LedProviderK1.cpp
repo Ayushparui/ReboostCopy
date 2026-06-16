@@ -11,7 +11,7 @@
 #include <algorithm>
 
 
-DECL_TLOGGER(tlogger, "LedProviderK1", TextLogging::INFO);
+DECL_TLOGGER(tlogger, "LedProviderK1", TextLogging::WARNING);
 
 void LedProviderK1::update(LedRequestK1& ledRequest)
 {
