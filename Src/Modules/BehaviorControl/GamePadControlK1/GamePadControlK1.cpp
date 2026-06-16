@@ -280,8 +280,8 @@ void GamePadControlK1::updateWalkMotion(MotionRequest& theMotionRequest)
   theMotionRequest.energySavingWalk = false;
   theMotionRequest.standHigh = false;
 
-  theMotionRequest.walkSpeed.translation.x() = applyDeadZone(theGamePadEx.lStickX);
-  theMotionRequest.walkSpeed.translation.y() = applyDeadZone(theGamePadEx.lStickY);
+  theMotionRequest.walkSpeed.translation.x() = applyDeadZone(theGamePadEx.lStickY);
+  theMotionRequest.walkSpeed.translation.y() = applyDeadZone(theGamePadEx.lStickX);
   // Note: max stick motion left is -1, right is 1, but walk angles are positive left, negative right
   theMotionRequest.walkSpeed.rotation = -applyDeadZone(theGamePadEx.rStickX);
 
