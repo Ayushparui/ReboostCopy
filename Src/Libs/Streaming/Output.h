@@ -46,6 +46,7 @@
 
 #include "Streaming/Global.h"
 #include "Streaming/MessageQueue.h"
+#include "fmt/core.h"
 
 /**
  * A macro for sending debug messages.
