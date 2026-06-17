@@ -18,6 +18,7 @@
 #include "Platform/SystemCall.h"
 #include "Platform/Thread.h"
 #include "Streaming/Global.h"
+#include "Streaming/Output.h"
 
 REGISTER_EXECUTION_UNIT(Cognition)
 
@@ -153,6 +154,17 @@ void Cognition::afterModules()
   {
     BH_TRACE_MSG("before BHumanMessageOutputGenerator::send()");
     static_cast<const BHumanMessageOutputGenerator&>(blackboard["BHumanMessageOutputGenerator"]).send();
+  }
+
+  DEBUG_RESPONSE_ONCE("Cognition:Settings")
+  {
+    const Settings& s = Global::getSettings();
+    OUTPUT_TEXT_FMT("Settings: head={}, body={}, F_motion={:.1f}, type={}, "
+                    "team={}, player={}, outfieldColor={}, goalieColor={}, "
+                    "location={}, scenario={}, magicNumber={}",
+                    s.headName, s.bodyName, 1.0f / s.motionCycleTime, TypeRegistry::getEnumName(s.robotType),
+                    s.teamNumber, s.playerNumber, TypeRegistry::getEnumName(s.fieldPlayerColor),
+                    TypeRegistry::getEnumName(s.goalkeeperColor), s.location, s.scenario, s.magicNumber);
   }
 }
 
