@@ -89,8 +89,8 @@ void RETeammatesLocator::update(RETeammatesLocationModel& teammatesLocationModel
         location.locationType = RETeammatesLocationModel::penalized;
         location.pose.translation = Vector2f(20000.f,20000.f);
       }
-      else if ((theREGameInfo.gamePhase != GAME_PHASE_PENALTYSHOOT) &&
-               ((theREGameInfo.state == STATE_READY) || (theREGameInfo.state == STATE_PLAYING)))
+      else if (!theGameState.isPenaltyShootout() &&
+               (theGameState.isReady() || theGameState.isPlaying()))
       {
         if (location.locationType == RETeammatesLocationModel::formation)
         {

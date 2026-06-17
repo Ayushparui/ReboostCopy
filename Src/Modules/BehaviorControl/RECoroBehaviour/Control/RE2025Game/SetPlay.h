@@ -87,7 +87,6 @@ namespace v2025
     });
     READS(RobotPose);
     READS(FieldDimensions);
-    READS(REGameInfo);
     READS(GameState);
     READS(FrameInfo);
     // READS(ExtendedGameInfo);
@@ -141,7 +140,7 @@ namespace v2025
 
     float getRefAngle()
     {
-      if (theREGameInfo.isPlayingLeftToRight())
+      if (theGameState.leftHandTeam)
         return pi_2; // face the referee on the left side
       else
         return -pi_2; // face the referee on the right side
@@ -150,7 +149,7 @@ namespace v2025
 
     void updateRefPosition()
     {
-      if(theREGameInfo.isPlayingLeftToRight())
+      if (theGameState.leftHandTeam)
         refPointOnField.y() = theFieldDimensions.yPosLeftTouchline + 300.f;
       else
         refPointOnField.y() = theFieldDimensions.yPosRightTouchline + 300.f;

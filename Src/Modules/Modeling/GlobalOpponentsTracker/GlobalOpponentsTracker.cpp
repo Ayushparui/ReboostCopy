@@ -97,8 +97,8 @@ void GlobalOpponentsTracker::updateGameInfo()
     {
       totalNumberOfOpponents++;
       if(!GameState::isPenalized(theGameState.opponentTeam.playerStates[i]) ||                    // Playing
-         theGameState.opponentTeam.playerStates[i] == GameState::penalizedIllegalMotionInSet ||   // Not playing but still on pitch
-         theGameState.opponentTeam.playerStates[i] == GameState::penalizedIllegalMotionInStandby)
+         theGameState.opponentTeam.playerStates[i] == GameState::penalizedMotionInSet) //||   // Not playing but still on pitch
+        //  theGameState.opponentTeam.playerStates[i] == GameState::penalizedIllegalMotionInStandby)
         numberOfUnpenalizedOpponents++;
     }
   }

@@ -436,8 +436,8 @@ bool ConsoleRoboCupCtrl::executeConsoleCommand(std::string command, RobotConsole
     stream >> buffer;
     if(buffer == "initial")
       check(gameController.initial());
-    else if(buffer == "standby")
-      check(gameController.standby());
+    // else if(buffer == "standby")
+    //   check(gameController.standby());
     else if(buffer == "ready")
       check(gameController.ready());
     else if(buffer == "set")
@@ -446,16 +446,24 @@ bool ConsoleRoboCupCtrl::executeConsoleCommand(std::string command, RobotConsole
       check(gameController.playing());
     else if(buffer == "finished")
       check(gameController.finished());
-    else if(buffer == "competitionPhasePlayoff")
-      check(gameController.competitionPhasePlayoff());
-    else if(buffer == "competitionPhaseRoundRobin")
-      check(gameController.competitionPhaseRoundrobin());
-    else if(buffer == "competitionTypeChampionsCup")
-      check(gameController.competitionTypeChampionsCup());
-    else if(buffer == "competitionTypeChallengeShield")
-      check(gameController.competitionTypeChallengeShield());
-    else if(buffer == "globalGameStuck")
-      check(gameController.globalGameStuck());
+    else if(buffer == "stop")
+      check(gameController.stopped(true));
+    else if(buffer == "resume")
+      check(gameController.stopped(false));    
+    // else if(buffer == "competitionPhasePlayoff")
+    //   check(gameController.competitionPhasePlayoff());
+    // else if(buffer == "competitionPhaseRoundRobin")
+    //   check(gameController.competitionPhaseRoundrobin());
+    // else if(buffer == "competitionTypeChampionsCup")
+    //   check(gameController.competitionTypeChampionsCup());
+    // else if(buffer == "competitionTypeChallengeShield")
+    //   check(gameController.competitionTypeChallengeShield());
+    // else if(buffer == "globalGameStuck")
+    //   check(gameController.globalGameStuck());
+    else if (buffer == "competitionTypeMiddleFoundation")
+      check(gameController.competitionTypeMiddleFoundation());
+    else if (buffer == "competitionTypeMiddleAdvanced")
+      check(gameController.competitionTypeMiddleAdvanced());
     else if(buffer == "goalByFirstTeam")
       check(gameController.goal(0));
     else if(buffer == "goalBySecondTeam")
@@ -464,18 +472,24 @@ bool ConsoleRoboCupCtrl::executeConsoleCommand(std::string command, RobotConsole
       check(gameController.goalKick(0));
     else if(buffer == "goalKickForSecondTeam")
       check(gameController.goalKick(1));
-    else if(buffer == "pushingFreeKickForFirstTeam")
-      check(gameController.pushingFreeKick(0));
-    else if(buffer == "pushingFreeKickForSecondTeam")
-      check(gameController.pushingFreeKick(1));
+
+    else if(buffer == "directFreeKickForFirstTeam")
+      check(gameController.directFreeKick(0));
+    else if(buffer == "directFreeKickForSecondTeam")
+      check(gameController.directFreeKick(1));
+    else if(buffer == "indirectFreeKickForFirstTeam")
+      check(gameController.indirectFreeKick(0));
+    else if(buffer == "indirectFreeKickForSecondTeam")
+      check(gameController.indirectFreeKick(1));
+
     else if(buffer == "cornerKickForFirstTeam")
       check(gameController.cornerKick(0));
     else if(buffer == "cornerKickForSecondTeam")
       check(gameController.cornerKick(1));
-    else if(buffer == "kickInForFirstTeam")
-      check(gameController.kickIn(0));
-    else if(buffer == "kickInForSecondTeam")
-      check(gameController.kickIn(1));
+    else if(buffer == "throwInForFirstTeam")
+      check(gameController.throwIn(0));
+    else if(buffer == "throwInForSecondTeam")
+      check(gameController.throwIn(1));
     else if(buffer == "penaltyKickForFirstTeam")
       check(gameController.teamPenaltyKick(0));
     else if(buffer == "penaltyKickForSecondTeam")
@@ -490,9 +504,11 @@ bool ConsoleRoboCupCtrl::executeConsoleCommand(std::string command, RobotConsole
       check(gameController.setHalf(1));
     else if(buffer == "halfSecond")
       check(gameController.setHalf(2));
-    else if(buffer == "gamePenaltyShootout")
+    else if(buffer == "gamePhasePenaltyShootout")
       check(gameController.gamePhasePenaltyshoot());
-    else if(buffer == "gameNormal")
+    else if(buffer == "gamePhaseExtraTime")
+      check(gameController.gamePhaseExtraTime());
+    else if(buffer == "gamePhaseNormal")
       check(gameController.gamePhaseNormal());
     else
       printLn("Syntax Error");
@@ -804,7 +820,14 @@ void ConsoleRoboCupCtrl::help(In& stream)
   list("  cls : Clear console window.", pattern, true);
   list("  dt off | on | <fps> : Delay time of a simulation step to real time or a certain number of frames per second.", pattern, true);
   list("  echo <text> : Print text into console window. Useful in console.con.", pattern, true);
-  list("  gc initial | standby | ready | set | playing | finished | goalByFirstTeam | goalBySecondTeam | kickOffFirstTeam | kickOffSecondTeam | dropBall | globalGameStuck | goalKickForFirstTeam | goalKickForSecondTeam | pushingFreeKickForFirstTeam | pushingFreeKickForSecondTeam | cornerKickForFirstTeam | cornerKickForSecondTeam | kickInForFirstTeam | kickInForSecondTeam | penaltyKickForFirstTeam | penaltyKickForSecondTeam | halfFirst | halfSecond | gameNormal | gamePenaltyShootout | competitionPhasePlayoff | competitionPhaseRoundRobin | competitionTypeChampionsCup | competitionTypeChallengeShield : Set GameController state.", pattern, true);
+  list("  gc initial | ready | set | playing | finished | stop | resume | "
+       "goalByFirstTeam | goalBySecondTeam | kickOffFirstTeam | kickOffSecondTeam | dropBall | "
+       "directFreeKickForFirstTeam | directFreeKickForSecondTeam | indirectFreeKickForFirstTeam | indirectFreeKickForSecondTeam | "
+       "penaltyKickForFirstTeam | penaltyKickForSecondTeam | throwInForFirstTeam | throwInForSecondTeam | "
+       "goalKickForFirstTeam | goalKickForSecondTeam | cornerKickForFirstTeam | cornerKickForSecondTeam | "
+       "halfFirst | halfSecond | gamePhaseNormal | gamePhaseExtraTime | gamePhasePenaltyShootout | "
+       "competitionTypeMiddleFoundation | competitionTypeMiddleAdvanced "
+       ": Set GameController state.", pattern, true);
   list("  ( help | ? ) [<pattern>] : Display this text.", pattern, true);
   if(is2D)
     list("  mvo <name> <x> <y> [<rot>] : Move the object with the given name to the given position.", pattern, true);
@@ -1036,35 +1059,44 @@ void ConsoleRoboCupCtrl::createCompletion()
     "dt on",
     "echo",
     "gc initial",
-    "gc standby",
+    // "gc standby", // deprecated 2026
     "gc ready",
     "gc set",
     "gc playing",
     "gc finished",
-    "gc competitionTypeChampionsCup",
-    "gc competitionTypeChallengeShield",
-    "gc competitionPhasePlayoff",
-    "gc competitionPhaseRoundRobin",
+    "gc stop", // added 2026
+    "gc resume", // added 2026
+    // "gc competitionTypeChampionsCup",
+    // "gc competitionTypeChallengeShield",
+    // "gc competitionPhasePlayoff",
+    // "gc competitionPhaseRoundRobin",
+    "gc competitionTypeMiddleFoundation",
+    "gc competitionTypeMiddleAdvanced",
     "gc dropBall",
-    "gc globalGameStuck",
+    // "gc globalGameStuck",
     "gc goalByFirstTeam",
     "gc goalBySecondTeam",
     "gc goalKickForFirstTeam",
     "gc goalKickForSecondTeam",
-    "gc pushingFreeKickForFirstTeam",
-    "gc pushingFreeKickForSecondTeam",
+    "gc directFreeKickForFirstTeam", // added 2026
+    "gc directFreeKickForSecondTeam", // added 2026
+    "gc indirectFreeKickForFirstTeam", // added 2026
+    "gc indirectFreeKickForSecondTeam", // added 2026
+    // "gc pushingFreeKickForFirstTeam",
+    // "gc pushingFreeKickForSecondTeam",
     "gc cornerKickForFirstTeam",
     "gc cornerKickForSecondTeam",
-    "gc kickInForFirstTeam",
-    "gc kickInForSecondTeam",
+    "gc throwInForFirstTeam", // modified 2026
+    "gc throwInForSecondTeam", // modified 2026
     "gc penaltyKickForFirstTeam",
     "gc penaltyKickForSecondTeam",
     "gc kickOffFirstTeam",
     "gc kickOffSecondTeam",
     "gc halfFirst",
     "gc halfSecond",
-    "gc gamePenaltyShootout",
-    "gc gameNormal",
+    "gc gamePhaseNormal", // renamed 2026
+    "gc gamePhaseExtraTime", // added 2026
+    "gc gamePhasePenaltyShootout", // renamed 2026
     "help",
     "jc motion",
     "jc hide",

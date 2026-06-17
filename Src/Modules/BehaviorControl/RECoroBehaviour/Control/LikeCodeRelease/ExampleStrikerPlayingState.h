@@ -83,7 +83,7 @@ namespace RE
 
     Angle calcAngleToGoal() const
     {
-      return (theRobotPose.inversePose * Vector2f(theFieldDimensions.xPosOpponentGoalLine, 0.f)).angle();
+      return theRobotPose.toRobotCoordinates(Vector2f(theFieldDimensions.xPosOpponentGoalLine, 0.f)).angle();
     }
   };
 
@@ -100,9 +100,9 @@ namespace RE
     {
       CRBEHAVIOUR_LOOP()
       {
-        if (theREGameInfo.setPlay == SET_PLAY_PENALTY_KICK)
+        if (theGameState.isPenaltyKick())
         {
-          if (theREGameInfo.isOurKick())
+          if (theGameState.isForOwnTeam())
           {
             CR_CHECKPOINT(our_penalty_kick);
             commonSkills.standLookForward(); // TODO: should be ownPenaltyKick behaviour
@@ -113,9 +113,9 @@ namespace RE
             commonSkills.standLookForward(); // TODO: should be opponentPenaltyKick behaviour
           }
         }
-        else if (theREGameInfo.setPlay != SET_PLAY_NONE) // any other set play?
+        else if (theGameState.isFreeKick()) // any other set play?
         {
-          if (theREGameInfo.isOurKick())
+          if (theGameState.isForOwnTeam())
           {
             CR_CHECKPOINT(our_set_play);
             commonSkills.standLookForward(); // TODO: should be ownFreeKick behaviour
@@ -139,7 +139,7 @@ namespace RE
     }
 
   private:
-    READS(REGameInfo);
+    READS(GameState);
     
     CommonSkills commonSkills  {env};
     ExampleStrikerNormalPlayTask normalPlayTask  {env};

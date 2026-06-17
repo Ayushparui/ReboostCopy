@@ -28,9 +28,9 @@ namespace RE
       {
         // commonSkills.recordActivity(BehaviorStatus::set);
 
-        if (theREGameInfo.gamePhase == GAME_PHASE_PENALTYSHOOT)
+        if (theGameState.isPenaltyShootout()) // pseudo-penalized, waiting for turn in shootout
           headSkills.lookForward();
-        else if (theREGameInfo.setPlay == SET_PLAY_PENALTY_KICK)
+        else if (theGameState.isPenaltyKick())
         {
           if (!commonSkills.isOurTeamKick() && theTeamBehaviorStatus.role.isGoalkeeper())
             headSkills.lookAtPoint(theRobotPose.toRobotVector3f(
@@ -55,7 +55,7 @@ namespace RE
 
         commonSkills.stand();
 
-        if (theREGameInfo.state != STATE_SET)
+        if (theGameState.isSet())
           CR_EXIT_SUCCESS();
         else
           CR_YIELD();
@@ -64,7 +64,8 @@ namespace RE
 
   private:
     READS(RobotPose);
-    READS(REGameInfo);
+    // READS(REGameInfo);
+    READS(GameState);
     READS(TeamBehaviorStatus);
     READS(FieldDimensions);
     READS(BallSpecification);

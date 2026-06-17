@@ -71,7 +71,7 @@ namespace v2025
     });
 
     READS(RobotPose);
-    READS(REGameInfo);
+    READS(GameState);
     // READS(ExtendedGameState);
     READS(LibWalk);
 
@@ -97,7 +97,7 @@ namespace v2025
       const float distMidline = std::fabs(theRobotPose.translation.y());
       const float distTarget = std::fabs(targetOnField.translation.y() - theRobotPose.translation.y());
 
-      if (theREGameInfo.playerNumber == 1)
+      if (theGameState.playerNumber == 1)
         return (distTarget < params.yGoalieThreshold);
       else
         return ((distTarget < params.yTargetThreshold) || (distMidline < params.yMidlineThreshold));
@@ -122,7 +122,7 @@ namespace v2025
       auto inOwnHalf = [this](float margin)
       {
         return theRobotPose.translation.x() < -margin &&
-               (theREGameInfo.isOurKick() ||
+               (theGameState.isForOwnTeam() ||
                 theRobotPose.translation.squaredNorm() > sqr(theFieldDimensions.centerCircleRadius + margin));
       };
 
@@ -221,10 +221,9 @@ namespace v2025
     });
 
     READS(RobotPose);
-    READS(REGameInfo);
-    READS(REGameControlDataReceived);
-    READS(FrameInfo);;
     READS(GameState);
+    // READS(REGameControlDataReceived);
+    READS(FrameInfo);
     // READS(ExtendedGameState);
     READS(REGameConfig);
     READS(FieldDimensions);
@@ -271,7 +270,7 @@ namespace v2025
         // player 2 is our probe in standby state, so it is allowed to walk out first
         // TODO: for 2025, we no longer use a probe robot due to new rules, so deprecate this
         // if ((theExtendedGameState.stateBeforeCurrent == GameState::standby) && (theREGameInfo.stateIsGuessed) &&
-        //     (theREGameInfo.playerNumber != 2))
+        //     (theGameState.playerNumber != 2))
         // {
         //   CR_CHECKPOINT(wait_for_visual_ready_probe);
         //   while ((theExtendedGameInfo.timeSinceReadyStarted < params.probeForVisualReadyMs) &&
@@ -318,7 +317,6 @@ namespace v2025
   private:
     READS(RobotPose);
     READS(FieldDimensions);
-    READS(REGameInfo);
     READS(GameState);
     READS(ExtendedGameState);
     READS(REActiveTactic);
@@ -338,7 +336,7 @@ namespace v2025
 
     unsigned getLookAroundMs()
     {
-      return params.lookAroundMs[theREGameInfo.playerIndex()];
+      return params.lookAroundMs[theGameState.playerIndex()];
     }
 
     // having this function called on every cycle allows for the possibility of game state mistakes
@@ -363,7 +361,7 @@ namespace v2025
     {
       CRBEHAVIOUR_LOOP()
       {
-        if (theREGameInfo.setPlay == SET_PLAY_PENALTY_KICK)
+        if (theGameState.isPenaltyKick())
         {
           if (!commonSkills.isOurTeamKick() && theTeamBehaviorStatus.role.isGoalkeeper())
             penaltyShotGoalieReadyTask();
@@ -381,7 +379,7 @@ namespace v2025
 
   private:
     READS(TeamBehaviorStatus);
-    READS(REGameInfo);
+    READS(GameState);
 
     CommonSkills commonSkills {env};
 

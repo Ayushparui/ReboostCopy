@@ -104,7 +104,7 @@ namespace RE
      */
     TimeToReachBall calcTimeToReachBallPosition()
     {
-      if (theREGameInfo.isPenalized())
+      if (theGameState.isPenalized())
         return TimeToReachBall(); // max values
 
       unsigned timeToBallPosMs = getTimeToBallPositionMs();
@@ -122,7 +122,7 @@ namespace RE
 
     const RETeammate* selectCaptainTeammate()
     {
-      int captain = !theREGameInfo.isPenalized() ? theREGameInfo.playerNumber : 0; // initial guess is that the current robot is captain
+      int captain = !theGameState.isPenalized() ? theGameState.playerNumber : 0; // initial guess is that the current robot is captain
       const RETeammate* captainTeammate = nullptr;
 
       // search for a better captain (which will select the goalie if available)
@@ -153,7 +153,7 @@ namespace RE
     READS(LibCheck);
     READS(FieldBall);
     READS(WalkingEngineOutput);
-    READS(REGameInfo);
+    READS(GameState);
     READS(RETeamData);
     READS(FrameInfo);
     READS(RobotPose);

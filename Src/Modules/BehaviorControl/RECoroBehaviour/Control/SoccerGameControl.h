@@ -32,8 +32,6 @@ namespace RE
   {
     CRBEHAVIOUR_INIT(SoccerGameControlTask) 
     {
-      DECL_TLOGGER_VAR(tlogger, "SoccerGameControlTask", TextLogging::INFO);
-
       TLOGI(tlogger, "standbyStateBehaviour: {}", params.standbyStateBehaviour);
       TLOGI(tlogger, "readyStateBehaviour: {}", params.readyStateBehaviour);
       TLOGI(tlogger, "setStateBehaviour: {}", params.setStateBehaviour);
@@ -59,11 +57,11 @@ namespace RE
             CR_YIELD();
           }
         }
-        else if (theREGameInfo.playerMode == REGameInfo::calibration)
+        else if (theGameState.playerState == GameState::calibration)
         {
           annotation("Autonomous calibration mode.");
           CR_CHECKPOINT(calibrating);          
-          while (theREGameInfo.playerMode == REGameInfo::calibration)
+          while (theGameState.playerState == GameState::calibration)
           {
             // CALL_CARD(CalibrationCard); // use the BH2021 calibration routine for now
             // FIXME - integrate new Calibration procedure
@@ -74,25 +72,25 @@ namespace RE
         }
         else
         {
-          if (theREGameInfo.state == STATE_INITIAL)
+          if (theGameState.isInitial())
           {
             CR_CHECKPOINT(initial);
             // commonSkills.recordActivity(BehaviorStatus::initial);
             commonSkills.standLookForward(true);
           }
-          else if (theREGameInfo.state == STATE_STANDBY)
+          else if (theGameState.state == GameState::standby)
           {
             CR_CHECKPOINT(standby);
             // commonSkills.recordActivity(BehaviorStatus::initial);
             CALL_BASIC_CORO(params.standbyStateBehaviour); // the configured playing state behaviour
           }
-          else if (theREGameInfo.state == STATE_FINISHED)
+          else if (theGameState.isFinished())
           {
             CR_CHECKPOINT(finished);
             // commonSkills.recordActivity(BehaviorStatus::finished);
             commonSkills.standLookForward(true);
           }
-          else if (theREGameInfo.state == STATE_SET)
+          else if (theGameState.isSet())
           {
             CR_CHECKPOINT(set_state);
             // commonSkills.recordActivity(BehaviorStatus::set);
@@ -107,7 +105,7 @@ namespace RE
 
             // Check if we need to any arm avoidance for obstacles
             armContactAnyArmTask();
-            if (!theREGameInfo.isGoalkeeper())
+            if (!theGameState.isGoalkeeper())
               armObstacleAvoidanceAnyArmTask();
 
             if (theExtendedGameState.returnFromGameControllerPenalty || theExtendedGameState.returnFromManualPenalty ||
@@ -120,12 +118,12 @@ namespace RE
                                                                                         : "from manual penalty");
               returnFromPenalizedTask();
             }
-            else if (theREGameInfo.state == STATE_READY)
+            else if (theGameState.isReady())
             {
               CR_CHECKPOINT(ready_state);
               CALL_BASIC_CORO(params.readyStateBehaviour); // the configured ready state behaviour
             }
-            else if (theREGameInfo.state == STATE_PLAYING)
+            else if (theGameState.isPlaying())
             {
               CR_CHECKPOINT(playing_state);
               CALL_BASIC_CORO(params.playingStateBehaviour); // the configured playing state behaviour
@@ -148,7 +146,8 @@ namespace RE
       (std::string) returnFromPenalizedBehaviour,
     });
 
-    READS(REGameInfo);
+    // READS(REGameInfo);
+    READS(GameState);
     READS(ExtendedGameState);
     READS(FallDownState);
     READS(MotionInfo);
@@ -163,14 +162,12 @@ namespace RE
     ArmContactAnyArmTask armContactAnyArmTask {env};
     ArmObstacleAvoidanceAnyArmTask armObstacleAvoidanceAnyArmTask {env};
 
+    DECL_TLOGGER_STATIC_VAR(tlogger, "SoccerGameControlTask", TextLogging::INFO);
+
     DECLARE_CALLS_BASIC_CORO(returnFromPenalizedTask, params.returnFromPenalizedBehaviour);
 
     bool needsGetUp()
     {
-      bool initial = (theREGameInfo.state == STATE_INITIAL);
-      bool finished = (theREGameInfo.state == STATE_FINISHED);
-      (void)finished; // force use
-      
       bool fallen = (theFallDownState.state == FallDownState::fallen);
       bool accidentalSquatting = (theFallDownState.state == FallDownState::squatting &&
                                   // goalie sit down is not accidental so exclude it
@@ -178,8 +175,7 @@ namespace RE
                                   // specifically requesting a sit down is not accidental so exclude it
                                   !theMotionInfo.isKeyframeMotion(KeyframeMotionRequest::sitDown));
 
-      // return (fallen || accidentalSquatting) && !(initial || finished);
-      return (fallen || accidentalSquatting) && !initial; // we do allow a get up in finished state
+      return (fallen || accidentalSquatting) && !theGameState.isInitial(); // we do allow a get up in finished state
     }
   };
 

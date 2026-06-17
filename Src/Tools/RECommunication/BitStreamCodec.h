@@ -25,15 +25,15 @@ namespace RE
 namespace BitStream
 {
 
-struct TL
-{
-  static TextLogger& get()
-  {
-    static TextLogger& tlogger = TextLogging::get("BitStreamCodec", TextLogging::INFO);
-    return tlogger;
-  }
-};
-inline TextLogger& tlogger() { return TL::get(); }
+// struct TL
+// {
+//   static TextLogger& get()
+//   {
+//     static TextLogger& tlogger = TextLogging::get("BitStreamCodec", TextLogging::INFO);
+//     return tlogger;
+//   }
+// };
+// inline TextLogger& tlogger() { return TL::get(); }
 
 /**
  * get the minimum number of bits needed to represent a number
@@ -48,7 +48,7 @@ inline unsigned numBitsNeeded(unsigned value)
 class Writer
 {
 private:
-  DECL_TLOGGER_VAR(tlogger, "BitStreamCodec::Writer", TextLogging::INFO);
+  DECL_TLOGGER_VAR(tlogger, "BitStream::Writer", TextLogging::INFO);
 
 public:
   Writer(Byte *data, unsigned capacity) : mData(data), mCapacity(capacity) {}
@@ -56,8 +56,9 @@ public:
   void writeBits(unsigned value, std::size_t nbits, const char* name=nullptr)
   {
     ASSERT(((mBitIndex + nbits) / 8) <= mCapacity);
-    ASSERT(0 < nbits && nbits < (sizeof(value) * 8));
+    ASSERT(0 < nbits && nbits <= (sizeof(value) * 8));
 
+    // Note: use 1LL << nbits since nbits could be 32 and 1U << 32 is undefined behaviour
     TLOGV(tlogger, "writeBits: {:#32b}/{}{}", value & static_cast<unsigned>((1LL << nbits) - 1), nbits,
           name ? fmt::format(" ({})", name) : "");
 
@@ -148,7 +149,7 @@ private:
 class Reader
 {
 private:
-  TextLogger& tlogger = TextLogging::get("BitStreamCodec::Reader", TextLogging::INFO);
+  DECL_TLOGGER_VAR(tlogger, "BitStream::Reader", TextLogging::INFO);
 
 public:
   Reader(const Byte* data, unsigned size) : mData(data), mSize(size) {}
@@ -156,7 +157,7 @@ public:
   void readBits(unsigned& value, std::size_t nbits, const char* name=nullptr)
   {
     ASSERT(((mBitIndex + nbits) / 8) <= mSize);
-    ASSERT(nbits < (sizeof(value) * 8));
+    ASSERT(nbits <= (sizeof(value) * 8));
 
     // read into LSbit of LSByte upwards
     // read the complete bytes first...
@@ -170,7 +171,8 @@ public:
     if (ibit < nbits)
       value |= readBitsUnchecked(nbits - ibit) << ibit;
 
-    TLOGV(tlogger, "readBits: {:#32b}/{}{}", value & ((1U << nbits) - 1), nbits, name ? fmt::format(" ({})", name) : "");
+    TLOGV(tlogger, "readBits: {:#32b}/{}{}", value & static_cast<unsigned>((1LL << nbits) - 1), nbits,
+          name ? fmt::format(" ({})", name) : "");
   }
 
   /**
@@ -259,10 +261,12 @@ struct Integer
   {
     ASSERT(minVal < maxVal);
 
+    fprintf(stderr, "tlogger ptr = %p\n", &tlogger);
+
     if (nbits == 0)
     {
       nbits = numBitsNeeded(static_cast<unsigned>(((maxVal - minVal) / scale)));
-      TLOGD(tlogger(), "Integer: max-min = {}, scale {}, nbits = {}", maxVal - minVal, scale, nbits);
+      TLOGD(tlogger, "max-min = {}, scale {}, nbits = {}", maxVal - minVal, scale, nbits);
     }
 
     ASSERT(nbits > 0);
@@ -277,6 +281,9 @@ struct Integer
     const unsigned scaled2 = (std::max(minVal, std::min(maxVal, v2)) - minVal) / scale;
     return scaled1 == scaled2;
   }
+
+private:
+  DECL_TLOGGER_VAR(tlogger, "BitStream::Integer", TextLogging::INFO);
 };
 
 /// Contiguous macro based enum from zero to numOfValues (= maxValidValue + 1)
@@ -311,7 +318,7 @@ struct Float
       : minVal(minVal), maxVal(maxVal), nbits(nbits), name(name)
   {
     ASSERT(nbits > 0);
-    resolution = maxVal - minVal / ((1LL << nbits) - 1);
+    resolution = (maxVal - minVal) / ((1LL << nbits) - 1);
   }
 
   void write(Writer &w, T value, T altValue = 0)
@@ -452,6 +459,26 @@ struct Bool
 //   Pose(unsigned nbits)
 // }
 
+
+// ===========================================================================
+// Codec reader and writer classes
+// ===========================================================================
+// These classes aid writing or reading values using fields from some codec
+// using the low level Bitstream::Reader and Bitstream::Writer classes
+
+struct CodecWriter
+{
+    Writer& w;
+    void serialize(auto &field, auto &value) { field.write(w, value); }
+    void serializeTimestamp(auto &field, unsigned &value, unsigned ref) { field.write(w, value, ref); }
+};
+
+struct CodecReader
+{
+    Reader& r;
+    void serialize(auto &field, auto &value) { field.read(r, value); }
+    void serializeTimestamp(auto &field, unsigned &value, unsigned ref) { field.read(r, value, ref); }
+};
 
 } // namespace BitStream
 } // namespace RE

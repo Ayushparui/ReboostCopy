@@ -47,7 +47,8 @@ namespace RE
     READS(FrameInfo);
     READS(TeamBehaviorStatus);
     READS(RobotPose);
-    READS(REGameInfo);
+    READS(GameState);
+    // READS(REGameInfo);
 
     TeamBehaviorStatusSkills teamBehaviourStatusSkills {env};
 
@@ -63,12 +64,12 @@ namespace RE
 
       if (!captainTeammate) // no captain teammate would mean we're the captain
       {
-        if (theREGameInfo.isPenalized()) // we're the captain but also penalized so can't allocate roles
+        if (theGameState.isPenalized()) // we're the captain but also penalized so can't allocate roles
           teammateRoles = TeammateRoles();
         else
         {
           // assign roles
-          teammateRoles.captain = theREGameInfo.playerNumber;
+          teammateRoles.captain = theGameState.playerNumber;
           teammateRoles.timestamp = theFrameInfo.time;
           assignRoles(teammateRoles);
         }
@@ -93,7 +94,7 @@ namespace RE
 
     bool isGoalkeeper(int robotNumber)
     {
-      return Settings::isGoalkeeper(robotNumber);
+      return theGameState.ownTeam.isGoalkeeper(robotNumber);
     }
 
     /**
@@ -102,12 +103,12 @@ namespace RE
      */
     void assignRoles(TeammateRoles& teammateRoles)
     {
-      if (theREGameInfo.gamePhase == GAME_PHASE_PENALTYSHOOT)
+      if (theGameState.isPenaltyShootout())
       {
-        if (theREGameInfo.isOurKick())
-          teammateRoles[theREGameInfo.playerNumber] = PlayerRole::ballPlayer;
+        if (theGameState.isForOwnTeam())
+          teammateRoles[theGameState.playerNumber] = PlayerRole::ballPlayer;
         else
-          teammateRoles[theREGameInfo.playerNumber] = PlayerRole::goalkeeper;
+          teammateRoles[theGameState.playerNumber] = PlayerRole::goalkeeper;
 
         return;
       }
@@ -115,11 +116,11 @@ namespace RE
       // CAUTION: remember that there may be no active teammates so ensure
       // all code works even with no teammates
       
-      teammateRoles[theREGameInfo.playerNumber] = PlayerRole::none;
+      teammateRoles[theGameState.playerNumber] = PlayerRole::none;
 
       // assign the goalie
-      if (!theREGameInfo.isPenalized() && isGoalkeeper(theREGameInfo.playerNumber)) // are we the goalie?
-        teammateRoles[theREGameInfo.playerNumber] = PlayerRole::goalkeeper;
+      if (!theGameState.isPenalized() && isGoalkeeper(theGameState.playerNumber)) // are we the goalie?
+        teammateRoles[theGameState.playerNumber] = PlayerRole::goalkeeper;
       else // no, perhaps a teammate is goalie
       {
         for (const RETeammate& teammate : theRETeamData.teammates)
@@ -127,7 +128,7 @@ namespace RE
           if (!teammate.isPenalized && isGoalkeeper(teammate.number))
           {
             teammateRoles[teammate.number] = PlayerRole::goalkeeper;
-            TLOGD(tlogger, "robot{}: assignRoles goalkeeper is {}", theREGameInfo.playerNumber, teammate.number);
+            TLOGD(tlogger, "robot{}: assignRoles goalkeeper is {}", theGameState.playerNumber, teammate.number);
             break;
           }
         }
@@ -142,8 +143,8 @@ namespace RE
       std::vector<RobotNumberToTime> etaAtBall;
 
       // add the current robot as a potential striker if it is not penalized
-      if (!theREGameInfo.isPenalized()) 
-        etaAtBall.emplace_back(theREGameInfo.playerNumber, getTimeWhenReachBall(theTeamBehaviorStatus));
+      if (!theGameState.isPenalized()) 
+        etaAtBall.emplace_back(theGameState.playerNumber, getTimeWhenReachBall(theTeamBehaviorStatus));
 
       // add other unpenalized robots
       for (const RETeammate& teammate : theRETeamData.teammates)
@@ -192,8 +193,8 @@ namespace RE
       std::vector<RobotX> robotXValues;
       
       // add the current robot as a supporter if it is not penalized and not a striker or goalie
-      if (!theREGameInfo.isPenalized() && (teammateRoles[theREGameInfo.playerNumber] == PlayerRole::none))
-        robotXValues.emplace_back(theREGameInfo.playerNumber, theTeamBehaviorStatus.role.supporterIndex(),
+      if (!theGameState.isPenalized() && (teammateRoles[theGameState.playerNumber] == PlayerRole::none))
+        robotXValues.emplace_back(theGameState.playerNumber, theTeamBehaviorStatus.role.supporterIndex(),
                                   theRobotPose.translation.x());
 
       // add other unpenalized robots
@@ -225,7 +226,7 @@ namespace RE
 
       TLOGD(tlogger, "assignRoles: teammateRole.roles[1] = {}", teammateRoles.roles[1]);
 
-      // CRB_ANNOTATION_FMT("assignRoles: captain={}, striker={}, robot1 is {}\n", theREGameInfo.playerNumber, strikerNumber, teammateRoles.roles[1]);
+      // CRB_ANNOTATION_FMT("assignRoles: captain={}, striker={}, robot1 is {}\n", theGameState.playerNumber, strikerNumber, teammateRoles.roles[1]);
     }
 
     void updatePlayerRole()
@@ -235,7 +236,7 @@ namespace RE
       // we assume that the TeammateRoles have already been updated by the time this runs
       // so we can pull our values from there
 
-      role.role = static_cast<PlayerRole::Type>(theTeamBehaviorStatus.teammateRoles[theREGameInfo.playerNumber]);
+      role.role = static_cast<PlayerRole::Type>(theTeamBehaviorStatus.teammateRoles[theGameState.playerNumber]);
       role.numOfActiveSupporters = 0;
       for (int teammateRole : theTeamBehaviorStatus.teammateRoles.roles)
         if (teammateRole >= PlayerRole::firstSupporterRole)

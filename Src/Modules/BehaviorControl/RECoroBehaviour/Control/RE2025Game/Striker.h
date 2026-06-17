@@ -45,13 +45,15 @@ namespace v2025
       bool kickSuccess = false;
 
       CRBEHAVIOUR_BEGIN();
-        
+
+      if (!theGameState.isKickOff())
+        CR_EXIT_FAILED();
+
       // only want to do this once!!
       // TODO: it would be better to choose the side based on obstacle/opponent detection
       chooseKickoffPassToSide();
 
-      if (commonSkills.isOurTeamKick() ||
-          ((theREGameInfo.state == STATE_PLAYING) && (!theREGameInfo.stateIsGuessed))) // offense kickoff
+      if (theGameState.isForOwnTeam()) // our kickoff
       {
         CR_CHECKPOINT(our_kickoff);
 
@@ -97,7 +99,7 @@ namespace v2025
         // to move any further. Is this reasonable?
         while (true)
         {
-          if (theREGameInfo.isBallFree()) // can we enter the centre circle and take a shot?
+          if (!theGameState.isKickOff()) // is the kickoff over - can we enter the centre circle and take a shot?
           {
             if (params.shotFromKickoffEnabled && kickoffShotIsViable  ())
             {
@@ -135,7 +137,7 @@ namespace v2025
     });
 
     READS(RobotPose);
-    READS(REGameInfo);
+    READS(GameState);
     READS(FieldDimensions);
     READS(FieldBall);
     // READS(ExtendedGameState);
@@ -275,7 +277,7 @@ namespace v2025
       CRBEHAVIOUR_BEGIN();
       debugKickStraightAhead = false;
 
-      if (theREGameInfo.isKickoff())
+      if (theGameState.isKickOff())
       {
         CR_CHECKPOINT(kickoff);
         annotation("StrikerPlayingTask kickoff");
@@ -336,7 +338,7 @@ namespace v2025
     });
 
     READS(FieldBall);
-    READS(REGameInfo);
+    READS(GameState);
     // READS(ExtendedGameState);
     
     CommonSkills commonSkills {env};

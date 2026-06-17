@@ -46,7 +46,7 @@ STREAMABLE(RETeammate, // COMMA public MessageHandler
   /* ----------- streamable fields follow, not comma at end of this comment -------------*/,
 
   (int)(-1) number,
-  (bool)(false) isGoalkeeper, /**< This is for a teammate what \c theREGameInfo.isGoalkeeper() is for the player itself. */
+  (bool)(false) isGoalkeeper, /**< This is for a teammate what \c theGameState.isGoalkeeper() is for the player itself. */
   (bool)(true) isPenalized,
   (bool)(true) isUpright,
 

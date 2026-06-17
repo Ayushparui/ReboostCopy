@@ -20,8 +20,8 @@ void CameraMatrixProvider::update(CameraMatrix& cameraMatrix)
                           theFallDownState.state == FallDownState::squatting) &&
                           theFrameInfo.getTimeSince(theJointAngles.timestamp) < 500 &&
                          (!theGameState.isPenalized() ||
-                          theGameState.playerState == GameState::penalizedIllegalMotionInSet ||
-                          theGameState.playerState == GameState::penalizedIllegalMotionInStandby);
+                          theGameState.playerState == GameState::penalizedMotionInSet); // ||
+                          // theGameState.playerState == GameState::penalizedIllegalMotionInStandby);
 
   DEBUG_DRAWING("module:CameraMatrixProvider:calibrationHelper", "drawingOnImage") drawFieldLines(cameraMatrix);
   DEBUG_DRAWING3D("module:CameraMatrixProvider:cameraMatrix", "field")

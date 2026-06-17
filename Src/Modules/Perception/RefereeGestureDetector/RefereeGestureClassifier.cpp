@@ -49,10 +49,10 @@ void RefereeGestureClassifier::update(RefereeGesture& theRefereeGesture)
   // Determine patch size and scaling based on game state and configuration
   // Patch height is always constant, patch width depends on game state
   const int height = static_cast<int>(patchSize);
-  const int width = static_cast<int>(theGameState.isKickIn() ? patchSize : patchWidthStandby);
+  const int width = static_cast<int>(theGameState.isThrowIn() ? patchSize : patchWidthStandby);
   // Use dynamic scaling for kick-in patches if enabled
-  const int inHeight = useDynamicScaling && theGameState.isKickIn() ? std::min(static_cast<unsigned>(Projection::getSizeByDistance(theUpperCameraInfo, refereeHeight, refereeDistance)), theCameraImage.height) : height;
-  const int inWidth = useDynamicScaling && theGameState.isKickIn() ? std::min(static_cast<unsigned>(Projection::getSizeByDistance(theUpperCameraInfo, refereeHeight, refereeDistance)), theCameraImage.height) : width;
+  const int inHeight = useDynamicScaling && theGameState.isThrowIn() ? std::min(static_cast<unsigned>(Projection::getSizeByDistance(theUpperCameraInfo, refereeHeight, refereeDistance)), theCameraImage.height) : height;
+  const int inWidth = useDynamicScaling && theGameState.isThrowIn() ? std::min(static_cast<unsigned>(Projection::getSizeByDistance(theUpperCameraInfo, refereeHeight, refereeDistance)), theCameraImage.height) : width;
   // Calculate the center of the patch in the image
   const unsigned centerX = theCameraImage.width;
   const unsigned centerY = (inHeight & 1 ? inHeight + 1 : inHeight) / 2;
@@ -61,7 +61,7 @@ void RefereeGestureClassifier::update(RefereeGesture& theRefereeGesture)
   STOPWATCH("module:RefereeGestureClassifier:extractPatch") PatchUtilities::extractPatch(Vector2i(centerX, centerY), Vector2i(inWidth, inHeight), Vector2i(width, height), theCameraImage, img);
   SEND_DEBUG_IMAGE("module:RefereeGestureClassifier:patch", img);
 
-  NeuralNetwork::CompiledNN& network = theGameState.isKickIn() ? networkKickIn : networkStandby;
+  NeuralNetwork::CompiledNN& network = theGameState.isThrowIn() ? networkKickIn : networkStandby;
   STOPWATCH("module:RefereeGestureClassifier:copyPatchToinput") copyPatchToInput(img, network.input(0).data());
 
   *network.input(1).data() = normalizedDistance;
@@ -69,14 +69,14 @@ void RefereeGestureClassifier::update(RefereeGesture& theRefereeGesture)
   STOPWATCH("module:RefereeGestureClassifier:applyNetwork") network.apply();
 
   // Prepare raw output for softmax, use third output only for kick-in
-  Vector3f rawNetworkOutput {network.output(0)[0], network.output(0)[1], theGameState.isKickIn() ? network.output(0)[2] : 0.f};
+  Vector3f rawNetworkOutput {network.output(0)[0], network.output(0)[1], theGameState.isThrowIn() ? network.output(0)[2] : 0.f};
   // Apply softmax to network output and store results in RefereeGesture
   // Softmax is applied manually, because CompiledNN's implementation is incomplete
-  softmaxNetworkOutput(rawNetworkOutput, theGameState.isKickIn(), theRefereeGesture);
+  softmaxNetworkOutput(rawNetworkOutput, theGameState.isThrowIn(), theRefereeGesture);
   theRefereeGesture.normDist = normalizedDistance;
 
   theRefereeGesture.gesture = RefereeGesture::none;
-  if(theGameState.isKickIn())
+  if(theGameState.isThrowIn())
   {
     if(theRefereeGesture.netout1 >= netThreshold)
       theRefereeGesture.gesture = RefereeGesture::kickInLeft;

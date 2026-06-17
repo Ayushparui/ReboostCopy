@@ -186,7 +186,7 @@ void TeamBallModelProvider::updateInternalBallBuffers()
   {
     const auto state = theGameState.ownTeam.playerStates[index];
     if(state == GameState::penalizedLeavingTheField ||
-       state == GameState::penalizedIllegalPosition)
+       state == GameState::penalizedIllegalPositioning)
       balls[index].valid = false;
   }
 }

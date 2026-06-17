@@ -38,7 +38,7 @@ namespace RE
         // commonSkills.stand();
         motionSkills.walkAtRelativeSpeed(Pose2f(0.f, 0.5f, 0.f));
 
-        if (theFrameInfo.getTimeSince(theExtendedGameState.timeWhenLastUnpenalised) >=
+        if (theFrameInfo.getTimeSince(theExtendedGameState.timeWhenLastUnpenalized) >=
              ((theRobotPose.quality != RobotPose::poor) ? params.minDuration : params.maxDuration))
           CR_EXIT_SUCCESS();
         else

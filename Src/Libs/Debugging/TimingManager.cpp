@@ -15,6 +15,14 @@
 
 struct TimingManager::Pimpl
 {
+  struct Entry
+  {
+    unsigned long long startMicros = 0; ///< when the timer started, or 0 if it is not running
+    unsigned cumulativeMicros = 0; ///< when a timer is stopped, the current timing is added to this value
+    unsigned prevCumulativeMicros = 0; ///< needed when timers span calls to getData
+    unsigned short id = 0; ///< Key: name of the stopwatch. Value: the id that is used when sending timing data over the network
+  };
+
   /**
    * NOTE: the hash maps only work because the compiler uses a string table and
    *       allocates only one address for all const string literals with the same value.
@@ -26,8 +34,9 @@ struct TimingManager::Pimpl
    * value: If timer has been started but not stopped, yet: the start time.
    *        Else: the time between start and stop.
    */
-  std::unordered_map<const char*, unsigned long long> timing;
-  std::unordered_map<const char*, unsigned short> idTable; /**< Key: name of the stopwatch. Value: the id that is used when sending timing data over the network */
+  std::unordered_map<const char*, Entry> timings;
+  // std::unordered_map<const char*, unsigned long long> timing;
+  // std::unordered_map<const char*, unsigned short> idTable; /**< Key: name of the stopwatch. Value: the id that is used when sending timing data over the network */
   unsigned currentThreadStartTime = 0; /**< Timestamp of the current thread iteration */
   unsigned frameNo = 0; /**<  Number of the current frame*/
   std::vector<const char*> watchNames; /**< Contains the names of the stopwatches */
@@ -48,25 +57,31 @@ TimingManager::~TimingManager()
 
 void TimingManager::startTiming(const char* identifier)
 {
-  auto timing = prvt->timing.find(identifier);
-  if(timing == prvt->timing.end())
+  auto timing = prvt->timings.find(identifier);
+  if (timing == prvt->timings.end())
   {
     //create new entry
+    Pimpl::Entry entry;
+    entry.id = static_cast<unsigned short>(prvt->timings.size()); //NOTE: this assumes that an unsigned short will always be big big enough to count the timers...
+    timing = prvt->timings.emplace(identifier, entry).first;
     prvt->watchNames.push_back(identifier);
-    prvt->idTable[identifier] = static_cast<unsigned short>(prvt->idTable.size()); //NOTE: this assumes that an unsigned short will always be big big enough to count the timers...
-    timing = prvt->timing.insert(std::pair<const char*, unsigned long long>(identifier, 0)).first;
   }
   prvt->dataPrepared = false;
-  timing->second = Time::getCurrentThreadTime() - timing->second; // accumulate measurements
+  timing->second.startMicros = Time::getCurrentThreadTime();// - timing->second; // accumulate measurements
 }
 
 unsigned TimingManager::stopTiming(const char* identifier)
 {
   const unsigned long long stopTime = Time::getCurrentThreadTime();
-  auto timing = prvt->timing.find(identifier);
-  const unsigned diff = unsigned(stopTime - timing->second);
-  timing->second = diff;
-  return diff;
+  auto timing = prvt->timings.find(identifier);
+  if (timing == prvt->timings.end()) // programming error really
+    return 999999;
+
+  timing->second.cumulativeMicros += (stopTime - timing->second.startMicros);
+  timing->second.startMicros = 0; // mark it stopped
+  // const unsigned diff = unsigned(stopTime - timing->second);
+  // timing->second = diff;
+  return timing->second.cumulativeMicros;
 }
 
 void TimingManager::signalThreadStart()
@@ -75,8 +90,15 @@ void TimingManager::signalThreadStart()
   prvt->frameNo++;
   prvt->data.clear();
   prvt->dataPrepared = false;
-  for(std::pair<const char* const, unsigned long long>& it : prvt->timing)
-    it.second = 0;
+
+  for (auto& [key, entry] : prvt->timings)
+  {
+    entry.startMicros = 0;
+    entry.prevCumulativeMicros = entry.cumulativeMicros;
+    entry.cumulativeMicros = 0;
+  }
+  // for(std::pair<const char* const, unsigned long long>& it : prvt->timing)
+  //   it.second = 0;
 }
 
 MessageQueue& TimingManager::getData()
@@ -107,21 +129,28 @@ void TimingManager::prepareData()
    */
   MessageQueue::OutBinary out = prvt->data.bin(idStopwatch);
 
-  // every frame we send 3 watch names
-  out << static_cast<unsigned short>(3); //number of names to follow
-  for(int i = 0; i < 3; ++i, prvt->watchNameIndex = (prvt->watchNameIndex + 1) % prvt->watchNames.size())
+  // every frame we send up to 3 watch names
+  // Guard against fewer than 3 registered timers.
+  const int numNames = static_cast<int>(prvt->watchNames.size());
+  const int namesToSend = std::min(3, numNames);
+
+  out << static_cast<unsigned short>(namesToSend); //number of names to follow
+  for(int i = 0; i < namesToSend; ++i, prvt->watchNameIndex = (prvt->watchNameIndex + 1) % numNames)
   {
     const char* watchName = prvt->watchNames[prvt->watchNameIndex];
-    out << prvt->idTable[watchName] << watchName;
+    out << prvt->timings[watchName].id << watchName;
   }
 
   // now write the data of all watches
-  out << static_cast<unsigned short>(prvt->timing.size());
-  for(const std::pair<const char* const, unsigned long long>& it : prvt->timing)
+  out << static_cast<unsigned short>(prvt->timings.size());
+  // for(const std::pair<const char* const, unsigned long long>& it : prvt->timing)
+  for(const auto& [key, entry] : prvt->timings)
   {
-    out << prvt->idTable[it.first];
-    out << static_cast<unsigned>(it.second); // the cast is ok because the time between start and stop will never be bigger than an int...
+    out << entry.id;
+    // output cumulativeMicros from the previous frame if the timer is currently running (startMicros != 0)
+    out << (entry.startMicros ? entry.prevCumulativeMicros : entry.cumulativeMicros);
   }
+
   out << prvt->currentThreadStartTime;
   out << prvt->frameNo;
   if(out.failed())

@@ -120,7 +120,7 @@ public:
   static int toPlayerNumber(int index) { return index + lowestValidPlayerNumber; }
   static int toPlayerIndex(int number) { return number - lowestValidPlayerNumber; }
 
-  static int isGoalkeeper(int number) { return number == 1; }
+  // static int isGoalkeeper(int number) { return number == 1; } 
 
   /**** separate header from streamable fields, note comma after comment ****/,
 

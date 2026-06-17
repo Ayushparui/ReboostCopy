@@ -21,7 +21,10 @@ option((SkillBehaviorControl) HandlePlayerState)
           ANNOTATION("Behavior", "Unpenalized");
           SystemCall::say("Not penalized");
         }
-        goto playing;
+        if (theGameState.stopped)
+          goto playingStopped;
+        else
+          goto playing;
       default:
         if(!theExtendedGameState.wasPenalized())
         {
@@ -39,6 +42,20 @@ option((SkillBehaviorControl) HandlePlayerState)
     if (stateChanged.valueChanged())
       TLOGD(tlogger, "PlayerState {}, GameState {}", TypeRegistry::getEnumName(theGameState.playerState),
             TypeRegistry::getEnumName(theGameState.state));
+  }
+
+  state(playingStopped)
+  {
+    action
+    {
+      TLOGD_STATE_ENTRY(playingStopped);
+      if (stateChanged.valueChanged())
+        TLOGD(tlogger, "PlayerState {}, GameState {}", TypeRegistry::getEnumName(theGameState.playerState),
+              TypeRegistry::getEnumName(theGameState.state));
+
+      LookForward();
+      Stand({.high = true});
+    }
   }
 
   state(unstiff)

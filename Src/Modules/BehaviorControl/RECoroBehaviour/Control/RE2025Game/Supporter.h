@@ -99,7 +99,8 @@ namespace v2025
     //READS(FieldDimensions);
     //READS(BallModel);
     READS(REActiveTactic);
-    READS(REGameInfo);
+    READS(GameState);
+    // READS(REGameInfo);
     
     CommonSkills commonSkills {env};
     HeadSkills headSkills {env};
@@ -117,8 +118,7 @@ namespace v2025
 
       // FIXME - should this be in team coordination???
       // push closest supporter up near the ball
-      if ((theREGameInfo.setPlay == SET_PLAY_KICK_IN) || (theREGameInfo.setPlay == SET_PLAY_CORNER_KICK) ||
-          (theREGameInfo.setPlay == SET_PLAY_GOAL_KICK) || (theREGameInfo.setPlay == SET_PLAY_PUSHING_FREE_KICK))
+      if (theGameState.isFreeKick())
       {
         Vector2f ballPos = theFieldBall.recentBallPositionOnField();
 
@@ -137,7 +137,7 @@ namespace v2025
           }
         }
 
-        if (bestIndex == static_cast<unsigned>(theREGameInfo.playerIndex()))
+        if (bestIndex == static_cast<unsigned>(Settings::toPlayerIndex(theGameState.playerNumber)))
         {
           // position robot 1m from ball and facing the ball
           // calc vector from ball to pose (i.e. negative dirn) and add to
@@ -472,7 +472,7 @@ namespace v2025
     });
 
     READS(RobotPose);
-    READS(REGameInfo);
+    READS(GameState);
     READS(TeamBehaviorStatus);
     READS(FieldBall);
     READS(FieldDimensions);
@@ -499,7 +499,7 @@ namespace v2025
       supporterIndex = (supporterIndex == -1) ? INTERCEPTOR : supporterIndex;
       Pose2f tacticPose(0_deg, 0.0f, 0.0f);
 
-      Vector2f tacticWeight = getTacticWeight(theREGameInfo.setPlay, theFieldBall.ballWasSeen(params.ballSeenTimeout));
+      Vector2f tacticWeight = getTacticWeight(theFieldBall.ballWasSeen(params.ballSeenTimeout));
 
       if (supporterIndex == BACK_BLOCKER)
         tacticPose = getBackBlockerPosition(tacticWeight);
@@ -520,8 +520,9 @@ namespace v2025
       return tacticPose;
     }
     
-    Vector2f getTacticWeight(int setPlay, bool ballSeen) {
-      if (setPlay == SET_PLAY_GOAL_KICK && commonSkills.isOurTeamKick())
+    Vector2f getTacticWeight(bool ballSeen) 
+    {
+      if (theGameState.state == GameState::ownGoalKick)
         return Vector2f(0.0f, -1000.0f);
       else if (ballSeen)
         return theFieldBall.recentBallEndPositionOnField();
@@ -615,7 +616,9 @@ namespace v2025
             ((tacticWeightPoint.x() > 0.0f) ? 1.0f : -1.0f) * (params.exclusionRadius + params.exclusionThreshold),
             ((tacticWeightPoint.y() > 0.0f) ? 1.0f : -1.0f) * (params.exclusionRadius + params.exclusionThreshold)
       );
-      if (theREGameInfo.setPlay != SET_PLAY_CORNER_KICK)
+
+      if (theGameState.isFreeKick() && theGameState.state != GameState::ownCornerKick &&
+          theGameState.state != GameState::opponentCornerKick)
         referencePos.x() = 0; 
 
       Pose2f intercetorPos(theRobotPose.rotation, tacticWeightPoint - referencePos);
@@ -660,12 +663,13 @@ namespace v2025
 
     void operator()(void)
     {
-      bool isTrulyPlaying = ((theREGameInfo.state == STATE_PLAYING) && (!theREGameInfo.stateIsGuessed));
-      int initialKickoffDuration = isTrulyPlaying ? 0 : theREGameConfig.kickoffDuration;
+      // bool isTrulyPlaying = ((theREGameInfo.state == STATE_PLAYING) && (!theREGameInfo.stateIsGuessed));
+      // int initialKickoffDuration = isTrulyPlaying ? 0 : theREGameConfig.kickoffDuration;
+      int initialKickoffDuration = theREGameConfig.kickoffDuration;
 
       CRBEHAVIOUR_BEGIN();
 
-      if (theREGameInfo.isOurKick()) // attacking kickoff
+      if (theGameState.isForOwnTeam()) // attacking kickoff
       {
         CR_CHECKPOINT(our_kickoff);
         while (getCheckpointDuration() < static_cast<unsigned>(theREGameConfig.kickoffDuration + params.kickoffDurationMargin))
@@ -675,7 +679,7 @@ namespace v2025
           // commonSkills.stand();
           gotoTacticPoseTask();
 
-          if (theREGameInfo.isBallFree()) // by definition ballFree means kickoff over
+          if (!theGameState.isKickOff())
             CR_EXIT_SUCCESS();
           else 
             CR_YIELD();
@@ -692,7 +696,7 @@ namespace v2025
           // commonSkills.stand();
           gotoTacticPoseTask();
 
-          if (theREGameInfo.isBallFree()) // by definition ballFree means kickoff over
+          if (!theGameState.isKickOff())
             CR_EXIT_SUCCESS();
           else 
             CR_YIELD();
@@ -713,7 +717,7 @@ namespace v2025
     });
 
     READS(REGameConfig);
-    READS(REGameInfo);
+    READS(GameState);
     // READS(ExtendedGameInfo);
       
     CommonSkills commonSkills {env};
@@ -742,7 +746,7 @@ namespace v2025
         //   coordinatedSearchForBallTask();
         // else  // otherwise go to tactic pose
 
-        if (theREGameInfo.isKickoff())
+        if (theGameState.isKickOff())
         {
           CR_CHECKPOINT(kickoff);
           annotation("kickoff");
@@ -787,17 +791,16 @@ namespace v2025
       (float)(600) closerThanTeammateToBallThreshold, // must be closer to the ball by this much over any teammate to proceed
     });
 
-    READS(REGameInfo);
+    READS(GameState);
     READS(TeamBehaviorStatus);
     READS(FieldBall);
     // READS(ExtendedGameState);
-    READS(GameState);
     READS(ObstacleModel);
     READS(RobotPose);
       
     CommonSkills commonSkills {env};
     GotoTacticPoseTask gotoTacticPoseTask {env};
-    GotoTacticPoseLookBackTask gotoTacticPoseLookBackTask {env};
+    // GotoTacticPoseLookBackTask gotoTacticPoseLookBackTask {env};
     GotoBallAndKickBestOptionTask gotoBallAndKickBestOptionTask {env};
     // SupporterClearanceTask supporterClearanceTask {env};
     HeadSkills headSkills {env};

@@ -53,9 +53,10 @@
   #include "Representations/MotionControl/WalkingEngineOutput.h"
   #include "Representations/MotionControl/ArmMotionInfo.h"
 
-  #include "Representations/Communication/REGameInfo.h" // TODO: replace with GameState.h
+  // #include "Representations/Communication/REGameInfo.h" // TODO: replace with GameState.h
   
   #include "Representations/Communication/RETeamData.h"
+  #include "Representations/Communication/GameControllerData.h"
 
   #include "Representations/Sensing/FallDownState.h"
   #include "Representations/Sensing/ArmContactModel.h"
@@ -144,9 +145,10 @@
     X_REQUIRES(WalkingEngineOutput)
     X_REQUIRES(ArmMotionInfo)
 
-    X_REQUIRES(REGameInfo)
+    // X_REQUIRES(REGameInfo)
     X_REQUIRES(GameState)
-    X_REQUIRES(REGameControlDataReceived)
+    X_REQUIRES(GameControllerData)
+    // X_REQUIRES(REGameControlDataReceived)
     X_REQUIRES(RETeamData)
 
     X_REQUIRES(FallDownState)

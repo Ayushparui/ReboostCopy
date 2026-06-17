@@ -235,7 +235,7 @@ namespace v2025
         {
           CR_UNTIL(goalieSaveTask.isSuccess(), goalieSaveTask(params.enabledSaves));
         }
-        else if (theREGameInfo.setPlay == SET_PLAY_GOAL_KICK && commonSkills.isOurTeamKick()) 
+        else if (theGameState.state == GameState::ownGoalKick) 
         {
           gotoBallAndKickBestOptionTask();
           CR_YIELD();
@@ -269,7 +269,7 @@ namespace v2025
     READS(FieldBall);
     READS(FieldInterceptBall);
     READS(FieldDimensions);
-    READS(REGameInfo);
+    READS(GameState);
     READS(REBehaviourParams);
 
     CommonSkills commonSkills {env};

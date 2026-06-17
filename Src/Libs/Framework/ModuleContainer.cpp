@@ -18,8 +18,12 @@
 #include "Platform/SystemCall.h"
 #include "Streaming/Global.h"
 #include "Streaming/Output.h"
+#include "Platform/Time.h"
+#include "TextLogging/TextLogging.h"
 
 thread_local std::list<std::function<bool(MessageQueue::Message message)>> ModuleContainer::messageHandlers;
+
+DECL_TLOGGER(tlogger, "ModuleContainer", TextLogging::DEBUG);
 
 ModuleContainer::ModuleContainer(const Settings& settings, const std::string& robotName, const Configuration& config, const std::size_t index, Logger* logger) :
   ThreadFrame(settings, robotName),
@@ -97,8 +101,11 @@ bool ModuleContainer::main()
       if (!moduleGraphRunner.receiverEmpty(receiver.index))
         receiver.receivePacket();
 
-    if ((executionUnit->beforeFrame() || moduleGraphRunner.hasChanged() || debugRequestWaiting) &&
-        moduleGraphRunner.isValid())
+    const bool shouldExecuteModules =
+        ((executionUnit->beforeFrame() || moduleGraphRunner.hasChanged() || debugRequestWaiting) &&
+         moduleGraphRunner.isValid());
+
+    if (shouldExecuteModules)
     {
       debugRequestWaiting = false;
       // Global::getTimingManager().signalThreadStart();

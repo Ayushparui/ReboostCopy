@@ -16,6 +16,7 @@
 #include "Platform/File.h"
 #include "Platform/SystemCall.h"
 #include "Platform/Thread.h"
+#include "TextLogging/TextLogging.h"
 
 #include <algorithm>
 
@@ -23,12 +24,15 @@ MAKE_MODULE(REWhistleDetector);
 
 static DECLARE_SYNC;
 
+DECL_TLOGGER(tlogger, "REWhistleDetector", TextLogging::INFO);
+
 REWhistleDetector::REWhistleDetector()
 {
-  OUTPUT_TEXT("Loading whistle detector model...");
   /* Obtain location for Whistle Detector model */
   const std::string baseDir = std::string(File::getBHDir()) + "/Config/NeuralNets/WhistleDetector/";
   model = std::make_unique<NeuralNetworkONNX::Model>(baseDir + whistleDetName);
+
+  TLOGI(tlogger, "Loading whistle detector model: {}", (baseDir + whistleDetName));
 
   /* Memory Allocation for FFT */
   spectrumSize = static_cast<int>((fftSize / 2) + 1);

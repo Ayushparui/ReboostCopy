@@ -510,7 +510,7 @@ bool TeamMessageHandler::refereeSignalDetected() const
          ((theExtendedGameState.stateLastFrame == GameState::standby &&
            theRefereeSignal.signal == RefereeSignal::ready &&
            !teammatesDetectedRefereeSignal(RefereeSignal::ready)) ||
-          (theGameState.isKickIn() &&
+          (theGameState.isThrowIn() &&
            (theRefereeSignal.signal == RefereeSignal::kickInLeft ||
             theRefereeSignal.signal == RefereeSignal::kickInRight) &&
            !teammatesDetectedRefereeSignal(RefereeSignal::kickInLeft) &&

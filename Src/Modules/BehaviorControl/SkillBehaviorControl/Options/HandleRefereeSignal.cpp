@@ -56,9 +56,9 @@ option((SkillBehaviorControl) HandleRefereeSignal,
 
   common_transition
   {
-    if((theGameState.state != GameState::standby && theGameState.state != GameState::beforeHalf && theGameState.state != GameState::timeout && !theGameState.isKickIn())
+    if((theGameState.state != GameState::standby && theGameState.state != GameState::beforeHalf && theGameState.state != GameState::timeout && !theGameState.isThrowIn())
        || (theGameState.state == GameState::standby && refereeSignalDetected(RefereeSignal::ready))
-       || (theGameState.isKickIn() && (theStrategyStatus.role == ActiveRole::toRole(ActiveRole::freeKickWall)
+       || (theGameState.isThrowIn() && (theStrategyStatus.role == ActiveRole::toRole(ActiveRole::freeKickWall)
                                        || theFrameInfo.getTimeSince(theGameState.timeWhenStateStarted) > kickInWaitTime
                                        || refereeSignalDetected(RefereeSignal::kickInLeft)
                                        || refereeSignalDetected(RefereeSignal::kickInRight))))
@@ -75,7 +75,7 @@ option((SkillBehaviorControl) HandleRefereeSignal,
       {
         if(theGameState.state == GameState::standby || theGameState.state == GameState::beforeHalf || theGameState.state == GameState::timeout)
           goto lookAtReferee;
-        else if(!theGameState.kickingTeamKnown && theGameState.isKickIn() && distanceRange.isInside(refereeDistance))
+        else if(!theGameState.kickingTeamKnown && theGameState.isThrowIn() && distanceRange.isInside(refereeDistance))
           goto turnToReferee;
       }
     }

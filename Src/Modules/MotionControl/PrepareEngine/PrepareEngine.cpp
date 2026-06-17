@@ -65,7 +65,8 @@ void PreparePhase::calcJoints(const MotionRequest&, JointRequest& jointRequest, 
 
 std::unique_ptr<MotionPhase> PreparePhase::createNextPhase(const MotionPhase& nextPhase) const
 {
-  if (nextPhase.type != MotionPhase::playDead)
+  if ((nextPhase.type != MotionPhase::playDead) && (SystemCall::getMode() == SystemCall::physicalRobot))
     SystemCall::say("Walk", true);
+    
   return std::unique_ptr<MotionPhase>();
 }

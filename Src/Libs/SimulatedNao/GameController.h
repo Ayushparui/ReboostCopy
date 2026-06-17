@@ -51,20 +51,25 @@ public:
   ENUM(Penalty,
   {,
     none,
-    illegalBallContact,
-    playerPushing,
-    illegalMotionInSet,
-    inactivePlayer,
-    illegalPosition,
-    leavingTheField,
-    requestForPickup,
-    localGameStuck,
-    illegalPositionInSet,
-    playerStance,
-    substitute,
     manual,
-    foul,
-    penaltyKick,
+    illegalPositioning, // renamed 2026 - was illegalPosition
+    motionInSet, // renamed 2026 - was illegalMotionInSet
+    motionInStop, // added 2026
+    localGameStuck,
+    incapable, // renamed 2026 - was inactivePlayer
+    pickup, // renamed 2026
+    ballHolding, // added 2026
+    leavingTheField,
+    playingWithArmsHands,
+    // illegalBallContact, - possibly part of playingWithArmsHands
+    pushing, // renamed 2026 - was playerPushing - also initiates a free kick
+    // illegalPositionInSet, - now part of illegalPositioning
+    // playerStance, - now part of incapable
+    caution, // added 2026
+    sentOff, // added 2026
+    substitute,
+    // foul, - deprecated 2026
+    pushingPenaltyKick, // renamed 2026 - not a real penalty but a combination of pr penaltyPushing and gc penaltyKickForXXX
   });
   static ENUM_NUM_OF_ALIAS(Penalty, numOfPenalties); /**< Correct typo. */
 
@@ -93,22 +98,26 @@ private:
   {
     kickOffReasonHalf,
     kickOffReasonPenalty,
-    kickOffReasonGoal,
-    kickOffReasonGlobalGameStuck
+    kickOffReasonGoal //,
+    // kickOffReasonGlobalGameStuck
   };
 
-  static const int numOfRobots = 2 * MAX_NUM_PLAYERS;
-  static const int halfTime = 600;
-  static const int readyTime = 45;
-  static const int penaltyKickReadyTime = 30;
-  static const int kickOffTime = 10;
-  static const int freeKickTime = 30;
-  static const int penaltyShotTime = 30;
-  static const int delayedSwitchToPlaying = 15;
-  static const int delayedSwitchAfterGoal = 15;
-  static const int refereeStandbyDelay = 5; /**< How long before the referee appears in standby state (in s)? */
-  static const int refereeStandbyTime = 2; /**< How long is the referee visible in standby state (in s)? */
-  static const int refereeSetPlayTime = 5; /**< How long is the referee visible during a set play (in s)? */
+  static constexpr int numOfRobots = 2 * MAX_NUM_PLAYERS;
+  static constexpr int halfTimeInNormal = 600; // in GAME_PHASE_NORMAL
+  static constexpr int halfTimeInExtraTime = 300; // in GAME_PHASE_EXTRA_TIME
+  static constexpr int readyTime = 45;
+  static constexpr int penaltyKickReadyTime = 30;
+  static constexpr int kickOffTime = 10;
+  static constexpr int freeKickTime = 45;
+  static constexpr int penaltyShotTime = 60;
+  static constexpr int delayedSwitchToPlaying = 10;
+  static constexpr int delayedSwitchAfterGoal = 0;
+  static constexpr int refereeStandbyDelay = 5; /**< How long before the referee appears in standby state (in s)? */
+  static constexpr int refereeStandbyTime = 2; /**< How long is the referee visible in standby state (in s)? */
+  static constexpr int refereeSetPlayTime = 5; /**< How long is the referee visible during a set play (in s)? */
+  static constexpr int inPlacePenaltySecs = 15;
+  static constexpr int removalPenaltySecs = 45;
+
   float footLength = 120.f; /**< foot length for position check. */
   float dropHeight = 350.f; /**< height at which robots are placed so the fall a little bit and recognize it. */
   float penaltyPlacementDistance = 400.f; /**< The distance between robots when multiple are penalized. */
@@ -142,8 +151,8 @@ private:
     notOut,
     goalBySecondTeam,
     goalByFirstTeam,
-    kickInSecondTeam,
-    kickInFirstTeam,
+    throwInSecondTeam, // renamed 2026
+    throwInFirstTeam, // renamed 2026
     cornerKickSecondTeam,
     cornerKickFirstTeam,
     goalKickSecondTeam,
@@ -187,26 +196,31 @@ public:
   void registerReferee(SimRobot::Object* referee) {refereeObject = referee;}
 
   bool initial();
-  bool standby();
+  // bool standby();
   virtual bool ready(); // overridden by TestGameController
   bool set();
   virtual bool playing(); // overridden by TestGameController
   virtual bool finished(); // overridden by TestGameController
-  bool competitionPhasePlayoff();
-  bool competitionPhaseRoundrobin();
-  bool competitionTypeChampionsCup();
-  bool competitionTypeChallengeShield();
-  bool globalGameStuck();
+  bool stopped(bool stopActive); // added 2026
+  // bool competitionPhasePlayoff();
+  // bool competitionPhaseRoundrobin();
+  // bool competitionTypeChampionsCup();
+  // bool competitionTypeChallengeShield();
+  bool competitionTypeMiddleFoundation();
+  bool competitionTypeMiddleAdvanced();
+  // bool globalGameStuck();
   virtual bool goal(int side);
   bool goalKick(int side);
-  bool pushingFreeKick(int side);
+  bool directFreeKick(int side); // added 2026
+  bool indirectFreeKick(int side); // added 2026
   bool cornerKick(int side);
-  bool kickIn(int side);
+  bool throwIn(int side);
   bool teamPenaltyKick(int side);
   bool kickOff(int side);
   bool dropBall();
   bool setHalf(int half); // 1, 2
   bool gamePhasePenaltyshoot();
+  bool gamePhaseExtraTime();
   bool gamePhaseNormal();
   virtual bool penalty(int robot, Penalty penalty); // overridden by TestGameController
 

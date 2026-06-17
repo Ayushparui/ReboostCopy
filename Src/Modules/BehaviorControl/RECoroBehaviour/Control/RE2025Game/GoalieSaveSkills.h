@@ -284,7 +284,8 @@ namespace v2025
 
     READS(FieldBall);
     READS(FieldInterceptBall);
-    READS(REGameInfo);
+    // READS(REGameInfo);
+    READS(GameState);
 
     HeadSkills headSkills {env};
     MotionSkills motionSkills {env};
@@ -339,7 +340,7 @@ namespace v2025
       // }
       else if ((params.normalJumpsEnabled) &&
                (enabledSaves & (bit(Interception::jumpLeft) | bit(Interception::jumpRight))) &&
-               (params.jumpRange.isInside(interceptDistance)) && (theREGameInfo.gamePhase != GAME_PHASE_PENALTYSHOOT))
+               (params.jumpRange.isInside(interceptDistance)) && (theGameState.isPenaltyShootout()))
       {
         // goalieSaveMotion = KeyframeMotionRequest::keeperJumpLeft;
         // mirror = (theFieldInterceptBall.intersectionPositionWithOwnYAxis.y() > 0) ? false : true; // mirror it for right jump

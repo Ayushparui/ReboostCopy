@@ -45,16 +45,16 @@ namespace v2025
     {
       CRBEHAVIOUR_LOOP()
       {
-        if ((theREGameInfo.gamePhase == GAME_PHASE_PENALTYSHOOT) || (theREGameInfo.setPlay == SET_PLAY_PENALTY_KICK))
+        if ((theGameState.isPenaltyShootout()) || (theGameState.isPenaltyKick()))
         {
           if (commonSkills.isOurTeamKick() && theTeamBehaviorStatus.role.isBallPlayer())
             penaltyShotStrikerPlayingTask();
-          else if (!commonSkills.isOurTeamKick() && theREGameInfo.isGoalkeeper())
+          else if (!commonSkills.isOurTeamKick() && theGameState.isGoalkeeper())
             penaltyShotGoaliePlayingTask();
           else
             penaltyShotOtherPlayingTask();
         }
-        else if (theREGameInfo.setPlay != SET_PLAY_NONE) // other set plays - TODO: not implemented yet
+        else if (theGameState.isFreeKick()) // other set plays - TODO: not implemented yet
         {
           // if (theExtendedGameInfo.timeSinceFreeKickStarted > 0 && theExtendedGameInfo.timeSinceFreeKickStarted < 7000) // simrobot hack DO NOT USE
           if (commonSkills.isNoTeamKick() && !theTeamBehaviorStatus.role.isGoalkeeper() &&
@@ -68,10 +68,10 @@ namespace v2025
           {
             if (commonSkills.isOurTeamKick())
             {
-              if ((theREGameInfo.setPlay == SET_PLAY_KICK_IN) || (theREGameInfo.setPlay == SET_PLAY_PUSHING_FREE_KICK))
-                setPlayStrikerFreeKickTask();
-              else if (theREGameInfo.setPlay == SET_PLAY_CORNER_KICK)
+              if (theGameState.isCornerKick())
                 setPlayStrikerCornerKickTask();
+              else if (theGameState.isFreeKick() && !theGameState.isGoalKick())
+                setPlayStrikerFreeKickTask();
               else // goal kick
                 setPlaySupporterPlayingTask(); // yes - we use supporter task just to back off a bit
             }
@@ -80,7 +80,7 @@ namespace v2025
           }
           else if (theTeamBehaviorStatus.role.isGoalkeeper())
           {
-            if ((theREGameInfo.setPlay == SET_PLAY_GOAL_KICK) && commonSkills.isOurTeamKick())
+            if ((theGameState.isGoalKick()) && commonSkills.isOurTeamKick())
               // setPlayGoalieGoalKickTask();
               goaliePlayingTask();
             else
@@ -117,7 +117,7 @@ namespace v2025
     }
 
   private:
-    READS(REGameInfo);
+    // READS(REGameInfo);
     // READS(ExtendedGameInfo);
     READS(GameState);
     READS(FrameInfo);

@@ -864,10 +864,10 @@ Pose2f SelfLocator::getNewPoseReturnFromPenaltyPosition(bool leftSideOfGoal)
   }
   // If the penalty was "Illegal Motion in Standby", the robots are placed at their normal
   // walk-in positions (or are still standing there anyway) and not at the normal spots for returning from a penalty:
-  if(theExtendedGameState.playerStateLastFrame == GameState::penalizedIllegalMotionInStandby)
-  {
-    return getNewPoseAtWalkInPosition();
-  }
+  // if(theExtendedGameState.playerStateLastFrame == GameState::penalizedIllegalMotionInStandby)
+  // {
+  //   return getNewPoseAtWalkInPosition();
+  // }
   // Normal stuff:
   float xPosition = Random::triangular(theFieldDimensions.xPosReturnFromPenalty - returnFromPenaltyMaxXOffset,
                                        theFieldDimensions.xPosReturnFromPenalty,

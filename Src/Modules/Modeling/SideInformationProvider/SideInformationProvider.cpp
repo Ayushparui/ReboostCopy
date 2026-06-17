@@ -62,8 +62,9 @@ void SideInformationProvider::update(SideInformation& sideInformation)
       largestXPossibleAtKnownPosition = theFieldDimensions.xPosOwnGoalLine;
   }
 
-  if(theStaticInitialPose.isActive && !theGameState.isPenalized()
-     && (theExtendedGameState.playerStateLastFrame == GameState::penalizedPlayerPushing || theExtendedGameState.playerStateLastFrame == GameState::penalizedManual))
+  if (theStaticInitialPose.isActive && !theGameState.isPenalized() &&
+      (theExtendedGameState.playerStateLastFrame == GameState::penalizedPushing ||
+       theExtendedGameState.playerStateLastFrame == GameState::penalizedManual))
     largestXPossibleAtKnownPosition = theStaticInitialPose.staticPoseOnField.translation.x();
 
   sideInformation.largestXCoordinatePossible = largestXPossibleAtKnownPosition + distanceUncertaintyOffset +

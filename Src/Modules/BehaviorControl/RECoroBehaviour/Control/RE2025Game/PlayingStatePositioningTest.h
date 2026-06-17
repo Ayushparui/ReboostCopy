@@ -127,7 +127,7 @@ namespace v2025
 
   private:    
     READS(TeamBehaviorStatus);
-    READS(REGameInfo);
+    READS(GameState);
 
     GotoTacticPoseTestTask gotoTacticPoseTestTask {env};
   };

@@ -71,7 +71,7 @@ void BallDropInLocator::update(BallDropInModel& ballDropInModel)
            theFieldDimensions.xPosOwnGoalLine, theFieldDimensions.xPosOpponentGoalLine),
       outLeft ? theFieldDimensions.yPosLeftTouchline : theFieldDimensions.yPosRightTouchline);
   }
-  ballDropInModel.isValid = useOutPosition || theGameState.isGoalKick() || theGameState.isCornerKick() || theGameState.isKickIn();
+  ballDropInModel.isValid = useOutPosition || theGameState.isGoalKick() || theGameState.isCornerKick() || theGameState.isThrowIn();
 
   draw();
 }
@@ -164,7 +164,7 @@ void BallDropInLocator::updateGameControllerData(BallDropInModel& ballDropInMode
     ballDropInModel.dropInTypes = bit(theGameState.isForOwnTeam() ? BallDropInModel::ownCornerKick : BallDropInModel::opponentCornerKick);
     ballDropInModel.lastTimeWhenBallWentOut = theFrameInfo.time;
   }
-  else if(theGameState.isKickIn() && theGameState.state != theExtendedGameState.stateLastFrame)
+  else if(theGameState.isThrowIn() && theGameState.state != theExtendedGameState.stateLastFrame)
   {
     ballDropInModel.dropInTypes = bit(BallDropInModel::kickIn);
     ballDropInModel.lastTimeWhenBallWentOut = theFrameInfo.time;
