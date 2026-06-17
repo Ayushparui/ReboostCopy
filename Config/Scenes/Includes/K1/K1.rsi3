@@ -23,7 +23,7 @@
   <Include href="Right_Shank_21.rsi3"/>
   <Include href="Trunk_1.rsi3"/>
 
-  <Surface name="BoosterDark" diffuseColor="rgba(20%, 20%, 20%)" ambientColor="rgb(32%, 32%, 32%)"/>
+  <Surface name="BoosterDark" diffuseColor="rgb(20%, 20%, 20%)" ambientColor="rgb(32%, 32%, 32%)"/>
   <Surface name="Booster-skin" diffuseColor="rgb(76%, 76%, 76%)" ambientColor="rgb(60%, 60%, 60%)"/>
   <Surface name="Booster-red" diffuseColor="rgb(100%, 0%, 0%)" ambientColor="rgb(80%, 0%, 0%)"/>
   <Surface name="Booster-blue" diffuseColor="rgb(0%, 60%, 80%)" ambientColor="rgb(0%, 48%, 64%)"/>

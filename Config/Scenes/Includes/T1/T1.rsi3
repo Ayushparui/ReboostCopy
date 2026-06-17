@@ -24,7 +24,7 @@
   <Include href="right_foot_link_24.rsi3"/>
   <Include href="right_hand_link_11.rsi3"/>
 
-  <Surface name="BoosterDark" diffuseColor="rgba(40%, 40%, 40%)" ambientColor="rgb(32%, 32%, 32%)"/>
+  <Surface name="BoosterDark" diffuseColor="rgb(40%, 40%, 40%)" ambientColor="rgb(32%, 32%, 32%)"/>
   <Surface name="Booster-skin" diffuseColor="rgb(76%, 76%, 76%)" ambientColor="rgb(60%, 60%, 60%)"/>
   <Surface name="Booster-red" diffuseColor="rgb(100%, 0%, 0%)" ambientColor="rgb(80%, 0%, 0%)"/>
   <Surface name="Booster-blue" diffuseColor="rgb(0%, 60%, 80%)" ambientColor="rgb(0%, 48%, 64%)"/>
