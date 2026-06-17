@@ -618,6 +618,12 @@ RERLWalkPhaseDummy::RERLWalkPhaseDummy(RERLWalkingEngine& engine, Pose2f useStep
     lastModelRequest = lastWalkPhase.lastModelRequest;
     nextTarget = lastWalkPhase.nextTarget;
     interpStartTime = lastWalkPhase.interpStartTime;
+    // Carry the frequency state across phases. A new walk phase is created every control step, and
+    // rawFrequency/frequency default to 0; without copying them the policy was fed freq-obs = 0 and
+    // its previous cadence output was lost -> out-of-distribution -> on-robot vibration. Persisting
+    // rawFrequency feeds the policy's previous frequency output back as the observation (as in sim).
+    rawFrequency = lastWalkPhase.rawFrequency;
+    frequency = lastWalkPhase.frequency;
 
     if (lastPhase.type == MotionPhase::stand)
       tBase = engine.theWalkGenerator.isNextLeftPhase(lastPhase, useStepTarget) ? 0.f : 0.5f;
@@ -670,7 +676,12 @@ RERLWalkPhaseDummy::RERLWalkPhaseDummy(RERLWalkingEngine& engine, Pose2f useStep
   //   }
   // }
 
-  frequency = rawFrequency = engine.frequencyParameters.base;
+  // Only seed the fixed base cadence when the policy does NOT output a frequency. When active, the
+  // frequency/rawFrequency that getNextTargetRequest() set from the network output above must be
+  // kept -- previously this line clobbered them with `base` every step, so the policy's cadence
+  // output was ignored and the clock always ticked at `base` (a primary cause of the vibration).
+  if (!engine.frequencyParameters.active)
+    frequency = rawFrequency = engine.frequencyParameters.base;
 }
 
 void RERLWalkPhaseDummy::getNextTargetRequest(JointAngles& target)
@@ -690,19 +701,21 @@ void RERLWalkPhaseDummy::getNextTargetRequest(JointAngles& target)
   *input++ = gravity.y();
   *input++ = gravity.z();
 
-  // walk command
-  if(type == MotionPhase::walk)
-  {
-    *input++ = step.translation.x() / (engine.configuredParameters.baseWalkPeriod / 1000.f) / 1000.f;
-    *input++ = step.translation.y() / (engine.configuredParameters.baseWalkPeriod / 1000.f) / 1000.f;
-    *input++ = step.rotation / (engine.configuredParameters.baseWalkPeriod / 1000.f);
-  }
-  else
-  {
-    *input++ = 0.f;
-    *input++ = 0.f;
-    *input++ = 0.f;
-  }
+  // walk command (m/s, m/s, rad/s) — derived from the step target and base walk period
+  const float invPeriod = 1.f / (engine.configuredParameters.baseWalkPeriod / 1000.f);
+  const float cmdX   = type == MotionPhase::walk ? step.translation.x() * invPeriod / 1000.f : 0.f;
+  const float cmdY   = type == MotionPhase::walk ? step.translation.y() * invPeriod / 1000.f : 0.f;
+  const float cmdYaw = type == MotionPhase::walk ? step.rotation        * invPeriod          : 0.f;
+
+  // Mirror training: a command below zero_cmd_threshold means "stand". There the gait
+  // frequency (and therefore the phase observation) is zeroed, so we must zero it here too.
+  // Without this the policy sees an out-of-distribution (zero command + running phase clock)
+  // input and keeps stepping in place instead of standing still.
+  standing = Vector3f(cmdX, cmdY, cmdYaw).norm() <= engine.reboostWalkNNParameters.zeroCmdThreshold;
+
+  *input++ = cmdX;
+  *input++ = cmdY;
+  *input++ = cmdYaw;
 
   // joint sequence
   std::vector<Joints::Joint> jointList = getBoosterLegJointSequence();
@@ -721,8 +734,9 @@ void RERLWalkPhaseDummy::getNextTargetRequest(JointAngles& target)
 
   if(engine.reboostWalkNNParameters.enablePhaseInputs)
   {
-    *input++ = type == MotionPhase::walk ? std::cos(2.f * Constants::pi * tBase) : 0.f;
-    *input++ = type == MotionPhase::walk ? std::sin(2.f * Constants::pi * tBase) : 0.f;
+    const bool phaseActive = type == MotionPhase::walk && !standing;
+    *input++ = phaseActive ? std::cos(2.f * Constants::pi * tBase) : 0.f;
+    *input++ = phaseActive ? std::sin(2.f * Constants::pi * tBase) : 0.f;
   }
 
   if(engine.frequencyParameters.active)
@@ -784,7 +798,10 @@ void RERLWalkPhaseDummy::update()
     lastModelRequest = engine.theFrameInfo.time;
 
   tWalk += engine.motionCycleTime;
-  tBase = std::fmod(tBase + engine.motionCycleTime * frequency * (type == MotionPhase::walk ? 1.f : 0.f), 1.f);
+  // Freeze the gait clock while effectively standing so the phase does not drift; it then
+  // restarts cleanly from the current value once a non-zero command returns.
+  const bool phaseActive = type == MotionPhase::walk && !standing;
+  tBase = std::fmod(tBase + engine.motionCycleTime * frequency * (phaseActive ? 1.f : 0.f), 1.f);
   if(type == MotionPhase::stand && engine.theFrameInfo.getTimeSince(lastModelRequest) >= 20)
   {
     lastModelRequest = engine.theFrameInfo.time;

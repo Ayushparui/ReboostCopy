@@ -97,6 +97,7 @@ STREAMABLE(ReboostWalkNNParameters,
   (bool) enablePhaseInputs, /**< Allows you to disable the phase inputs to the model */
   (int) walkToStandSlowdownMs, /**< To allow standing, the robot must walk slow for this time. */
   (Pose2f) slowWalkStepSpeed, /**< Speed values to classify slow walking. This is based on the step size. */
+  (float) zeroCmdThreshold, /**< Command norm (m/s, rad/s) below which we are standing: phase obs zeroed, gait clock frozen. Mirrors training zero_cmd_threshold. */
 });
 
 MODULE(RERLWalkingEngine,
@@ -197,6 +198,7 @@ public:
   float tWalk = 0.f;
   float frequency = 0.f;
   float rawFrequency = 0.f;
+  bool standing = false; ///< command below zeroCmdThreshold -> stand (phase obs zeroed, gait clock frozen)
 private:
   bool isDone(const MotionRequest& motionRequest) const override;
   void calcJoints(const MotionRequest& motionRequest, JointRequest& jointRequest, Pose2f& odometryOffset, MotionInfo& motionInfo) override;
