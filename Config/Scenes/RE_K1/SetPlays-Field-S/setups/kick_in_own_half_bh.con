@@ -1,0 +1,54 @@
+# -----------------------------------------------------------------
+# green/white team positions - coords relative to defending half
+
+# robot robot1
+# mvrp 4300 0 530 0 0 180
+
+# robot robot2
+# mvrp 2700 1000 530 0 0 180
+
+robot robot3
+mvrp -800 -800 530 0 0 180
+
+robot robot4
+mvrp 1600 1800 530 0 0 180
+
+robot robot5
+mvrp 2000 200 530 0 0 120
+
+
+# -----------------------------------------------------------------
+# red/blue team positions
+robot robot21
+mvrp -4300 0 530 0 0 0
+
+robot robot22
+mvrp -1300 1700 530 0 0 30
+
+robot robot23
+mvrp 2200 500 530 0 0 0
+
+robot robot24
+mvrp -300 -300 530 0 0 0
+
+# robot robot25
+# mvrp -800 -2000 530 0 0 0
+
+# -----------------------------------------------------------------
+# move the ball near robot22
+mvb -900 1850 1000
+# mvb 2000 3000 500
+
+# -----------------------------------------------------------------
+
+# -----------------------------------------------------------------
+# Set GameState for Set Play
+robot all
+gc gameNormal
+gc set
+
+echo 
+echo --------------------------------------------------------
+echo Setup complete! Robots are in SET state.
+echo Now type gc playing to execute the set play!
+echo --------------------------------------------------------

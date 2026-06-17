@@ -1,0 +1,53 @@
+# Set the robots for a pushing free kick (outside penalty area)
+
+# -----------------------------------------------------------------
+# green/white team positions - all coords relative to defending half
+
+# robot robot1 robot2
+# pr requestForPickup
+
+robot robot3
+mvrp 0 0 530 0 0 180
+
+robot robot4
+mvrp -1000 1700 530 0 0 150
+
+robot robot5
+mvrp -1300 2200 530 0 30 -150
+
+
+# -----------------------------------------------------------------
+# red/blue team positions
+robot robot21
+mvrp -4500 0 530 0 0 0
+
+robot robot22
+mvrp -3000 600 530 0 0 45
+
+# should collide with robot5 from behind
+robot robot23
+mvrp -1050 2200 530 0 0 180
+
+robot robot24
+mvrp -1800 2100 530 0 0 15
+
+# robot robot25
+# pr requestForPickup
+
+# -----------------------------------------------------------------
+# move the ball
+mvb -1600 1800 1000
+
+# -----------------------------------------------------------------
+
+# -----------------------------------------------------------------
+# Set GameState for Set Play
+robot all
+gc gameNormal
+gc set
+
+echo 
+echo --------------------------------------------------------
+echo Setup complete! Robots are in SET state.
+echo Now type gc playing to execute the set play!
+echo --------------------------------------------------------

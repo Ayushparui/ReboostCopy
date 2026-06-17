@@ -1,0 +1,52 @@
+# Set the robots in a kick in from the side state for 2v3 scenario
+
+# mvrp x_mm y_mm z_mm, z_mm=330 for standing robot
+#               rotx_deg=0 roty_deg=0 rotz=180 to face goal on RHS
+# Notes:
+# - positive x points to left goal, negative x is closer to right goal
+# - robot pos to front of foot is 114 mm
+# - robot pos to back of foot is 48 mm
+
+# -----------------------------------------------------------------
+# green/white team positions - coords relative to defending half
+
+robot robot3
+mvrp -1200 800 530 0 0 180
+
+robot robot4
+mvrp -3600 1300 530 0 0 90
+
+# robot5 further back so it walks toward ball (RL engine needs walking momentum)
+robot robot5
+mvrp -800 0 530 0 0 0
+
+# -----------------------------------------------------------------
+# ball at center, robot5 approaches from -800
+mvb 800 0 100
+
+# -----------------------------------------------------------------
+# red/blue team positions
+robot robot21
+mvrp -4500 0 530 0 0 15
+
+robot robot22
+mvrp -3600 750 530 0 0 30
+
+robot robot23
+mvrp -3150 1350 530 0 0 60
+
+robot robot24
+mvrp -2000 -1350 530 0 0 60
+
+# -----------------------------------------------------------------
+
+# -----------------------------------------------------------------
+# Set GameState for Set Play
+robot all
+gc gameNormal
+gc playing
+
+echo 
+echo --------------------------------------------------------
+echo Setup complete! Robots are in PLAYING state.
+echo --------------------------------------------------------
