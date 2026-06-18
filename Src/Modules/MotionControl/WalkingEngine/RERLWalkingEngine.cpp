@@ -126,15 +126,10 @@ void RERLWalkingEngine::compile(bool output)
   network.compile(Model(modelPath + reboostWalkNNParameters.modelName));
   ASSERT(network.valid());
 
-  TLOGI(tlogger, "Walking RL model inputs:");
-  TLOGI(tlogger, "  expected: inputSize={}, rank=1, numInputTensors=1", networkInputSize);
-  TLOGI(tlogger, "  model:    inputSize={}, rank={}, numInputTensors={}", network.input(0).dims(0),
-        network.input(0).rank(), network.numOfInputs());
-
-  TLOGI(tlogger, "Walking RL model outputs:");
-  TLOGI(tlogger, "  expected: outputSize={}, rank=1, numOutputTensors=1", networkOutputSize);
-  TLOGI(tlogger, "  model:    outputSize={}, rank={}, numOutputTensors={}", network.output(0).dims(0),
-        network.output(0).rank(), network.numOfOutputs());
+  TLOGI(tlogger, "Input model (expected): size={} ({}), rank=1 (1), tensors=1 (1)", network.input(0).dims(0),
+        networkInputSize, network.input(0).rank(), network.numOfInputs());
+  TLOGI(tlogger, "Output model (expected): size={} ({}), rank=1 (1), tensors=1 (1)", network.output(0).dims(0),
+        networkOutputSize, network.output(0).rank(), network.numOfOutputs());
 
   // Input shape: (47)
   ASSERT(network.numOfInputs() == 1);

@@ -69,6 +69,16 @@ void GamePadControlK1::update(MotionRequest& theMotionRequest)
     gamePadMotionAllowed = false;
   }
 
+  if (theGameState.isPenalized() && !theExtendedGameState.wasPenalized())
+  {
+    SystemCall::say("Penalized");
+    gamePadMotionAllowed = false;
+  }
+  else if (!theGameState.isPenalized() && theExtendedGameState.wasPenalized())
+  {
+    SystemCall::say("Not penalized");
+  }
+
   // game pad operations that don't modify the head/motion request
   // -------------------------------------------------------------------------
 
