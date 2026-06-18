@@ -1,6 +1,6 @@
 # Set the robots in a kick in from the side state for 2v3 scenario
 
-# mvrp x_mm y_mm z_mm, z_mm=330 for standing robot
+# mvrp x_mm y_mm z_mm, z_mm=525 for standing robot
 #               rotx_deg=0 roty_deg=0 rotz=180 to face goal on RHS
 # Notes:
 # - positive x points to left goal, negative x is closer to right goal
@@ -11,42 +11,39 @@
 # green/white team positions - coords relative to defending half
 
 robot robot3
-mvrp -1200 800 530 0 0 180
+mvrp 0 0 525 0 0 180
 
 robot robot4
-mvrp -3600 1300 530 0 0 90
+mvrp -3600 1300 525 0 0 90
 
-# robot5 further back so it walks toward ball (RL engine needs walking momentum)
+# ensure robot5 is oriented so that it will kick the ball straight out
 robot robot5
-mvrp -800 0 530 0 0 0
+mvrp -3000 2300 525 0 0 180
 
 # -----------------------------------------------------------------
-# ball at center, robot5 approaches from -800
-mvb 800 0 100
+# move the ball in front of robot 5, ready to be kicked out
+mvb -3600 2300 1000
 
 # -----------------------------------------------------------------
 # red/blue team positions
 robot robot21
-mvrp -4500 0 530 0 0 15
+mvrp -4500 0 525 0 0 15
 
 robot robot22
-mvrp -3600 750 530 0 0 30
+mvrp -3600 750 525 0 0 30
 
 robot robot23
-mvrp -3150 1350 530 0 0 60
+mvrp -3150 1350 525 0 0 60
 
 robot robot24
-mvrp -2000 -1350 530 0 0 60
+mvrp -2000 -1350 525 0 0 60
 
 # -----------------------------------------------------------------
+# Set GameState
 
-# -----------------------------------------------------------------
-# Set GameState for Set Play
-robot all
-gc gameNormal
+robot robot5
 gc playing
+dr behaviour:StrikerPlayingTask:kickStraightAhead
 
-echo 
-echo --------------------------------------------------------
-echo Setup complete! Robots are in PLAYING state.
-echo --------------------------------------------------------
+# gc goalKickForSecondTeam
+

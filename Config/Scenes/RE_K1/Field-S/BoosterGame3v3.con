@@ -1,4 +1,4 @@
 call ../../Includes/BoosterNormal
-call ../../Includes/5vs5
+call ../../Includes/3vs3
 
 dr representation:SetupPoses:place
