@@ -1,7 +1,7 @@
 # appears in textlogging output but not console - useful for debugging
-tlog starting BoosterSingleM.con
+tlog starting BoosterSingle.con
 
-call ../Includes/BoosterNormal
+call ../../Includes/BoosterNormal
 
 # direct goals are allowed, because the robot is alone
 ar directGoals on
