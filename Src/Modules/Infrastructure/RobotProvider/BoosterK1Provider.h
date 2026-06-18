@@ -107,6 +107,7 @@ class BoosterK1Provider : public BoosterK1ProviderBase
   SystemSensorData systemSensorData; ///< The battery status received.
   Semaphore frameDataSignal;         /**< A signal used for synchronizing lowStateHandler() and waitForFrameData2(). */
   GamePad gamePad;                   ///< a snapshot of the remote controller state received
+  GamePad lastGamePad; ///< a thread-unsafe copy of gamePad that is used ONLY in handleRemoteControllerMsg
 
   /// the robot safety state. (It is atomic because it participates in critical e-stop handling which we keep lock free)
   std::atomic<RobotSafetyState::State> robotSafetyState = RobotSafetyState::safetyTripped; // startup condition

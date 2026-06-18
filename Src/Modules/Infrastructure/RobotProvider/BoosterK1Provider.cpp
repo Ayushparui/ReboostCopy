@@ -72,6 +72,9 @@ DECL_TLOGGER(tlogger, "BoosterK1Provider", TextLogging::DEBUG);
 #define ANNOTATION_K1(...) ANNOTATION_FMT("BoosterK1Provider", __VA_ARGS__)
 
 
+static constexpr unsigned LOG_INTERVAL_LONG = 30000u;
+static constexpr unsigned LOG_INTERVAL_MEDIUM = 15000u;
+
 namespace
 {
 // inline bool isOK(int32_t boosterResultCode) { return boosterResultCode == 0; }
@@ -279,7 +282,7 @@ void BoosterK1Provider::handleLowStateMsg(const booster_interface::msg::LowState
     frameDataSignal.post();
   }
 
-  if (logIntervalLowStateRx.updateTriggered(jointSensorData.timestamp, 20000u))
+  if (logIntervalLowStateRx.updateTriggered(jointSensorData.timestamp, LOG_INTERVAL_LONG))
     TLOGI(tlogger, "handleLowStateMsg - received low state ({}/{} joints and inertial data)",
           lowState.motor_state_serial().size(), jointMapping.size());
 
@@ -532,62 +535,94 @@ void BoosterK1Provider::handleButtonEventMsg(const booster_interface::msg::Butto
 
 void BoosterK1Provider::handleRemoteControllerMsg(const booster_interface::msg::RemoteControllerState &rc)
 {
-  if (rc.event() != 0)
-  {
-    // remote controller input events come fast when the analogue sticks are 
-    // manipulated, so we need to reduce the logging output in that situation
-    if ((rc.event() != booster::robot::b1::AXIS) ||
-        logIntervalRemoteController.updateTriggered(Time::getCurrentSystemTime(), 1000))
-    {
-      TLOGD(tlogger, "remoteController event {:#05x}", rc.event());
-      TLOGV(tlogger,
-            "rc: lstk=({:.2f},{:.2f}), rstk=({:.2f},{:.2f}), hat={:d}'{:d}{:d}{:d}{:d}'{:d}{:d}{:d}{:d}, "
-            "abxy={:d}{:d}{:d}{:d} lbrb={:d}{:d}, ltrt={:d}{:d} lsrs={:d}{:d} (-)/(+)={:d}{:d}",
-            rc.lx(), rc.ly(), rc.rx(), rc.ry(), rc.hat_c(), rc.hat_u(), rc.hat_d(), rc.hat_l(), rc.hat_r(), rc.hat_lu(),
-            rc.hat_ld(), rc.hat_ru(), rc.hat_rd(), rc.a(), rc.b(), rc.x(), rc.y(), rc.lb(), rc.rb(), rc.lt(), rc.rt(),
-            rc.ls(), rc.rs(), rc.back(), rc.start());
-    }
-  }
-  else
-    TLOGV(tlogger, "remoteController event 0 received");
-
+  // we use 3 GamePad structs: tmpGamePad (only here) allows us to convert from rc to GamePad outside of SYNC region.
+  // lastGamePad is a copy taken at the end of the function (before the SYNC region) that represents the GamePad from
+  // the last event. It is only used here so again is safe to use outside of SYNC so we keep text logging etc
+  // outside of SYNC also. Finally gamePad is the actual struct shared with the main thread. We copy to that inside 
+  // a SYNC region as the last step here. The copies are light since they are basically 4 floats, a bool, a 2 int size elements
+  GamePad tmpGamePad;
   
-  SYNC;
+  // translate from rc event to GamePad
 
   // we detected something so we must be connected, right?
   if (rc.event() == booster::robot::b1::REMOVE)
-    gamePad.connected = false;
+    tmpGamePad.connected = false;
   else
-    gamePad.connected = true;
+    tmpGamePad.connected = true;
 
-  gamePad.buttons = (GamePad::maskA * rc.a()) | (GamePad::maskB * rc.b()) | (GamePad::maskX * rc.x()) |
+  tmpGamePad.buttons = (GamePad::maskA * rc.a()) | (GamePad::maskB * rc.b()) | (GamePad::maskX * rc.x()) |
                     (GamePad::maskY * rc.y()) | (GamePad::maskLB * rc.lb()) | (GamePad::maskRB * rc.rb()) |
                     (GamePad::maskLT * rc.lt()) | (GamePad::maskRT * rc.rt()) | (GamePad::maskLS * rc.ls()) |
                     (GamePad::maskRS * rc.rs()) | (GamePad::maskBack * rc.back()) | (GamePad::maskStart * rc.start());
 
   if (rc.hat_c())
-    gamePad.hat = GamePad::centered;
+    tmpGamePad.hat = GamePad::centered;
   else if(rc.hat_u())
-    gamePad.hat = GamePad::up;
+    tmpGamePad.hat = GamePad::up;
   else if (rc.hat_ru())
-    gamePad.hat = GamePad::upRight;
+    tmpGamePad.hat = GamePad::upRight;
   else if (rc.hat_r())
-    gamePad.hat = GamePad::right;
+    tmpGamePad.hat = GamePad::right;
   else if (rc.hat_rd())
-    gamePad.hat = GamePad::downRight;
+    tmpGamePad.hat = GamePad::downRight;
   else if (rc.hat_d())
-    gamePad.hat = GamePad::down;
+    tmpGamePad.hat = GamePad::down;
   else if (rc.hat_ld())
-    gamePad.hat = GamePad::downLeft;
+    tmpGamePad.hat = GamePad::downLeft;
   else if (rc.hat_l())
-    gamePad.hat = GamePad::left;
+    tmpGamePad.hat = GamePad::left;
   else // if (rc.hat_lu())
-    gamePad.hat = GamePad::upLeft;
+    tmpGamePad.hat = GamePad::upLeft;
 
-  gamePad.lStickX = rc.lx();
-  gamePad.lStickY = rc.ly(); // we want forward to be +1
-  gamePad.rStickX = rc.rx();
-  gamePad.rStickY = rc.ry(); // we want forward to be +1
+  tmpGamePad.lStickX = rc.lx();
+  tmpGamePad.lStickY = -rc.ly(); // we want forward to be +1
+  tmpGamePad.rStickX = rc.rx();
+  tmpGamePad.rStickY = -rc.ry(); // we want forward to be +1
+
+  // log it
+
+  constexpr float deadzone = 0.1f;
+
+  auto axisTransitioned = [&](float current, float previous)
+  {
+    const bool isAbove = std::abs(current) > deadzone;
+    const bool wasAbove = std::abs(previous) > deadzone;
+    return isAbove != wasAbove;
+  };
+
+
+  if (rc.event() != 0)
+  {
+    const bool axisChanged = (axisTransitioned(tmpGamePad.lStickX, lastGamePad.lStickX) ||
+                              axisTransitioned(tmpGamePad.lStickY, lastGamePad.lStickY) ||
+                              axisTransitioned(tmpGamePad.rStickX, lastGamePad.rStickX) ||
+                              axisTransitioned(tmpGamePad.rStickY, lastGamePad.rStickY));
+
+    // remote controller input events come fast when the analogue sticks are
+    // manipulated, so we need to reduce the logging output in that situation.
+    // In general we try to limit log output to changes worth noting
+    logIntervalRemoteController.updateTriggered(Time::getCurrentSystemTime(), LOG_INTERVAL_MEDIUM);
+
+    bool anyButtonChange = (tmpGamePad.hat != lastGamePad.hat) || (tmpGamePad.buttons != lastGamePad.buttons);
+
+    if (anyButtonChange || axisChanged || ((rc.event() == booster::robot::b1::AXIS) && logIntervalRemoteController.wasTriggered()))
+    {
+      TLOGD(tlogger,
+            "remote ({:#05x}): lstk=({:.2f},{:.2f}), rstk=({:.2f},{:.2f}), hat={:d}'{:d}{:d}{:d}{:d}'{:d}{:d}{:d}{:d}, "
+            "abxy={:d}{:d}{:d}{:d} lbrb={:d}{:d}, ltrt={:d}{:d} lsrs={:d}{:d} (-)/(+)={:d}{:d}",
+            rc.event(), rc.lx(), rc.ly(), rc.rx(), rc.ry(), rc.hat_c(), rc.hat_u(), rc.hat_d(), rc.hat_l(), rc.hat_r(),
+            rc.hat_lu(), rc.hat_ld(), rc.hat_ru(), rc.hat_rd(), rc.a(), rc.b(), rc.x(), rc.y(), rc.lb(), rc.rb(),
+            rc.lt(), rc.rt(), rc.ls(), rc.rs(), rc.back(), rc.start());
+    }
+  }
+  else
+    TLOGV(tlogger, "remoteController event 0 received");
+
+  lastGamePad = tmpGamePad;
+
+  SYNC;
+
+  gamePad = tmpGamePad;
 }
 
 // It seems that this message arrives with a delay of anything between 100
@@ -746,7 +781,7 @@ bool BoosterK1Provider::updateHardwareDataAvailable(bool jointDataReceived, size
       SystemCall::say("Body disconnected", true);
     }
 
-    if (logIntervalUpdateHardwareDataAvailable.updateTriggered(theFrameInfo.time, 5000u))
+    if (logIntervalUpdateHardwareDataAvailable.updateTriggered(theFrameInfo.time, LOG_INTERVAL_MEDIUM))
       TLOGI(tlogger, "updateHardwareDataAvailable: hardwareData is NOT available: jointDataReceived={}, numJoints={}",
             jointDataReceived, numConnectedJoints);
 
@@ -964,7 +999,7 @@ void BoosterK1Provider::waitForFrameData2()
     numConnectedJoints = connectedJoints; // thread safe read
   }
 
-  if (logIntervalWaitForFrameData.updateTriggered(theFrameInfo.time, 10000u))
+  if (logIntervalWaitForFrameData.updateTriggered(theFrameInfo.time, LOG_INTERVAL_LONG))
     TLOGI(tlogger, "waitForFrameData2: jointDataReceived={}, connectedJoints={}", jointDataReceived, numConnectedJoints);
 
   updateHardwareDataAvailable(jointDataReceived, numConnectedJoints);
