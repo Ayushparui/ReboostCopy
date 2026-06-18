@@ -297,7 +297,8 @@ void RLGetUpPhase::update()
 bool RLGetUpPhase::isDone(const MotionRequest& request) const
 {
   return request.motion == MotionRequest::playDead
-         || state == State::done;
+         || state == State::done
+         || engine.theGameState.playerState == GameState::prepare;
 }
 
 void RLGetUpPhase::calcJoints(const MotionRequest&, JointRequest& jointRequest, Pose2f& odometryOffset, MotionInfo& motionInfo)
