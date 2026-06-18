@@ -32,7 +32,8 @@ void RestrictiveFallEngine::update(FallGenerator& fallGenerator)
            (theMotionInfo.executedPhase != MotionPhase::keyframeMotion || isWaving) &&
            theMotionInfo.executedPhase != MotionPhase::getUp &&
            theMotionInfo.executedPhase != MotionPhase::playDead &&
-           theGameState.playerState != GameState::PlayerState::penalizedManual;
+           theGameState.playerState != GameState::PlayerState::penalizedManual &&
+           theGameState.playerState != GameState::PlayerState::prepare;
   };
 
   fallGenerator.createPhase = [this]
@@ -67,6 +68,9 @@ RestrictiveFallPhase::RestrictiveFallPhase(const RestrictiveFallEngine& engine) 
 
 void RestrictiveFallPhase::update()
 {
+  if(engine.theGameState.playerState == GameState::prepare)
+    return;
+
   bool transitionCouldStart = false;
 
   if(!(std::abs(engine.theInertialData.gyro.x()) < engine.maxGyroToStartGetUp &&  // gyros low
@@ -94,7 +98,8 @@ void RestrictiveFallPhase::update()
 bool RestrictiveFallPhase::isDone(const MotionRequest& motionRequest) const
 {
   // If the robot becomes upright / squatting on its own (or with human help) or a getUp is requested after the robot has reached the ground, the phase is done.
-  return allowLeavingFallPhase && motionRequest.motion != MotionRequest::dive;
+  return (allowLeavingFallPhase && motionRequest.motion != MotionRequest::dive)
+         || engine.theGameState.playerState == GameState::prepare;
 }
 
 void RestrictiveFallPhase::calcJoints(const MotionRequest&, JointRequest& jointRequest, Pose2f& odometryOffset, MotionInfo& motionInfo)
@@ -121,7 +126,8 @@ void RestrictiveFallPhase::calcJoints(const MotionRequest&, JointRequest& jointR
 std::unique_ptr<MotionPhase> RestrictiveFallPhase::createNextPhase(const MotionPhase& defaultPhase) const
 {
   if((std::abs(engine.theInertialData.angle.x()) < engine.uprightThreshold &&
-      std::abs(engine.theInertialData.angle.y()) < engine.uprightThreshold) || defaultPhase.type == MotionPhase::playDead)
+      std::abs(engine.theInertialData.angle.y()) < engine.uprightThreshold) || defaultPhase.type == MotionPhase::playDead
+     || engine.theGameState.playerState == GameState::prepare)
     return std::unique_ptr<MotionPhase>();
   return engine.theGetUpGenerator.createPhase(*this);
 }

@@ -105,7 +105,8 @@ void MotionEngine::update(JointRequest& jointRequest)
   // 2.1 check if a FallPhase should start ...
   const bool getUp = motionRequest.motion != MotionRequest::playDead && motionRequest.motion != MotionRequest::dive &&
                      ((theFallDownState.state == FallDownState::fallen && (phase->type == MotionPhase::fall || phase->type == MotionPhase::playDead)) || theFallDownState.state == FallDownState::squatting) &&
-                     !((phase->type == MotionPhase::getUp || phase->type == MotionPhase::stand) && theFallDownState.state == FallDownState::squatting); // If we got this combination, then the robot finished the get up and is hold tilted
+                     !((phase->type == MotionPhase::getUp || phase->type == MotionPhase::stand) && theFallDownState.state == FallDownState::squatting) && // If we got this combination, then the robot finished the get up and is hold tilted
+                     theGameState.playerState != GameState::prepare;
   if(getUp)
   {
     motionRequest.motion = (phase->type == MotionPhase::fall || phase->type == MotionPhase::playDead || phase->type == MotionPhase::keyframeMotion || phase->type == MotionPhase::getUp) ? MotionRequest::stand : MotionRequest::playDead;
