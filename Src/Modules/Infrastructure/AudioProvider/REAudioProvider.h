@@ -65,7 +65,7 @@ private:
 /* WakeupAPI related elements */
   const uint wakeupAPIBufferSize = 1024;
   const uint outChannels = 3;
-  HWWakeup wakeupHandle;
+  HWWakeup wakeupHandle = nullptr;
   std::vector<int16_t> waitBuffer; /* Since the API requires 1024, this is needed. */
   std::vector<std::vector<int16_t>> inputAudioBuffers;  /* 4, mic 1, mic 2, mic 3, ref */
   std::vector<std::vector<int16_t>> outputAudioBuffers; /* 4, out 1, out 2, out 3, ref */

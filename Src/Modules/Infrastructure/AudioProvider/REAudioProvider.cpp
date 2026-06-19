@@ -44,9 +44,6 @@ REAudioProvider::REAudioProvider()
   snd_pcm_prepare(inputDevice);
   VERIFY(!snd_pcm_start(inputDevice));
 
-  OUTPUT_TEXT("Initializing WakeupAPI...");
-  VERIFY(Duerwen_wakeup_init(&wakeupHandle, 0) == 0);
-
   bufferInit = false;
   setVolume();
 #endif
@@ -109,6 +106,27 @@ void REAudioProvider::update([[maybe_unused]] AudioData& audioData)
   /* Create our audio buffers and clear values to 0 */
   if (!bufferInit)
   {
+    int retDuerwen = -1;
+    for (int initRetries = 0; initRetries < 10; initRetries++) {
+      OUTPUT_TEXT("Initializing WakeupAPI...");
+      retDuerwen = Duerwen_wakeup_init(&wakeupHandle, 0);
+      if(retDuerwen == 0)
+      {
+        break;
+      }
+      else
+      {
+        if (wakeupHandle != nullptr)
+        {
+          Duerwen_wakeup_unit(wakeupHandle);
+          wakeupHandle = nullptr;
+        }
+        Thread::sleep(100);
+      }
+    }
+
+    VERIFY(retDuerwen == 0);
+
     OUTPUT_TEXT("Initializing audio buffers...");
     audioFramesInt.resize(maxFrames * numChannels);
     audioData.samples.resize(maxFrames * outChannels);
@@ -130,8 +148,6 @@ void REAudioProvider::update([[maybe_unused]] AudioData& audioData)
     bufferInit = true;
   }
 
-  const unsigned cycleMs = 1000 / tickRate;
-  const unsigned timeMs = Time::getCurrentSystemTime();
   snd_pcm_sframes_t availableFrames = snd_pcm_avail(inputDevice);
 
   if (availableFrames < 0)
@@ -191,12 +207,7 @@ void REAudioProvider::update([[maybe_unused]] AudioData& audioData)
       signedToFloat(audioData);
     }
   }
-
-  const unsigned workTimeMs = Time::getCurrentSystemTime() - timeMs;
   tickWatchDog = Time::getCurrentSystemTime();
-  if (workTimeMs < cycleMs) {
-    Thread::sleep(cycleMs - workTimeMs);
-  }
 #else // not TARGET_ROBOT
   Thread::yield();
   tickWatchDog = Time::getCurrentSystemTime();
