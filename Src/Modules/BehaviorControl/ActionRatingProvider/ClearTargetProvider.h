@@ -38,23 +38,20 @@ MODULE(ClearTargetProvider,
   REQUIRES(GlobalTeammatesModel),
   REQUIRES(GlobalOpponentsModel),
   PROVIDES(ClearTarget),
-  DEFINES_PARAMETERS(
+  LOADS_PARAMETERS(
   {,
-    (float)(0.01f) hysteresisSector, /**< Bonus for last sector */
-    (float)(0.01f) hysteresisShotType, /**< Bonus for last shot */
-    (float)(0.1f) teammateSummand, /**< Summand for teammate or obstacle next to current sector */
-    (float)(100.f) ballGoalPostTangentOffset, /**< This amount of space should fit between the goal post and the ball. */
-    (Angle)(15_deg) smallSectorRange, /* We divide big sectors in smaller sectors of this size. */
-    (Angle)(10_deg) smallSector, /* We don't pass into a sector which has a range <= this size. */
-    (Angle)(30_deg) largeSector, /* A sector with a range larger than this will be divided into smaller ones */
-    (float)(500.f) minDistanceToXLine,  /* Minimum target distance to XGoalLine */
-    (float)(1000.f) minDistanceToYLine, /* Minimum target distance to YFieldBorderLine */
+    (float) hysteresisSector, /**< Bonus for last sector */
+    (float) hysteresisShotType, /**< Bonus for last shot */
+    (float) teammateSummand, /**< Summand for teammate or obstacle next to current sector */
+    (float) ballGoalPostTangentOffset, /**< This amount of space should fit between the goal post and the ball. */
+    (Angle) smallSectorRange, /* We divide big sectors in smaller sectors of this size. */
+    (Angle) smallSector, /* We don't pass into a sector which has a range <= this size. */
+    (Angle) largeSector, /* A sector with a range larger than this will be divided into smaller ones */
+    (float) minDistanceToXLine,  /* Minimum target distance to XGoalLine */
+    (float) minDistanceToYLine, /* Minimum target distance to YFieldBorderLine */
     //@todo add useful shot types
-    (std::vector<KickInfo::KickType>)({KickInfo::walkForwardsLeftLong, KickInfo::walkForwardsRightLong, KickInfo::walkForwardsRightAlternative,
-                                       KickInfo::walkForwardsLeftAlternative}) availableKicks, /**< The kicks that may be selected. TODO use commented kicks during set pieces */
-    (std::vector<KickInfo::KickType>)({KickInfo::forwardFastRightLong, KickInfo::forwardFastLeftLong, KickInfo::forwardFastLeftPass, KickInfo::forwardFastRightPass}) extraKicksSetPieces,  /**< The kicks that may be add during setPieces.*/
-    (KickInfo::KickType)(KickInfo::numOfKickTypes) lastKickType, /**< TODO (Also, why is this a parameter?) */
-    (SectorWheel::Sector)({}) lastSector, /**< The sector that has been selected in the previous frame. */
+    (std::vector<KickInfo::KickType>) availableKicks, /**< The kicks that may be selected. TODO use commented kicks during set pieces */
+    (std::vector<KickInfo::KickType>) extraKicksSetPieces,  /**< The kicks that may be add during setPieces.*/
   }),
 });
 
@@ -84,6 +81,9 @@ private:
    * TODO
    */
   bool isTeammateCloseToBall(const Angle candidateAngle, const Vector2f basePosition, const float targetDistance);
+
+  KickInfo::KickType lastKickType = KickInfo::numOfKickTypes; /**< The kick type that was selected the last time calcBestKick ran (used for hysteresis). */
+  SectorWheel::Sector lastSector; /**< The sector that was selected the last time calcBestKick ran (used for hysteresis). */
 
   KickInfo::KickType bestKick = KickInfo::numOfKickTypes; /**< The kick with which the ball should be cleared */
   SectorWheel::Sector bestSector; /**< The sector the ball should be cleared into */

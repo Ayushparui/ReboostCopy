@@ -22,15 +22,28 @@ namespace DirectKickOff
 using namespace DirectKickOff;
 
 option((SkillBehaviorControl) DirectKickOff,
-       defs((float)(300.f) hysteresisNumber, /**< A number which is used in various places to define a hysteresis offset. */
-            (Angle)(45_deg) hysteresisAngle, /**< When sorting sectors by their opening angle, the one selected in the previous frame gets this as bonus. */
-            (Angle)(60_deg) halfGoalSectorAngle, /**< Half of the goal opening angle around the positive x axis. */
-            (Angle)(20_deg) minOpeningAngle, /**< The minimum opening angle a sector must have to be considered. */
-            (float)(500.f) ballDistanceForSlowWalk), /**< If the ball is close, walk slow. */
+       load((float) hysteresisNumber, /**< A number which is used in various places to define a hysteresis offset. */
+            (Angle) hysteresisAngle, /**< When sorting sectors by their opening angle, the one selected in the previous frame gets this as bonus. */
+            (Angle) halfGoalSectorAngle, /**< Half of the goal opening angle around the positive x axis. */
+            (Angle) minOpeningAngle, /**< The minimum opening angle a sector must have to be considered. */
+            (float) ballDistanceForSlowWalk, /**< If the ball is close, walk slow. */
+            (std::vector<KickInfo::KickType>) allowedKicks), /**< The kicks that may be used for the kickoff. */
        vars((bool)(false) wasActive, /**< Whether an in walk kick out of the center circle was already tried. */
-            (KickInfo::KickType)(KickInfo::walkForwardsRightAlternative) kickType, /**< The kick type to try. */
+            (KickInfo::KickType)(KickInfo::numOfKickTypes) kickType, /**< The kick type to try. */
             (Angle)(0_deg) targetAngle)) /**< The target angle to which the kick-off should go (from the ball in field coordinates). */
 {
+  // Picks the allowed kick for the given leg, falling back to whatever is allowed if there is no kick for that leg
+  // (e.g. on platforms like K1 that currently only have a single, right-foot-only kick).
+  const auto findKickForLeg = [&](Legs::Leg leg) -> KickInfo::KickType
+  {
+    for(KickInfo::KickType kick : allowedKicks)
+      if(theKickInfo[kick].kickLeg == leg)
+        return kick;
+    return allowedKicks.front();
+  };
+  const KickInfo::KickType rightKick = findKickForLeg(Legs::right);
+  const KickInfo::KickType leftKick = findKickForLeg(Legs::left);
+
   initial_state(execute)
   {
     action
@@ -86,7 +99,7 @@ option((SkillBehaviorControl) DirectKickOff,
         do
         {
           wheel.begin(theFieldBall.positionOnField);
-          wheel.addSector(Rangea(-halfGoalSectorAngle, halfGoalSectorAngle), 2.f * theKickInfo[KickInfo::walkForwardsLeftAlternative].range.max, SectorWheel::Sector::goal);
+          wheel.addSector(Rangea(-halfGoalSectorAngle, halfGoalSectorAngle), 2.f * std::max(theKickInfo[leftKick].range.max, theKickInfo[rightKick].range.max), SectorWheel::Sector::goal);
           for(const ObstacleSector& obstacleSector : obstacleSectors)
             wheel.addSector(obstacleSector.sector, obstacleSector.distance, SectorWheel::Sector::obstacle);
           sectors = wheel.finish();
@@ -120,10 +133,10 @@ option((SkillBehaviorControl) DirectKickOff,
         ASSERT(bestOpeningAngle > 0_deg);
 
         targetAngle = bestTargetAngle;
-        if(targetAngle > (wasActive ? (kickType == KickInfo::walkForwardsRightAlternative ? -hysteresisAngle : hysteresisAngle) : 0_deg))
-          kickType = KickInfo::walkForwardsRightAlternative;
+        if(targetAngle > (wasActive ? (kickType == rightKick ? -hysteresisAngle : hysteresisAngle) : 0_deg))
+          kickType = rightKick;
         else
-          kickType = KickInfo::walkForwardsLeftAlternative;
+          kickType = leftKick;
 
         GoToBallAndKick({.targetDirection = Angle::normalize(targetAngle - theRobotPose.rotation),
                          .kickType = kickType,

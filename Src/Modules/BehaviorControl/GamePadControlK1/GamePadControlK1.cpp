@@ -17,8 +17,7 @@
  *
  * RT + L/R stick     | dribble TODO
  * 
- * RT + A             | Kick left foot
- * RT + B             | Kick right foot
+ * RT + A/B           | Kick (right foot only; K1 has no left-foot kick yet)
  *
  * @author Rudi Villing
  */
@@ -243,9 +242,8 @@ bool GamePadControlK1::updateKickMotion(MotionRequest& theMotionRequest)
   if (!theGamePadEx.anyPressed(GamePad::maskA | GamePad::maskB))
     return false;
 
-  KickInfo::KickType kickType = KickInfo::walkForwardsLeftLong;
-  if (theGamePadEx.pressed(GamePad::maskB))
-    kickType = KickInfo::walkForwardsRightLong;
+  // K1 currently only has the RL-trained newKick (right foot), so both A and B trigger it.
+  const KickInfo::KickType kickType = KickInfo::newKick;
 
 
   auto applyDeadZone = [this](float value)
