@@ -253,7 +253,9 @@ void RLKickPhase::update()
 {
   executedTime = engine.theFrameInfo.getTimeSince(startTime) * engine.speedFactor;
 
-  if(executedTime >= engine.maxKickTime)
+  // The phase_progress observation is clipped to 1, so during the settle time the policy
+  // keeps running in its trained end-of-kick state and recovers balance before the handoff.
+  if(executedTime >= engine.maxKickTime + engine.postKickSettleTime)
     done = true;
 
   // Safety: fall back to next phase if the torso has tipped past the configured "cone".

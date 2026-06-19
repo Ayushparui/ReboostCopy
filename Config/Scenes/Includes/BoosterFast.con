@@ -21,6 +21,7 @@ for Cognition mr GroundTruthBallModel SimulatedWorldModelProvider
 for Cognition mr GlobalOpponentsModel SimulatedWorldModelProvider
 for Cognition mr GroundTruthRobotPose SimulatedWorldModelProvider
 for Cognition mr GroundTruthWorldState LogDataProvider
+for Cognition mr KickAccuracyEvaluation KickAccuracyProvider
 for Cognition mr ObstacleModel SimulatedWorldModelProvider
 for Cognition mr RobotPose SimulatedWorldModelProvider
 for Motion mr FrameInfo LogDataProvider
