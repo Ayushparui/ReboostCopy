@@ -44,3 +44,6 @@ Thumbs.db
 /Util/Buildchain/macOS/bin/cmake
 /Util/Buildchain/macOS/include
 /Util/Buildchain/macOS/lib
+
+/Util/cuda-arm64
+/Util/tensorrt-arm64
