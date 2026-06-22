@@ -29,8 +29,7 @@
 
     <Compound ref="paintedLines" />
 
-    <Compound ref="fieldCornerArcs" />
-
+    <!-- S-field has no corner arcs (Rules Table 2: L = none) -->
 
     <Compound ref="fieldGoal" name="Goal1">
       <Translation x="-4525mm" />
@@ -46,69 +45,69 @@
 
   <Compound name="fieldGoal">
 
-    <CylinderGeometry height="800mm" radius="50mm" name="post1">
-      <Translation y="-800mm" z="400mm" />
+    <CylinderGeometry height="1300mm" radius="50mm" name="post1">
+      <Translation y="-925mm" z="650mm" />
     </CylinderGeometry>
-    <CylinderGeometry height="800mm" radius="50mm" name="post2">
-      <Translation y="800mm" z="400mm" />
+    <CylinderGeometry height="1300mm" radius="50mm" name="post2">
+      <Translation y="925mm" z="650mm" />
     </CylinderGeometry>
 
-    <CylinderAppearance height="850mm" radius="50mm" name="post1">
-      <Translation y="-800mm" z="425mm" />
+    <CylinderAppearance height="1350mm" radius="50mm" name="post1">
+      <Translation y="-925mm" z="675mm" />
       <Surface ref="$color" />
     </CylinderAppearance>
-    <CylinderAppearance height="850mm" radius="50mm" name="post2">
-      <Translation y="800mm" z="425mm" />
+    <CylinderAppearance height="1350mm" radius="50mm" name="post2">
+      <Translation y="925mm" z="675mm" />
       <Surface ref="$color" />
     </CylinderAppearance>
-    <CapsuleAppearance height="1700mm" radius="50mm" name="crossbar">
+    <CapsuleAppearance height="1950mm" radius="50mm" name="crossbar">
       <Rotation x="90degree" />
-      <Translation z="850mm" />
+      <Translation z="1300mm" />
       <Surface ref="$color" />
     </CapsuleAppearance>
 
-    <BoxAppearance depth="400mm" width="20mm" height="20mm" name="netSupport1">
+    <BoxAppearance depth="530mm" width="20mm" height="20mm" name="netSupport1">
       <Surface ref="goalWhite" />
-      <Translation x="-250mm" y="800mm" z="790mm" />
+      <Translation x="-265mm" y="925mm" z="1290mm" />
     </BoxAppearance>
-    <BoxAppearance depth="400mm" width="20mm" height="20mm" name="netSupport1b">
+    <BoxAppearance depth="530mm" width="20mm" height="20mm" name="netSupport1b">
       <Surface ref="goalWhite" />
-      <Translation x="-250mm" y="800mm" z="10mm" />
+      <Translation x="-265mm" y="925mm" z="10mm" />
     </BoxAppearance>
-    <BoxAppearance depth="20mm" width="20mm" height="760mm" name="netSupport1c">
+    <BoxAppearance depth="20mm" width="20mm" height="1260mm" name="netSupport1c">
       <Surface ref="goalWhite" />
-      <Translation x="-440mm" y="800mm" z="400mm" />
+      <Translation x="-520mm" y="925mm" z="650mm" />
     </BoxAppearance>
-    <BoxAppearance depth="400mm" width="20mm" height="20mm" name="netSupport2">
+    <BoxAppearance depth="530mm" width="20mm" height="20mm" name="netSupport2">
       <Surface ref="goalWhite" />
-      <Translation x="-250mm" y="-800mm" z="790mm" />
+      <Translation x="-265mm" y="-925mm" z="1290mm" />
     </BoxAppearance>
-    <BoxAppearance depth="400mm" width="20mm" height="20mm" name="netSupport2b">
+    <BoxAppearance depth="530mm" width="20mm" height="20mm" name="netSupport2b">
       <Surface ref="goalWhite" />
-      <Translation x="-250mm" y="-800mm" z="10mm" />
+      <Translation x="-265mm" y="-925mm" z="10mm" />
     </BoxAppearance>
-    <BoxAppearance depth="20mm" width="20mm" height="760mm" name="netSupport2c">
+    <BoxAppearance depth="20mm" width="20mm" height="1260mm" name="netSupport2c">
       <Surface ref="goalWhite" />
-      <Translation x="-440mm" y="-800mm" z="400mm" />
+      <Translation x="-520mm" y="-925mm" z="650mm" />
     </BoxAppearance>
-    <BoxAppearance depth="20mm" width="1580mm" height="20mm" name="netSupportQ">
+    <BoxAppearance depth="20mm" width="1830mm" height="20mm" name="netSupportQ">
       <Surface ref="goalWhite" />
-      <Translation x="-440mm" y="0mm" z="790mm" />
+      <Translation x="-520mm" y="0mm" z="1290mm" />
     </BoxAppearance>
-    <BoxAppearance depth="20mm" width="1580mm" height="20mm" name="netSupportQb">
+    <BoxAppearance depth="20mm" width="1830mm" height="20mm" name="netSupportQb">
       <Surface ref="goalWhite" />
-      <Translation x="-440mm" y="0mm" z="10mm" />
+      <Translation x="-520mm" y="0mm" z="10mm" />
     </BoxAppearance>
     <ComplexAppearance ref="fieldNet" />
 
-    <BoxGeometry width="1600mm" height="0.2m" depth="0.01m">
-      <Translation x="-450mm" z="0.1m" />
+    <BoxGeometry width="1850mm" height="0.2m" depth="0.01m">
+      <Translation x="-530mm" z="0.1m" />
     </BoxGeometry>
-    <BoxGeometry width="0.01mm" height="0.2m" depth="400mm">
-      <Translation x="-250mm" y="-800mm" z="0.1m" />
+    <BoxGeometry width="0.01mm" height="0.2m" depth="530mm">
+      <Translation x="-265mm" y="-925mm" z="0.1m" />
     </BoxGeometry>
-    <BoxGeometry width="0.01mm" height="0.2m" depth="400mm">
-      <Translation x="-250mm" y="800mm" z="0.1m" />
+    <BoxGeometry width="0.01mm" height="0.2m" depth="530mm">
+      <Translation x="-265mm" y="925mm" z="0.1m" />
     </BoxGeometry>
 
   </Compound>
@@ -152,20 +151,20 @@
   </ComplexAppearance>
 
   <Vertices name="fieldNet">
-    -0.05 -0.8 0
-    -0.05 -0.8 0.8
-    -0.44 -0.8 0.8
-    -0.44 -0.8 0
+    -0.05 -0.925 0
+    -0.05 -0.925 1.29
+    -0.52 -0.925 1.29
+    -0.52 -0.925 0
 
-    -0.05 0.8 0
-    -0.05 0.8 0.8
-    -0.44 0.8 0.8
-    -0.44 0.8 0
+    -0.05 0.925 0
+    -0.05 0.925 1.29
+    -0.52 0.925 1.29
+    -0.52 0.925 0
 
-    -0.44 -0.8 0
-    -0.44 0.8 0
-    -0.44 0.8 0.8
-    -0.44 -0.8 0.8
+    -0.52 -0.925 0
+    -0.52 0.925 0
+    -0.52 0.925 1.29
+    -0.52 -0.925 1.29
   </Vertices>
   <TexCoords name="fieldNet">
     8 16
@@ -288,18 +287,18 @@
     </Quads>
   </ComplexAppearance>
 
- <!-- new midOrEndLine from Field2026M -->
+ <!-- midOrEndLine: half-length = touchline (yPosLeftTouchline = 3.0m) -->
   <ComplexAppearance name="midOrEndLine">
     <Surface ref="lineColor"/>
     <Vertices>
--0.025 -2.975 0
-0.025 -2.975 0
-0.025 2.975 0
--0.025 2.975 0
+-0.025 -3.0 0
+0.025 -3.0 0
+0.025 3.0 0
+-0.025 3.0 0
     </Vertices>
     <TexCoords>
-2.975 0
-2.975 1
+3.0 0
+3.0 1
 0 1
 0 0
     </TexCoords>
@@ -328,19 +327,19 @@
     </Quads>
   </ComplexAppearance>
 
- <!-- new penaltyAreaSideLine from Field2026M -->
+ <!-- penaltyAreaSideLine: length = penalty area depth (2.0m, G) -->
   <ComplexAppearance name="penaltyAreaSideLine">
     <Surface ref="lineColor"/>
     <Vertices>
 0.020 -0.025 0
-1.670 -0.025 0
-1.670 0.025 0
+2.000 -0.025 0
+2.000 0.025 0
 0.020 0.025 0
     </Vertices>
     <TexCoords>
 0 0
-0.825 0
-0.825 1
+1.0 0
+1.0 1
 0 1
     </TexCoords>
     <Quads>
@@ -352,14 +351,14 @@
   <ComplexAppearance name="goalAreaLine">
     <Surface ref="lineColor"/>
     <Vertices>
--0.025 -1.1 0
-0.025 -1.1 0
-0.025 1.1 0
--0.025 1.1 0
+-0.025 -1.5 0
+0.025 -1.5 0
+0.025 1.5 0
+-0.025 1.5 0
     </Vertices>
     <TexCoords>
-1.1 0
-1.1 1
+1.5 0
+1.5 1
 0 1
 0 0
     </TexCoords>
@@ -373,14 +372,14 @@
     <Surface ref="lineColor"/>
     <Vertices>
 0.020 -0.025 0
-0.670 -0.025 0
-0.670 0.025 0
+1.020 -0.025 0
+1.020 0.025 0
 0.020 0.025 0
     </Vertices>
     <TexCoords>
 0.1 0
-0.435 0
-0.435 1
+0.510 0
+0.510 1
 0.1 1
     </TexCoords>
     <Quads>
@@ -388,78 +387,78 @@
     </Quads>
   </ComplexAppearance>
 
- <!-- new fieldCenterCircleHalf from Field2026M -->
+ <!-- fieldCenterCircleHalf: radius J/2 = 0.75m, line width 50mm (inner 0.725 / outer 0.775) -->
   <ComplexAppearance name="fieldCenterCircleHalf">
     <Surface ref="lineColor"/>
     <Vertices>
-      0.0000  -0.7375 0      0.0000  -0.7625 0
-      0.0723  -0.7340 0      0.0748  -0.7589 0
-      0.1439  -0.7234 0      0.1488  -0.7479 0
-      0.2141  -0.7058 0      0.2214  -0.7297 0
-      0.2823  -0.6814 0      0.2918  -0.7045 0
-      0.3477  -0.6504 0      0.3595  -0.6725 0
-      0.4098  -0.6132 0      0.4236  -0.6340 0
-      0.4679  -0.5701 0      0.4837  -0.5894 0
-      0.5215  -0.5215 0      0.5392  -0.5392 0
-      0.5701  -0.4679 0      0.5894  -0.4837 0
-      0.6132  -0.4098 0      0.6340  -0.4236 0
-      0.6504  -0.3477 0      0.6725  -0.3595 0
-      0.6814  -0.2823 0      0.7045  -0.2918 0
-      0.7058  -0.2141 0      0.7297  -0.2214 0
-      0.7234  -0.1439 0      0.7479  -0.1488 0
-      0.7340  -0.0723 0      0.7589  -0.0748 0
-      0.7375   0.0000 0      0.7625   0.0000 0
-      0.7340   0.0723 0      0.7589   0.0748 0
-      0.7234   0.1439 0      0.7479   0.1488 0
-      0.7058   0.2141 0      0.7297   0.2214 0
-      0.6814   0.2823 0      0.7045   0.2918 0
-      0.6504   0.3477 0      0.6725   0.3595 0
-      0.6132   0.4098 0      0.6340   0.4236 0
-      0.5701   0.4679 0      0.5894   0.4837 0
-      0.5215   0.5215 0      0.5392   0.5392 0
-      0.4679   0.5701 0      0.4837   0.5894 0
-      0.4098   0.6132 0      0.4236   0.6340 0
-      0.3477   0.6504 0      0.3595   0.6725 0
-      0.2823   0.6814 0      0.2918   0.7045 0
-      0.2141   0.7058 0      0.2214   0.7297 0
-      0.1439   0.7234 0      0.1488   0.7479 0
-      0.0723   0.7340 0      0.0748   0.7589 0
-      0.0000   0.7375 0      0.0000   0.7625 0
+      0.0000  -0.7250 0        0.0000  -0.7750 0
+      0.0711  -0.7215 0        0.0760  -0.7713 0
+      0.1414  -0.7111 0        0.1512  -0.7601 0
+      0.2105  -0.6938 0        0.2250  -0.7416 0
+      0.2774  -0.6698 0        0.2966  -0.7160 0
+      0.3418  -0.6394 0        0.3653  -0.6835 0
+      0.4028  -0.6028 0        0.4306  -0.6444 0
+      0.4599  -0.5604 0        0.4917  -0.5991 0
+      0.5127  -0.5127 0        0.5480  -0.5480 0
+      0.5604  -0.4599 0        0.5991  -0.4917 0
+      0.6028  -0.4028 0        0.6444  -0.4306 0
+      0.6394  -0.3418 0        0.6835  -0.3653 0
+      0.6698  -0.2774 0        0.7160  -0.2966 0
+      0.6938  -0.2105 0        0.7416  -0.2250 0
+      0.7111  -0.1414 0        0.7601  -0.1512 0
+      0.7215  -0.0711 0        0.7713  -0.0760 0
+      0.7250   0.0000 0        0.7750   0.0000 0
+      0.7215   0.0711 0        0.7713   0.0760 0
+      0.7111   0.1414 0        0.7601   0.1512 0
+      0.6938   0.2105 0        0.7416   0.2250 0
+      0.6698   0.2774 0        0.7160   0.2966 0
+      0.6394   0.3418 0        0.6835   0.3653 0
+      0.6028   0.4028 0        0.6444   0.4306 0
+      0.5604   0.4599 0        0.5991   0.4917 0
+      0.5127   0.5127 0        0.5480   0.5480 0
+      0.4599   0.5604 0        0.4917   0.5991 0
+      0.4028   0.6028 0        0.4306   0.6444 0
+      0.3418   0.6394 0        0.3653   0.6835 0
+      0.2774   0.6698 0        0.2966   0.7160 0
+      0.2105   0.6938 0        0.2250   0.7416 0
+      0.1414   0.7111 0        0.1512   0.7601 0
+      0.0711   0.7215 0        0.0760   0.7713 0
+      0.0000   0.7250 0        0.0000   0.7750 0
     </Vertices>
     <TexCoords>
       0.0000 0      0.0000 1
-      0.0368 0      0.0368 1
-      0.0737 0      0.0737 1
-      0.1105 0      0.1105 1
+      0.0736 0      0.0736 1
       0.1473 0      0.1473 1
-      0.1841 0      0.1841 1
       0.2209 0      0.2209 1
-      0.2577 0      0.2577 1
       0.2945 0      0.2945 1
-      0.3314 0      0.3314 1
       0.3682 0      0.3682 1
-      0.4050 0      0.4050 1
       0.4418 0      0.4418 1
-      0.4786 0      0.4786 1
       0.5154 0      0.5154 1
-      0.5522 0      0.5522 1
       0.5890 0      0.5890 1
-      0.6259 0      0.6259 1
       0.6627 0      0.6627 1
-      0.6995 0      0.6995 1
       0.7363 0      0.7363 1
-      0.7731 0      0.7731 1
       0.8099 0      0.8099 1
-      0.8467 0      0.8467 1
       0.8836 0      0.8836 1
-      0.9204 0      0.9204 1
       0.9572 0      0.9572 1
-      0.9940 0      0.9940 1
       1.0308 0      1.0308 1
-      1.0676 0      1.0676 1
       1.1045 0      1.1045 1
-      1.1413 0      1.1413 1
       1.1781 0      1.1781 1
+      1.2517 0      1.2517 1
+      1.3254 0      1.3254 1
+      1.3990 0      1.3990 1
+      1.4726 0      1.4726 1
+      1.5463 0      1.5463 1
+      1.6199 0      1.6199 1
+      1.6935 0      1.6935 1
+      1.7671 0      1.7671 1
+      1.8408 0      1.8408 1
+      1.9144 0      1.9144 1
+      1.9880 0      1.9880 1
+      2.0617 0      2.0617 1
+      2.1353 0      2.1353 1
+      2.2089 0      2.2089 1
+      2.2826 0      2.2826 1
+      2.3562 0      2.3562 1
     </TexCoords>
     <Quads>
       0 1 3 2    2 3 5 4    4 5 7 6    6 7 9 8
@@ -562,17 +561,17 @@
     </ComplexAppearance>
 
     <ComplexAppearance ref="goalAreaLine">
-      <Translation x="-3.875"/>
+      <Translation x="-3.525"/>
     </ComplexAppearance>
     <ComplexAppearance ref="goalAreaSideLine">
-      <Translation x="-4.525" y="1.1" z="0.0001"/>
+      <Translation x="-4.525" y="1.5" z="0.0001"/>
     </ComplexAppearance>
     <ComplexAppearance ref="goalAreaSideLine">
-      <Translation x="-4.525" y="-1.1" z="0.0001"/>
+      <Translation x="-4.525" y="-1.5" z="0.0001"/>
     </ComplexAppearance>
 
     <ComplexAppearance ref="fieldSpot"> <!-- penalty spot -->
-      <Translation x="-3.2"/>
+      <Translation x="-3.025"/>
     </ComplexAppearance>
   </Compound>
 
