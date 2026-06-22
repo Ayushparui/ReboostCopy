@@ -23,6 +23,10 @@ if(BUILD_BOOSTER)
   target_link_libraries(Booster PRIVATE Booster::FastRTPS::FastRTPS)
   target_link_libraries(Booster PRIVATE Booster::FooNathan::Memory)
   target_link_libraries(Booster PRIVATE Booster::WakeupAPI::WakeupAPI)
+  target_link_libraries(Booster PRIVATE Booster::TensorRT::NvInfer)
+  target_link_libraries(Booster PRIVATE Booster::CUDA::Runtime)
+  target_include_directories(Booster SYSTEM PRIVATE
+      "${PROJECT_ROOT_PREFIX}/Util/cuda-arm64/include")
 
   target_compile_options(Booster PRIVATE $<$<CONFIG:Develop>:-UNDEBUG>)
   if(MACOS)
@@ -50,7 +54,9 @@ elseif(NOT BUILD_NAO)
     include(ExternalProject)
     ExternalProject_Add(Booster
         SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}"
-        CMAKE_ARGS -DCMAKE_BUILD_TYPE=$<CONFIG> -DBUILD_BOOSTER=ON
+        CMAKE_ARGS -DCMAKE_BUILD_TYPE=$<CONFIG>
+                   -DBUILD_BOOSTER=ON
+                   -DCMAKE_TOOLCHAIN_FILE=${CMAKE_CURRENT_SOURCE_DIR}/../CMake/BoosterToolchain.cmake
         BUILD_ALWAYS 1
         USES_TERMINAL_BUILD ON
         INSTALL_COMMAND "")

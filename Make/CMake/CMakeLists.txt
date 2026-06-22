@@ -536,6 +536,19 @@ if(BUILD_BOOSTER)
   target_link_options(Booster::ONNXRuntime::ONNXRuntime INTERFACE -rpath /home/booster/Config)
 endif()
 
+if(BUILD_BOOSTER)
+  # TensorRT and CUDA Runtime — vendored in Util/
+  add_library(Booster::TensorRT::NvInfer SHARED IMPORTED)
+  set_target_properties(Booster::TensorRT::NvInfer PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/tensorrt-arm64/include"
+      IMPORTED_LOCATION             "${PROJECT_ROOT_PREFIX}/Util/tensorrt-arm64/lib/LinuxArm64/libnvinfer.so")
+
+  add_library(Booster::CUDA::Runtime SHARED IMPORTED)
+  set_target_properties(Booster::CUDA::Runtime PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/cuda-arm64/include"
+      IMPORTED_LOCATION             "${PROJECT_ROOT_PREFIX}/Util/cuda-arm64/lib/libcudart.so")
+endif()
+
 if(BUILD_DESKTOP)
   add_library(ONNXRuntime::ONNXRuntime SHARED IMPORTED)
   set_target_properties(ONNXRuntime::ONNXRuntime PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_ROOT_PREFIX}/Util/onnxruntime/include")

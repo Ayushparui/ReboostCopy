@@ -113,6 +113,7 @@ namespace NeuralNetworkONNX
        * @param The address of the data.
        */
       float* data() {return tensor;}
+      const float* data() const {return tensor;}
 
       /**
        * Returns the number of dimensions of the tensor.
