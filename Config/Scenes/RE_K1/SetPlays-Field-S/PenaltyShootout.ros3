@@ -42,5 +42,9 @@
     <Compound ref="field"/>
 
     <Compound ref="robot type"/>
+
+    <Compound name="location">
+      <Compound name="Field2026-S"/>
+    </Compound>
   </Scene>
 </Simulation>
