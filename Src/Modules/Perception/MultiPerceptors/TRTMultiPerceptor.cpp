@@ -110,8 +110,6 @@ bool TRTMultiPerceptor::apply()
   if(lastPrediction == theCameraImage.timestamp)
     return true;
 
-  TLOGV(tlogger, "apply: new frame {}", theCameraImage.timestamp);
-
   STOPWATCH("module:TRTMultiPerceptor:preprocess")
     preprocess();
 
@@ -128,7 +126,6 @@ bool TRTMultiPerceptor::apply()
 #endif
   }
 
-  TLOGV(tlogger, "infer ok: frame {}", theCameraImage.timestamp);
   lastPrediction = theCameraImage.timestamp;
   return true;
 }
@@ -170,7 +167,6 @@ void TRTMultiPerceptor::update(BallSpots& ballSpots)
     const int cy = static_cast<int>((y1 + y2) * 0.5f);
 
     ballSpots.addBallSpot(cx, cy);
-
     DEBUG_DRAWING("representation:BallSpots:image", "drawingOnImage")
     {
       const int x1_px = static_cast<int>(x1);
@@ -185,7 +181,6 @@ void TRTMultiPerceptor::update(BallSpots& ballSpots)
       LINE("representation:BallSpots:image", cx, cy - 5, cx, cy + 5, 1, Drawings::solidPen, ColorRGBA::red);
     }
   }
-  TLOGI(tlogger, "BallSpots: {} detected", (int)ballSpots.ballSpots.size());
 }
 
 /* Bounding boxes in image coordinates for JerseyClassifierProvider and RobotDetector downstream. */
@@ -194,10 +189,7 @@ void TRTMultiPerceptor::update(ObstaclesImagePercept& obstaclesImagePercept)
   obstaclesImagePercept.obstacles.clear();
 
   if(!apply())
-  {
-    TLOGE(tlogger, "TRTMultiPerceptor: failed to apply network");
     return;
-  }
 
   // Output shape: [1, max_det, 6] — each row: [x1, y1, x2, y2, conf, cls_id]
   static constexpr int stride = 6;
@@ -234,6 +226,12 @@ void TRTMultiPerceptor::update(ObstaclesImagePercept& obstaclesImagePercept)
     obs.confidence  = conf;
 
     obstaclesImagePercept.obstacles.push_back(obs);
+
+    DEBUG_DRAWING("representation:ObstaclesImagePercept:image", "drawingOnImage")
+    {
+      RECTANGLE("representation:ObstaclesImagePercept:image",
+                obs.left, obs.top, obs.right, obs.bottom, 2,
+                Drawings::solidPen, ColorRGBA::orange);
+    }
   }
-  TLOGI(tlogger, "ObstaclesImagePercept: {} detected", (int)obstaclesImagePercept.obstacles.size());
 }
