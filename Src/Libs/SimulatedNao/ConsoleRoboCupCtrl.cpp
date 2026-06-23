@@ -809,10 +809,13 @@ void ConsoleRoboCupCtrl::help(In& stream)
 {
   std::string pattern;
   stream >> pattern;
-  list("Initialization commands:", pattern, true);
+
+  TLOGI(tlogger, "help: pattern='{}'", pattern);
+
+  list("Initialization commands:", "", true);
   list("  sc <name> [<a.b.c.d>] : Starts a TCP connection to a remote robot.", pattern, true);
   list("  sl <name> [ (<file> | remote) [<scenario> [<location>]]] : Starts a robot reading its input from a log file or some other source.", pattern, true);
-  list("Global commands:", pattern, true);
+  list("Global commands:", "", true);
   list("  ar {<feature>} off | on : Switches automatic referee on or off.", pattern, true);
   list("  call <file> [<file>] : Execute a script file. If the optional script file is present, execute it instead.", pattern, true);
   if(!is2D)
@@ -836,7 +839,7 @@ void ConsoleRoboCupCtrl::help(In& stream)
   list("  robot ? | all | <name> {<name>} : Connect console to a set of active robots. Alternatively, double click on robot.", pattern, true);
   list("  st off | on : Switch simulation of time on or off.", pattern, true);
   list("  # <text> : Comment.", pattern, true);
-  list("Robot commands:", pattern, true);
+  list("Robot commands:", "", true);
   list("  bc [<red%> [<green%> [<blue%>]]] : Set the background color of all 3-D views.", pattern, true);
   list("  dr ? [<pattern>] | off | <key> ( off | on ) : Send debug request.", pattern, true);
   list("  for <thread> {<thread>} ( dr | get | mr | set | si | vf | vi | vp ) {<param>} : Runs command for a set of threads. See help for individual commands for their parameters.", pattern, true);
@@ -861,7 +864,9 @@ void ConsoleRoboCupCtrl::help(In& stream)
   list("  mvb <x> <y> <z> : Move the ball to the given position.", pattern, true);
   list("  mvrp <x> <y> <z> [<rotX> <rotY> <rotZ>] : Move the selected simulated robot to the given position and update the RobotPose (self localisation).", pattern, true);
   list("  poll : Poll for all available debug requests and drawings. ", pattern, true);
-  list("  pr none | illegalBallContact | playerPushing | foul | penaltyKick | illegalMotionInSet | inactivePlayer | illegalPosition | leavingTheField | requestForPickup | localGameStuck | illegalPositionInSet | playerStance | substitute | manual : Set robot penalty.", pattern, true);
+  list("  pr none | manual | illegalPositioning | motionInSet | motionInStop | localGameStuck | incapable | pickup | "
+      "ballHolding | leavingTheField | playingWithArmsHands | pushing | pushingPenaltyKick | caution | sentOff | substitute "
+      ": Set robot penalty.", pattern, true);
   list("  rc ( local <team number> | remote <team number> <broadcast> ) : Start connection to remote-control a robot.", pattern, true);
   list("  set ? [<pattern>] | <key> ( ? | unchanged | <data> ) : Change debug data or show its specification.", pattern, true);
   if(!is2D)
