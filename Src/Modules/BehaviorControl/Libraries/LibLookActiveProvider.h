@@ -102,6 +102,21 @@ private:
   RingBufferWithSum<float, 180> translationSpeedBuffer;
   RingBufferWithSum<Angle, 120> rotationSpeedBuffer;
   void calculateSpeedFactors();
+
+  /**
+  * Computes head pan, tilt and speed for active ball-aware gaze control.
+  *
+  * Falls back to TeamBallModel if own ball has timed out, unless onlyOwnBall is set.
+  *
+  * @param withBall       Force ball tracking, bypassing the internal heuristic.
+  * @param ignoreBall     Suppress all ball tracking; pure environment scan only.
+  *                       OVERRIDES @p withBall if both are true.
+  * @param onlyOwnBall    Use only own ball Model; disables team ball fallback.
+  * @param fixTilt        Lock tilt to a fixed default angle; skips dynamic tilt.
+  * @param slowdownFactor [0-1] Lower values scales head speed down.
+  *
+  * @return HeadTarget with pan, tilt, speed and camera mode set.
+  */
   HeadTarget calculateHeadTarget(const bool withBall, const bool ignoreBall, const bool withOwnBall, bool fixTilt, float slowdownFactor);
   void update(LibLookActive& libLookActive) override;
 };
