@@ -61,6 +61,11 @@ parseOptions() {
   if [ "$(ping ${pingOptions} ${robotIp} > /dev/null && echo 1 || echo 0)" == "0" ]; then
     fatal "Robot not reachable at ${robotIp}"
   fi
+
+	# extract robotIp from network.cfg if needed
+	if [ "$UPDATE" = "true" ]; then
+		robotIp=$(grep '^lan' "${bhDir}/Config/Robots/${robotName}/network.cfg" | sed 's/.*"\(.*\)";.*/\1/')
+	fi
 }
 
 copyFiles() {
@@ -68,7 +73,7 @@ copyFiles() {
   key="$(cat "${baseDir}/Keys/id_rsa_nao.pub")"
   ssh ${SSHOPTIONS} ${2}@${1} "mkdir -p .ssh && chmod 700 .ssh && echo >>.ssh/authorized_keys \"$key\" && sort -u .ssh/authorized_keys -o .ssh/authorized_keys && chmod 600 .ssh/authorized_keys" || fatal "Can't append ssh key to '.ssh/authorized_keys'"
 
-  message "Copying files."
+  message "Copying files to ${robotName} at ${robotIp}."
   copyTo="/tmp/installBooster/"
   ssh ${SSHOPTIONS} ${2}@${1} "rm -rf ${copyTo}" || fatal "Can't remove '${copyTo}' on robot"
   ssh ${SSHOPTIONS} ${2}@${1} "mkdir -p ${copyTo}" || fatal "Can't create '${copyTo}' on robot"
@@ -78,7 +83,7 @@ copyFiles() {
 }
 
 updateFiles() {
-  message "Updating bin scripts."
+  message "Updating bin scripts to ${robotName} at ${robotIp}"
   rsync ${rsyncOptions} -e "ssh ${SSHOPTIONS}" \
       "${baseDir}/BoosterFiles/bin"/* \
       "${baseDir}/Files/bin/roboeireann" \
@@ -88,7 +93,7 @@ updateFiles() {
 }
 
 runInstallation() {
-  message "Launching installation process."
+  message "Launching installation process for robot at ${robotIp}."
   ssh -t ${SSHOPTIONS} ${2}@${1} "chmod 755 ${copyTo}/install && bash -l -c '${copyTo}/install  ${robotName}'" || fatal "Installation failed"
 }
 
