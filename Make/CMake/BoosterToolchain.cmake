@@ -28,7 +28,7 @@ endif()
 
 set(_t1_lib_dir "${_buildchain_dir}/T1/lib")
 set(_t1_include_dir "${_buildchain_dir}/T1/include")
-execute_process(COMMAND bash -c "for d in $(clang++ -c -v -E - </dev/null 2>&1 | sed -n -e '/here:/,/^End/{/here:/d; /^End/d; p}'); \
+execute_process(COMMAND bash -c "for d in $(\"${CMAKE_CXX_COMPILER}\" -c -v -E - </dev/null 2>&1 | sed -n -e '/here:/,/^End/{/here:/d; /^End/d; p}'); \
 do [ -f $d/xmmintrin.h ] && echo $d; done | head -1" OUTPUT_VARIABLE _clang_system_include_dir)
 
 set(CMAKE_CXX_LINK_EXECUTABLE "${_linker} <LINK_FLAGS> -nostdlib --hash-style=gnu --eh-frame-hdr -m aarch64linux \
