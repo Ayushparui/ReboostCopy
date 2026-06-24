@@ -35,7 +35,7 @@ STREAMABLE(DamageConfigurationBody,
     (bool)(false) footBumperDefect,
     (bool)(false) armContactDefect,
   }),
-  (bool)(false) allMotionDisabled, // overrides individual joint stiffness etc.
+  (bool)(false) disableAllMotion, // every MotionRequest is converted to playDead
   (bool)(false) noFieldGenuflect,
   (BrokenStandUp)(allFine) brokenStandUp,
   (ENUM_INDEXED_ARRAY(std::vector<FsrSensors::FsrSensor>, Legs::Leg)) brokenFsrSensors,

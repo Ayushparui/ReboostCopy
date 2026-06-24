@@ -80,7 +80,7 @@ void MotionEngine::update(JointRequest& jointRequest)
   else if(SystemCall::getMode() == SystemCall::physicalRobot &&
           !forceSitDown &&
           (theGyroOffset.isIMUBad || // Gyro has offsets
-           (theFrameInfo.time > 110000 &&
+           (theFrameInfo.time > 110000 && // more than 10 secs since system startup (assuming time starts at 100000)
             theFrameInfo.getTimeSince(oldestBehaviorTimestamp) > emergencySitDownDelay))) // No new camera images
   {
     forceSitDown = true;
@@ -99,14 +99,22 @@ void MotionEngine::update(JointRequest& jointRequest)
 
   // Integrate special cases into the motion request.
   MotionRequest motionRequest = theMotionRequest;
-  if(forceSitDown)
+  if (forceSitDown)
+    motionRequest.motion = MotionRequest::playDead;
+  else if (theDamageConfigurationBody.disableAllMotion)
     motionRequest.motion = MotionRequest::playDead;
 
   // 2.1 check if a FallPhase should start ...
-  const bool getUp = motionRequest.motion != MotionRequest::playDead && motionRequest.motion != MotionRequest::dive &&
-                     ((theFallDownState.state == FallDownState::fallen && (phase->type == MotionPhase::fall || phase->type == MotionPhase::playDead)) || theFallDownState.state == FallDownState::squatting) &&
-                     !((phase->type == MotionPhase::getUp || phase->type == MotionPhase::stand) && theFallDownState.state == FallDownState::squatting) && // If we got this combination, then the robot finished the get up and is hold tilted
-                     theGameState.playerState != GameState::prepare;
+  const bool getUp =
+      motionRequest.motion != MotionRequest::playDead && motionRequest.motion != MotionRequest::dive &&
+      ((theFallDownState.state == FallDownState::fallen &&
+        (phase->type == MotionPhase::fall || phase->type == MotionPhase::playDead)) ||
+       theFallDownState.state == FallDownState::squatting) &&
+      !((phase->type == MotionPhase::getUp || phase->type == MotionPhase::stand) &&
+        theFallDownState.state ==
+            FallDownState::squatting) && // If we got this combination, then the robot finished the get up and is hold tilted
+      theGameState.playerState != GameState::prepare;
+
   if(getUp)
   {
     motionRequest.motion = (phase->type == MotionPhase::fall || phase->type == MotionPhase::playDead || phase->type == MotionPhase::keyframeMotion || phase->type == MotionPhase::getUp) ? MotionRequest::stand : MotionRequest::playDead;
@@ -254,13 +262,13 @@ void MotionEngine::update(JointRequest& jointRequest)
 #endif
 
   // Set stiffness of broken joints to 0.
-  if (theDamageConfigurationBody.allMotionDisabled)
-  {
-    // Note: although strictly it should only be for the body, allMotionsDisabled will disable head movement also
-    FOREACH_ENUM(Joints::Joint, joint)
-      jointRequest.stiffnessData.stiffnesses[joint] = 0;
-  }
-  else
+  // if (theDamageConfigurationBody.disableAllMotion)
+  // {
+  //   // Note: although strictly it should only be for the body, allMotionsDisabled will disable head movement also
+  //   FOREACH_ENUM(Joints::Joint, joint)
+  //     jointRequest.stiffnessData.stiffnesses[joint] = 0;
+  // }
+  // else
   {
     for (const Joints::Joint joint : theDamageConfigurationBody.jointsToEraseStiffness)
       jointRequest.stiffnessData.stiffnesses[joint] = 0;
