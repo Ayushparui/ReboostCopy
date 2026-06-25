@@ -28,8 +28,7 @@
 
 MAKE_MODULE(RLKickEngine);
 
-RLKickEngine::RLKickEngine() :
-  policy(&Global::getAsmjitRuntime())
+RLKickEngine::RLKickEngine()
 {
   compile();
 
@@ -61,26 +60,36 @@ RLKickEngine::RLKickEngine() :
 
 void RLKickEngine::compile()
 {
-  if(!std::filesystem::exists(modelPath + policyName))
+  policies.clear();
+
+  for(const RLKickPolicyConfig& kickPolicy : kickPolicies)
   {
-    OUTPUT_ERROR("RLKickEngine: model file " << modelPath << policyName << " does not exist; kicks disabled.");
-    return;
+    if(!std::filesystem::exists(modelPath + kickPolicy.policyName))
+    {
+      OUTPUT_ERROR("RLKickEngine: model file " << modelPath << kickPolicy.policyName << " does not exist; "
+                   << TypeRegistry::getEnumName(kickPolicy.kickMotionType) << " kicks disabled.");
+      continue;
+    }
+
+    auto compiled = std::make_unique<CompiledNN>(&Global::getAsmjitRuntime());
+    compiled->compile(Model(modelPath + kickPolicy.policyName));
+    if(!compiled->valid())
+    {
+      OUTPUT_ERROR("RLKickEngine: failed to compile " << kickPolicy.policyName << "; "
+                   << TypeRegistry::getEnumName(kickPolicy.kickMotionType) << " kicks disabled.");
+      continue;
+    }
+
+    ASSERT(compiled->numOfInputs() == 1);
+    ASSERT(compiled->input(0).rank() == 1);
+    ASSERT(compiled->input(0).dims(0) == numInput);
+
+    ASSERT(compiled->numOfOutputs() == 1);
+    ASSERT(compiled->output(0).rank() == 1);
+    ASSERT(compiled->output(0).dims(0) == numOutput);
+
+    policies[kickPolicy.kickMotionType] = std::move(compiled);
   }
-
-  policy.compile(Model(modelPath + policyName));
-  if(!policy.valid())
-  {
-    OUTPUT_ERROR("RLKickEngine: failed to compile " << policyName << "; kicks disabled.");
-    return;
-  }
-
-  ASSERT(policy.numOfInputs() == 1);
-  ASSERT(policy.input(0).rank() == 1);
-  ASSERT(policy.input(0).dims(0) == numInput);
-
-  ASSERT(policy.numOfOutputs() == 1);
-  ASSERT(policy.output(0).rank() == 1);
-  ASSERT(policy.output(0).dims(0) == numOutput);
 }
 
 void RLKickEngine::update(KickGenerator& kickGenerator)
@@ -106,14 +115,10 @@ void RLKickEngine::update(KickGenerator& kickGenerator)
 
   kickGenerator.createPhase = [this](const KickRequest& kickRequest, const MotionPhase&) -> std::unique_ptr<MotionPhase>
   {
-    if(!policy.valid())
+    const auto it = policies.find(kickRequest.kickMotionType);
+    if(it == policies.end() || !it->second->valid())
     {
-      ANNOTATION("RLKickEngine", "Policy not loaded; cannot create kick phase.");
-      return std::unique_ptr<MotionPhase>();
-    }
-    if(kickRequest.kickMotionType != KickRequest::newKick)
-    {
-      ANNOTATION("RLKickEngine", "Unsupported kick motion type for K1 RL kick; only newKick is handled.");
+      ANNOTATION("RLKickEngine", "No RL policy loaded for kick motion type " << TypeRegistry::getEnumName(kickRequest.kickMotionType) << ".");
       return std::unique_ptr<MotionPhase>();
     }
 
@@ -122,7 +127,7 @@ void RLKickEngine::update(KickGenerator& kickGenerator)
     const float kickLength = theMotionRequest.kickLength;
     const bool isLeftKick = theKickInfo[theMotionRequest.kickType].kickLeg == Legs::left;
 
-    return std::make_unique<RLKickPhase>(*this, kickRequest, targetDirection, kickLength, isLeftKick);
+    return std::make_unique<RLKickPhase>(*this, *it->second, kickRequest, targetDirection, kickLength, isLeftKick);
   };
 
   kickGenerator.wasLeftPhase = [](const MotionPhase& lastPhase) -> bool
@@ -138,6 +143,7 @@ void RLKickEngine::update(KickGenerator& kickGenerator)
 // ---------------------------------------------------------------------------
 
 RLKickPhase::RLKickPhase(RLKickEngine& engine,
+                         CompiledNN& policy,
                          const KickRequest& /*kickRequest*/,
                          const Angle targetDirection,
                          const float kickLength,
@@ -145,6 +151,7 @@ RLKickPhase::RLKickPhase(RLKickEngine& engine,
   MotionPhase(MotionPhase::kick),
   isLeftKick(isLeftKick),
   engine(engine),
+  policy(policy),
   startTime(engine.theFrameInfo.time),
   targetDirection(targetDirection),
   kickLength(kickLength),
@@ -175,7 +182,7 @@ void RLKickPhase::executePolicy(JointRequest& target)
   FOREACH_ENUM(Joints::Joint, joint)
     clippedJointAngles.angles[joint] = engine.theJointLimits.limits[joint].limit(clippedJointAngles.angles[joint]);
 
-  float* input = engine.policy.input(0).data();
+  float* input = policy.input(0).data();
   const Vector3f gravity = engine.theInertialData.orientation3D.inverse() * Vector3f(0.f, 0.f, -1.f);
 
   // [0:3] projected gravity
@@ -236,10 +243,10 @@ void RLKickPhase::executePolicy(JointRequest& target)
   *input++ = isLeftKick ? 1.f : -1.f;
 
   STOPWATCH("module:RLKickEngine:apply")
-    engine.policy.apply();
+    policy.apply();
 
   // Isaac Lab applies the offset first and clips the result (processed = raw + default, then clip).
-  const float* output = engine.policy.output(0).data();
+  const float* output = policy.output(0).data();
   for(std::size_t i = 0; i < engine.boosterLegJoints.size(); ++i)
   {
     lastAction[i] = *output++;

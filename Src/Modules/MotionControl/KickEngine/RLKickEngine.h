@@ -33,8 +33,16 @@
 #include "Platform/File.h"
 #include <CompiledNN2ONNX/CompiledNN.h>
 #include <array>
+#include <map>
+#include <memory>
 
 using namespace NeuralNetworkONNX;
+
+STREAMABLE(RLKickPolicyConfig,
+{,
+  (KickRequest::KickMotionID) kickMotionType, /**< Which kick this policy file implements. */
+  (std::string) policyName,                   /**< ONNX file in Config/NeuralNets/RLKickEngine/. */
+});
 
 MODULE(RLKickEngine,
 {,
@@ -52,7 +60,7 @@ MODULE(RLKickEngine,
   PROVIDES(KickGenerator),
   LOADS_PARAMETERS(
   {,
-    (std::string) policyName,
+    (std::vector<RLKickPolicyConfig>) kickPolicies, /**< One compiled ONNX policy per supported kick motion type. */
     (unsigned) numInput,        /**< Observation dimensionality (must match exported ONNX). */
     (unsigned) numOutput,       /**< Action dimensionality: 12 leg joints. */
     (Rangef) clipActions,       /**< Per-joint action clipping (rad, matches training). */
@@ -69,7 +77,7 @@ class RLKickEngine : public RLKickEngineBase
 public:
   RLKickEngine();
 
-  CompiledNN policy;                            /**< Compiled ONNX policy. */
+  std::map<KickRequest::KickMotionID, std::unique_ptr<CompiledNN>> policies; /**< Compiled ONNX policy per supported kick motion type. */
   JointAngles offset;                           /**< Default joint pose; matches IsaacLab init_state. */
   std::vector<Joints::Joint> boosterLegJoints;  /**< 12-joint ordering, IsaacLab order. */
 
@@ -86,6 +94,7 @@ private:
 struct RLKickPhase : MotionPhase
 {
   RLKickPhase(RLKickEngine& engine,
+              CompiledNN& policy,
               const KickRequest& kickRequest,
               Angle targetDirection,
               float kickLength,
@@ -105,6 +114,7 @@ private:
   Pose2f supportSolePose() const;
 
   RLKickEngine& engine;
+  CompiledNN& policy; /**< The compiled policy selected for this kick's motion type. */
 
   unsigned startTime;
   unsigned lastInference = 0;

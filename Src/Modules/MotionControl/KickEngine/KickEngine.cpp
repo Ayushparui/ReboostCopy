@@ -37,7 +37,7 @@ KickEngine::KickEngine()
 
       strcpy(parameters.name, entry.path().stem().string().c_str());
 
-      if(KickRequest::getKickMotionFromName(parameters.name) < KickRequest::newKick)
+      if(KickRequest::getKickMotionFromName(parameters.name) < KickRequest::standRLK1KickLongRight)
         params.push_back(parameters);
       else
       {
@@ -51,7 +51,7 @@ KickEngine::KickEngine()
     FAIL("Could not open kick directory.");
   }
 
-  for(int i = 0; i < KickRequest::newKick; ++i)
+  for(int i = 0; i < KickRequest::standRLK1KickLongRight; ++i)
   {
     int id = -1;
     for(unsigned int p = 0; p < params.size(); ++p)

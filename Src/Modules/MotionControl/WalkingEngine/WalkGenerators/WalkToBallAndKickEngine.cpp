@@ -80,7 +80,8 @@ void WalkToBallAndKickEngine::update(WalkToBallAndKickGenerator& walkToBallAndKi
     // K1 path: the behavior picks a Nao-style kick type and the WalkToBallEngine walks the robot to
     // theKickInfo[kickType].ballOffset relative to the ball. Once the robot is at that pose (ball is
     // approximately at -ballOffset in the robot frame and target direction is aligned), we trigger
-    // the RL kick. The dispatch in createKickPhase below then routes to RLKickEngine via newKick.
+    // the RL kick. The dispatch in createKickPhase below then routes to RLKickEngine using the
+    // kick's KickMotionID (e.g. standRLK1KickLongRight/Left), which selects the matching policy.
     if(Global::getSettings().robotType != Settings::nao)
     {
       const Vector2f expectedBallInRobot = -theKickInfo[motionRequest.kickType].ballOffset;
@@ -129,7 +130,8 @@ void WalkToBallAndKickEngine::update(WalkToBallAndKickGenerator& walkToBallAndKi
           isInPositionForKick &= motionRequest.ballEstimate.velocity.norm() < maxBallVelocityInWalkKick;
         break;
       }
-      case KickInfo::newKick:
+      case KickInfo::standRLK1KickLongRight:
+      case KickInfo::standRLK1KickLongLeft:
       {
         isInPositionForKick = true;
         break;
@@ -253,8 +255,8 @@ std::unique_ptr<MotionPhase> WalkToBallAndKickEngine::createKickPhase(const Moti
   if(Global::getSettings().robotType != Settings::nao)
   {
     KickRequest kr;
-    kr.kickMotionType = KickRequest::newKick;
-    kr.mirror = false;
+    kr.kickMotionType = theKickInfo[motionRequest.kickType].kickMotionType;
+    kr.mirror = theKickInfo[motionRequest.kickType].mirror;
     kr.armsBackFix = false;
     kr.calcDynPoints = [](int) -> std::vector<DynPoint> { return {}; };
     return theKickGenerator.createPhase(kr, lastPhase);
