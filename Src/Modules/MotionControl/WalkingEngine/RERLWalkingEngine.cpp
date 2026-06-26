@@ -468,6 +468,33 @@ void RERLWalkingEngine::update(WalkGenerator& walkGenerator)
   };
 }
 
+float RERLWalkingEngine::rampValue(const float current, const float target, const float maxAccelDelta, const float maxDecelDelta) const
+{
+  const float delta = target - current;
+  if(delta == 0.f)
+    return target;
+  const bool accelerating = current == 0.f || delta * current > 0.f;
+  const float maxDelta = accelerating ? maxAccelDelta : maxDecelDelta;
+  if(std::abs(delta) <= maxDelta)
+    return target;
+  return current + (delta > 0.f ? maxDelta : -maxDelta);
+}
+
+Pose2f RERLWalkingEngine::rampCommand(const Pose2f& current, const Pose2f& target, const float dt) const
+{
+  const float period = configuredParameters.baseWalkPeriod / 1000.f;
+  const Vector2f accelTrans = commandRampParameters.maxAcceleration * dt * 1000.f * period;
+  const Vector2f decelTrans = commandRampParameters.maxDeceleration * dt * 1000.f * period;
+  const float accelRot = commandRampParameters.maxRotationAcceleration * dt * period;
+  const float decelRot = commandRampParameters.maxRotationDeceleration * dt * period;
+
+  Pose2f result;
+  result.translation.x() = rampValue(current.translation.x(), target.translation.x(), accelTrans.x(), decelTrans.x());
+  result.translation.y() = rampValue(current.translation.y(), target.translation.y(), accelTrans.y(), decelTrans.y());
+  result.rotation = rampValue(current.rotation, target.rotation, accelRot, decelRot);
+  return result;
+}
+
 Rangea RERLWalkingEngine::getMaxRotationToStepFactor(const bool isFastWalk, const bool isLeftPhase, const Angle customReduceOffset, const Vector2f& stepRatio)
 {
   // rotation based on y-translation
@@ -636,19 +663,41 @@ RERLWalkPhaseDummy::RERLWalkPhaseDummy(RERLWalkingEngine& engine, Pose2f useStep
     beginInterpolation(2000u); // FIXME make configurable
   }
 
+  // Motion-level command ramping
+  const bool isWalkKick = walkKickStep.currentKick != WalkKicks::none;
+  const bool rampActive = engine.commandRampParameters.active && !isWalkKick;
+  if (rampActive)
+  {
+    const Pose2f rampTarget = standRequested ? Pose2f() : step; // ramp toward zero when a stand is requested
+    float dt = engine.theFrameInfo.getTimeSince(engine.lastRampTime) / 1000.f;
+    dt = std::min(std::max(dt, 0.f), engine.commandRampParameters.maxRampTimeStep);
+    step = engine.rampCommand(engine.lastRampedStep, rampTarget, dt);
+    engine.lastRampedStep = step;
+    engine.lastRampTime = engine.theFrameInfo.time;
+  }
+
   if (standRequested)
   {
-    // Standing is only allowed after we're definitely slow enough to prevent badly falling due to leftover momentum
-    if (slowingDownToStandStartTime &&
-        (engine.theFrameInfo.getTimeSince(slowingDownToStandStartTime) < engine.reboostWalkNNParameters.walkToStandSlowdownMs))
-    {
-      step = Pose2f(0.001f, 0.f);
-      // MotionPhase::walk was already set as default type on MotionPhase initializer
-    }
-    else
+    // Standing is only allowed after we're definitely slow enough to prevent badly falling
+    const bool timeGateOpen = !(slowingDownToStandStartTime &&
+        (engine.theFrameInfo.getTimeSince(slowingDownToStandStartTime) < engine.reboostWalkNNParameters.walkToStandSlowdownMs));
+
+    const float invPeriod = 1.f / (engine.configuredParameters.baseWalkPeriod / 1000.f);
+    const float cmdMag = Vector3f(step.translation.x() * invPeriod / 1000.f,
+                                  step.translation.y() * invPeriod / 1000.f,
+                                  step.rotation * invPeriod).norm();
+    const bool slowedEnough = !rampActive || cmdMag <= engine.reboostWalkNNParameters.zeroCmdThreshold;
+
+    if (timeGateOpen && slowedEnough)
     {
       type = MotionPhase::stand;
       tBase = 0.f;
+      engine.lastRampedStep = Pose2f(); // command is now zero; ramp resumes cleanly when walking again
+    }
+    else if (!rampActive)
+    {
+      step = Pose2f(0.001f, 0.f); // legacy behaviour: keep walking slowly until the time gate opens
+      // MotionPhase::walk was already set as default type on MotionPhase initializer
     }
   }
 
