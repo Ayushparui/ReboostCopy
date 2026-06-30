@@ -82,7 +82,7 @@ void REWhistleDetector::update(Whistle &theWhistle)
   DECLARE_PLOT("module:REWhistleDetector:whistleConfidence");
   DECLARE_PLOT("module:REWhistleDetector:whistleConfidenceThresh");
 
-  bool validAudio = ((theAudioData.samplesCaptured > 0) && (theAudioData.channels >= static_cast<unsigned>(numChannels)));
+  bool validAudio = ((!theAudioData.samples.empty()) && (theAudioData.channels >= static_cast<unsigned>(numChannels)));
 
   /* If not receiving audio input */
   if (!validAudio)

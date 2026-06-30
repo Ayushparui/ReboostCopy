@@ -28,6 +28,7 @@ MODULE(REAudioProvider,
 {,
   REQUIRES(GameState),
   REQUIRES(DamageConfigurationHead),
+
   REQUIRES(AudioData),
   PROVIDES_WITHOUT_MODIFY(AudioData),
   PROVIDES(FrameInfo),
@@ -46,7 +47,8 @@ MODULE(REAudioProvider,
   }),
 });
 
-class REAudioProvider : public REAudioProviderBase {
+class REAudioProvider : public REAudioProviderBase 
+{
 private:
 #ifdef TARGET_ROBOT
   snd_pcm_t* inputDevice = nullptr;
@@ -60,7 +62,8 @@ private:
 
   std::vector<int16_t> audioFramesInt;
   bool setVolume();
-  void signedToFloat(AudioData& audioData);
+
+  void initBuffers(AudioData& audioData);
 
 /* WakeupAPI related elements */
   const uint wakeupAPIBufferSize = 1024;
@@ -71,10 +74,10 @@ private:
   std::vector<std::vector<int16_t>> outputAudioBuffers; /* 4, out 1, out 2, out 3, ref */
 #endif
 
-  unsigned tickWatchDog = 0;
+  unsigned audioTimestamp = 0;
 
   void update(AudioData& audioData) override;
-  void update(FrameInfo& frameInfo) override { frameInfo.time = tickWatchDog; };
+  void update(FrameInfo& frameInfo) override { frameInfo.time = audioTimestamp; };
 
 public:
   REAudioProvider();

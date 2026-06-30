@@ -15,6 +15,7 @@
 #include "Framework/ModuleContainer.h"
 #include "Streaming/Global.h"
 #include "Streaming/Streamable.h"
+#include "TextLogging/TextLogging.h"
 
 #include <algorithm>
 #include <cstring>
@@ -23,6 +24,8 @@
 thread_local LogDataProvider* LogDataProvider::theInstance = nullptr;
 
 MAKE_MODULE(LogDataProvider);
+
+DECL_TLOGGER(tlogger, "LogDataProvider", TextLogging::INFO);
 
 LogDataProvider::LogDataProvider() :
   frameDataComplete(false)
@@ -110,6 +113,9 @@ bool LogDataProvider::handle(MessageQueue::Message message)
 
 void LogDataProvider::readMessage(MessageQueue::Message message, Streamable& representation)
 {
+  // TLOGV(tlogger, "readMessage: id={}, size={}", static_cast<const char *>(TypeRegistry::getEnumName(message.id()) + 2),
+  //       message.size());
+
   if(states[message.id()] != convert)
     message.bin() >> representation;
   else
@@ -164,6 +170,9 @@ bool LogDataProvider::isFrameDataComplete(bool ack)
 
 bool LogDataProvider::handleMessage2(MessageQueue::Message message)
 {
+  TLOGV(tlogger, "readMessage: id={}, size={}",
+        static_cast<const char *>(TypeRegistry::getEnumName(message.id()) + 2), message.size());
+
   switch(message.id())
   {
     case idCameraImage:
@@ -233,6 +242,7 @@ bool LogDataProvider::handleMessage2(MessageQueue::Message message)
       return true;
 
     case idFrameFinished:
+      TLOGV(tlogger, "frameDataComplete -------------------------------------");
       frameDataComplete = true;
       return true;
 
