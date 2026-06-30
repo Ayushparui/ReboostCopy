@@ -17,6 +17,7 @@
 #include "Representations/Perception/FieldPercepts/FieldLines.h"
 #include "Representations/Perception/FieldPercepts/FieldLineIntersections.h"
 #include "Representations/Perception/FieldPercepts/IntersectionsPercept.h"
+#include "Representations/Perception/FieldPercepts/MLIntersectionsPercept.h"
 #include "Representations/Perception/FieldPercepts/PenaltyMarkPercept.h"
 #include "Representations/Perception/FieldPercepts/LinesPercept.h"
 #include "Representations/Perception/ImagePreprocessing/BodyContour.h"
@@ -76,6 +77,25 @@ class UpperFrameInfoProvider : public UpperFrameInfoProviderBase
 };
 
 MAKE_MODULE(UpperFrameInfoProvider);
+
+// MLIntersectionsPercept only ever comes from the single upper camera.
+STREAMABLE_WITH_BASE(UpperMLIntersectionsPercept, MLIntersectionsPercept, {,});
+
+MODULE(PerceptionMLIntersectionsPerceptProvider,
+{,
+  REQUIRES(UpperMLIntersectionsPercept),
+  PROVIDES(MLIntersectionsPercept),
+});
+
+MAKE_MODULE(PerceptionMLIntersectionsPerceptProvider);
+
+class PerceptionMLIntersectionsPerceptProvider : public PerceptionMLIntersectionsPerceptProviderBase
+{
+  void update(MLIntersectionsPercept& theMLIntersectionsPercept) override
+  {
+    theMLIntersectionsPercept = theUpperMLIntersectionsPercept;
+  }
+};
 
 // Define a module that updates a representation with the newer one of both aliases
 #define ALIAS_MODULE(Representation) \
