@@ -10,6 +10,8 @@ vfd worldState cognition:Reset
 vfd worldState perception:RobotPose
 vfd worldState representation:BallPercept:field
 vfd worldState representation:FieldLines:field
+vfd worldState module:LinePerceptor:circlePointField
+vfd worldState module:LinePerceptor:circleCheckPointField
 vfd worldState representation:PenaltyMarkPercept:field
 vfd worldState representation:CenterCircleWithLine:field
 vfd worldState representation:PenaltyMarkWithPenaltyAreaLine:field
