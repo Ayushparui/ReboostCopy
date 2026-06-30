@@ -46,8 +46,18 @@ STREAMABLE(BoosterArmParameters,
 
 STREAMABLE(BoosterCommonSpeedParameters,
 {,
-  (Vector2f) maxAcceleration,  /**< Maximum acceleration of forward and sideways speed at each leg change to ratchet up/down in (mm/s/step). */
+  (Vector2f) maxAcceleration, /**< Maximum acceleration of forward and sideways speed at each leg change to ratchet up/down in (mm/s/step). */
   (Vector2f) maxDeceleration, /**< (Positive) maximum deceleration of forward and sideways speed at each leg change to ratchet up/down in (mm/s/step). */
+});
+
+STREAMABLE(CommandRampParameters,
+{,
+  (bool)(true) active, /**< Enable motion-level ramping (rate limiting) of the body velocity command. */
+  (Vector2f)(Vector2f(3.f, 3.f)) maxAcceleration, /**< Max increase of the linear velocity command magnitude, in (m/s)/s. */
+  (Vector2f)(Vector2f(4.f, 4.f)) maxDeceleration, /**< Max (positive) decrease of the linear velocity command toward zero / on reversal, in (m/s)/s. */
+  (Angle)(360_deg) maxRotationAcceleration, /**< Max increase of the angular velocity command magnitude, in (rad/s)/s. */
+  (Angle)(540_deg) maxRotationDeceleration, /**< Max (positive) decrease of the angular velocity command toward zero / on reversal, in (rad/s)/s. */
+  (float)(0.06f) maxRampTimeStep, /**< Upper clamp on the ramp integration time step [s], guards against large gaps (e.g. resuming from stand). */
 });
 
 STREAMABLE(BoosterStepSizeParameters,
@@ -97,6 +107,7 @@ STREAMABLE(ReboostWalkNNParameters,
   (bool) enablePhaseInputs, /**< Allows you to disable the phase inputs to the model */
   (int) walkToStandSlowdownMs, /**< To allow standing, the robot must walk slow for this time. */
   (Pose2f) slowWalkStepSpeed, /**< Speed values to classify slow walking. This is based on the step size. */
+  (float) zeroCmdThreshold, /**< Command norm (m/s, rad/s) below which we are standing: phase obs zeroed, gait clock frozen. Mirrors training zero_cmd_threshold. */
 });
 
 MODULE(RERLWalkingEngine,
@@ -121,14 +132,15 @@ MODULE(RERLWalkingEngine,
   PROVIDES(WalkingEngineOutput),
   LOADS_PARAMETERS(
   {,
-    (BoosterConfiguredParameters) configuredParameters,     /**< Speed parameters */
-    (BoosterStepSizeParameters) stepSizeParameters,         /**< Step size parameters. */
-    (BoosterCommonSpeedParameters) commonSpeedParameters,   /**< Acceleration parameters. */
-    (BoosterArmParameters) armParameters,                   /**< Arm parameters. */
-    (ReboostWalkNNParameters) reboostWalkNNParameters,      /**< Parameters of the walk neuroal network. */
-    (FrequencyParameters) frequencyParameters,              /**< Frequency parameters. */
-    (BallNetworkParameters) ballNetworkParameters,          /**< Ball parameters for the network. */
-    (BrakingModelParameters) brakingModelParameters,        /**< Empirical braking-distance model (forwarded to WalkingEngineOutput). */
+    (BoosterConfiguredParameters) configuredParameters,   /**< Speed parameters */
+    (BoosterStepSizeParameters) stepSizeParameters,       /**< Step size parameters. */
+    (BoosterCommonSpeedParameters) commonSpeedParameters, /**< Acceleration parameters. */
+    (BoosterArmParameters) armParameters,                 /**< Arm parameters. */
+    (ReboostWalkNNParameters) reboostWalkNNParameters,    /**< Parameters of the walk neuroal network. */
+    (FrequencyParameters) frequencyParameters,            /**< Frequency parameters. */
+    (BallNetworkParameters) ballNetworkParameters,        /**< Ball parameters for the network. */
+    (BrakingModelParameters) brakingModelParameters,      /**< Empirical braking-distance model (forwarded to WalkingEngineOutput). */
+    (CommandRampParameters) commandRampParameters,        /**< Motion-level velocity-command ramping (rate limiting). */
   }),
 });
 
@@ -147,7 +159,13 @@ public:
   std::vector<Joints::Joint> boosterJoints;
   std::vector<Joints::Joint> boosterWaistJoints;
   std::vector<Joints::Joint> naoJoints;
+
+  Pose2f lastRampedStep;     /**< Last ramped step target. */
+  unsigned lastRampTime = 0; /**< Frame time [ms] the ramp was last advanced. */
+
+  Pose2f rampCommand(const Pose2f& current, const Pose2f& target, const float dt) const;
 private:
+  float rampValue(const float current, const float target, const float maxAccelDelta, const float maxDecelDelta) const;
 
   void update(WalkStepData& walkStepData) override;
   void update(StandGenerator& standGenerator) override;
@@ -197,6 +215,7 @@ public:
   float tWalk = 0.f;
   float frequency = 0.f;
   float rawFrequency = 0.f;
+  bool standing = false; ///< command below zeroCmdThreshold -> stand (phase obs zeroed, gait clock frozen)
 private:
   bool isDone(const MotionRequest& motionRequest) const override;
   void calcJoints(const MotionRequest& motionRequest, JointRequest& jointRequest, Pose2f& odometryOffset, MotionInfo& motionInfo) override;
