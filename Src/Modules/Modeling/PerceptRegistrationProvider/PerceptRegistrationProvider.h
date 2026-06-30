@@ -17,6 +17,7 @@
 #include "Representations/Perception/FieldPercepts/CirclePercept.h"
 #include "Representations/Perception/FieldPercepts/FieldLineIntersections.h"
 #include "Representations/Perception/FieldPercepts/FieldLines.h"
+#include "Representations/Perception/FieldPercepts/MLIntersectionsPercept.h"
 #include "Representations/Perception/FieldPercepts/PenaltyMarkPercept.h"
 #include "Representations/Perception/FieldFeatures/CenterCircleWithLine.h"
 #include "Representations/Perception/FieldFeatures/PenaltyMarkWithPenaltyAreaLine.h"
@@ -30,6 +31,7 @@ MODULE(PerceptRegistrationProvider,
   REQUIRES(FieldDimensions),
   REQUIRES(FieldLineIntersections),
   REQUIRES(FieldLines),
+  REQUIRES(MLIntersectionsPercept),
   REQUIRES(PenaltyMarkPercept),
   REQUIRES(PenaltyMarkWithPenaltyAreaLine),
   REQUIRES(PenaltyAreaAndGoalArea),
@@ -201,6 +203,16 @@ private:
    * @return true, if a matching intersection was found
    */
   bool getCorrespondingIntersectionNoDirections(const Pose2f& pose, const FieldLineIntersections::Intersection& intersectionPercept, Vector2f& intersectionWorldModel) const;
+
+  /**
+   * Determine, if an ML-detected intersection matches one of the intersections on the field.
+   * Position and type are checked; direction is not checked (ML detections carry no direction information).
+   * @param pose The assumed pose of the robot
+   * @param intersection The ML-detected intersection (position in robot coordinates)
+   * @param intersectionWorldModel The position of the matching intersection (in field coordinates)
+   * @return true, if a matching intersection was found
+   */
+  bool getCorrespondingMLIntersection(const Pose2f& pose, const MLIntersectionsPercept::Intersection& intersection, Vector2f& intersectionWorldModel) const;
 
   /**
    * L and T intersections are stored in lists depending on their direction (0,90,180,270) on the field.

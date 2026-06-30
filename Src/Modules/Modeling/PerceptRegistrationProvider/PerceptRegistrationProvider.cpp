@@ -145,6 +145,7 @@ void PerceptRegistrationProvider::preprocessMeasurements(PerceptRegistration& pe
   if(theCirclePercept.wasSeen)
     perceptRegistration.totalNumberOfAvailableLandmarks++;
   perceptRegistration.totalNumberOfAvailableLandmarks += static_cast<int>(theFieldLineIntersections.intersections.size());
+  perceptRegistration.totalNumberOfAvailableLandmarks += static_cast<int>(theMLIntersectionsPercept.intersections.size());
   // --- Lines:
   perceptRegistration.totalNumberOfAvailableLines = static_cast<int>(theFieldLines.lines.size());
 }
@@ -237,6 +238,19 @@ void PerceptRegistrationProvider::registerLandmarks(const Pose2f& pose, std::vec
     bool intersectionFound = useIntersectionDirections ? getCorrespondingIntersection(pose, intersection, intersectionInWorldModel)
                              : getCorrespondingIntersectionNoDirections(pose, intersection, intersectionInWorldModel);
     if(intersectionFound)
+    {
+      RegisteredLandmark newLandmark;
+      newLandmark.model = intersectionInWorldModel;
+      newLandmark.percept = intersection.pos;
+      newLandmark.covPercept = intersection.cov;
+      landmarks.push_back(newLandmark);
+    }
+  }
+  // Register ML-detected intersections (no direction checking — ML detections carry no line directions):
+  for(const auto& intersection : theMLIntersectionsPercept.intersections)
+  {
+    Vector2f intersectionInWorldModel;
+    if(getCorrespondingMLIntersection(pose, intersection, intersectionInWorldModel))
     {
       RegisteredLandmark newLandmark;
       newLandmark.model = intersectionInWorldModel;
@@ -417,6 +431,39 @@ bool PerceptRegistrationProvider::getCorrespondingIntersectionNoDirections(const
       intersectionWorldModel = closestIntersectionWorld;
       return true;
     }
+  }
+  return false;
+}
+
+bool PerceptRegistrationProvider::getCorrespondingMLIntersection(const Pose2f& pose, const MLIntersectionsPercept::Intersection& intersection, Vector2f& intersectionWorldModel) const
+{
+  const std::vector<Vector2f>* intersectionList = nullptr;
+  if(intersection.type == MLIntersectionsPercept::Intersection::L)
+    intersectionList = &lIntersectionsWorld;
+  else if(intersection.type == MLIntersectionsPercept::Intersection::T)
+    intersectionList = &tIntersectionsWorld;
+  else if(intersection.type == MLIntersectionsPercept::Intersection::X)
+    intersectionList = &xIntersectionsWorld;
+
+  if(intersectionList == nullptr || intersectionList->empty())
+    return false;
+
+  const Vector2f perceptWorld = pose * intersection.pos;
+  Vector2f closestIntersectionWorld = intersectionList->at(0);
+  float sqrDistanceToClosest = (perceptWorld - closestIntersectionWorld).squaredNorm();
+  for(unsigned int i = 1; i < intersectionList->size(); ++i)
+  {
+    const float sqrDistance = (perceptWorld - intersectionList->at(i)).squaredNorm();
+    if(sqrDistance < sqrDistanceToClosest)
+    {
+      sqrDistanceToClosest = sqrDistance;
+      closestIntersectionWorld = intersectionList->at(i);
+    }
+  }
+  if(sqrDistanceToClosest < maxIntersectionDeviation * maxIntersectionDeviation)
+  {
+    intersectionWorldModel = closestIntersectionWorld;
+    return true;
   }
   return false;
 }

@@ -9,18 +9,20 @@
 #include "Debugging/DebugDrawings.h"
 #include "Debugging/DebugDrawings3D.h"
 #include "Math/RotationMatrix.h"
+#include "Platform/SystemCall.h"
 
 MAKE_MODULE(CameraMatrixProvider);
 
 void CameraMatrixProvider::update(CameraMatrix& cameraMatrix)
 {
   cameraMatrix.computeCameraMatrix(theTorsoMatrix, theRobotCameraMatrix, theCameraCalibration);
-  cameraMatrix.isValid = theTorsoMatrix.isValid && theMotionInfo.isMotionStable &&
-                         (theFallDownState.state == FallDownState::upright ||
-                          theFallDownState.state == FallDownState::squatting) &&
-                          theFrameInfo.getTimeSince(theJointAngles.timestamp) < 500 &&
-                         (!theGameState.isPenalized() ||
-                          theGameState.playerState == GameState::penalizedMotionInSet); // ||
+  cameraMatrix.isValid = SystemCall::getMode() == SystemCall::simulatedRobot ||
+                         (theTorsoMatrix.isValid && theMotionInfo.isMotionStable &&
+                          (theFallDownState.state == FallDownState::upright ||
+                           theFallDownState.state == FallDownState::squatting) &&
+                           theFrameInfo.getTimeSince(theJointAngles.timestamp) < 500 &&
+                          (!theGameState.isPenalized() ||
+                           theGameState.playerState == GameState::penalizedMotionInSet)); // ||
                           // theGameState.playerState == GameState::penalizedIllegalMotionInStandby);
 
   DEBUG_DRAWING("module:CameraMatrixProvider:calibrationHelper", "drawingOnImage") drawFieldLines(cameraMatrix);
