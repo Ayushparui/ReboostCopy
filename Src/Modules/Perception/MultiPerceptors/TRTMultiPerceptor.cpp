@@ -48,8 +48,8 @@ TRTMultiPerceptor::TRTMultiPerceptor()
 #endif
 }
 
-/* Converts YUYV camera image to BGR CHW float32 normalised to [0,1].
-   Layout: [B_plane | G_plane | R_plane], each H×W values. */
+/* Converts YUYV camera image to RGB CHW float32 normalised to [0,1].
+   Layout: [R_plane | G_plane | B_plane], each H×W values. */
 void TRTMultiPerceptor::preprocess()
 {
   const int W = inputWidth;
@@ -57,16 +57,16 @@ void TRTMultiPerceptor::preprocess()
 
 #ifdef BUILD_BOOSTER
   std::vector<float>& buf = trt.hostBuffer("images");
-  float* planeB = buf.data();
+  float* planeR = buf.data();
   float* planeG = buf.data() + H * W;
-  float* planeR = buf.data() + 2 * H * W;
+  float* planeB = buf.data() + 2 * H * W;
 #else
   // NeuralNetworkONNX::CompiledNN::Tensor is a span whose data() points directly
   // into the pre-allocated ORT input tensor — safe to write before apply().
   auto inTensor = network.input(0);
-  float* planeB = inTensor.data();
+  float* planeR = inTensor.data();
   float* planeG = inTensor.data() + H * W;
-  float* planeR = inTensor.data() + 2 * H * W;
+  float* planeB = inTensor.data() + 2 * H * W;
 #endif
 
   for(int y = 0; y < H; ++y)
@@ -130,15 +130,13 @@ bool TRTMultiPerceptor::apply()
   return true;
 }
 
-void TRTMultiPerceptor::update(BallSpots& ballSpots)
+void TRTMultiPerceptor::update(BallPercept& ballPercept)
 {
-  ballSpots.ballSpots.clear();
-  ballSpots.firstSpotIsPredicted = false;
+  ballPercept.status = BallPercept::notSeen;
 
   if(!apply())
     return;
 
-  // Output shape: [1, max_det, 6] — each row: [x1, y1, x2, y2, conf, cls_id, fallen?, [Prob. dist. ]]
   static constexpr int stride = 6;
 #ifdef BUILD_BOOSTER
   const std::vector<float>& outBuf = trt.hostBuffer("output0");
@@ -150,36 +148,42 @@ void TRTMultiPerceptor::update(BallSpots& ballSpots)
   const int maxDet = static_cast<int>(outTensor.size()) / stride;
 #endif
 
+  DECLARE_DEBUG_DRAWING("module:TRTMultiPerceptor:ball:image", "drawingOnImage");
+
+  float bestConf = ballConfidenceThreshold;
+
   for(int i = 0; i < maxDet; ++i)
   {
     const float conf = out[i * stride + 4];
     const int   cls  = static_cast<int>(std::round(out[i * stride + 5]));
 
-    if(cls != ballClassId || conf < ballConfidenceThreshold)
+    if(cls != ballClassId || conf < bestConf)
       continue;
 
     const float x1 = out[i * stride + 0];
     const float y1 = out[i * stride + 1];
     const float x2 = out[i * stride + 2];
     const float y2 = out[i * stride + 3];
-    
-    const int cx = static_cast<int>((x1 + x2) * 0.5f);
-    const int cy = static_cast<int>((y1 + y2) * 0.5f);
+    const Vector2f centre((x1 + x2) * 0.5f, (y1 + y2) * 0.5f);
+    const float radiusInImage = ((x2 - x1) + (y2 - y1)) * 0.25f;
 
-    ballSpots.addBallSpot(cx, cy);
-    DEBUG_DRAWING("representation:BallSpots:image", "drawingOnImage")
-    {
-      const int x1_px = static_cast<int>(x1);
-      const int y1_px = static_cast<int>(y1);
-      const int x2_px = static_cast<int>(x2);
-      const int y2_px = static_cast<int>(y2);
-      RECTANGLE("representation:BallSpots:image", x1_px, y1_px, x2_px, y2_px, 2,
-                Drawings::solidPen, ColorRGBA::cyan);
-      CIRCLE("representation:BallSpots:image", cx, cy, 15, 2, Drawings::solidPen, ColorRGBA::yellow,
-             Drawings::noBrush, ColorRGBA::yellow);
-      LINE("representation:BallSpots:image", cx - 5, cy, cx + 5, cy, 1, Drawings::solidPen, ColorRGBA::red);
-      LINE("representation:BallSpots:image", cx, cy - 5, cx, cy + 5, 1, Drawings::solidPen, ColorRGBA::red);
-    }
+    Vector2f posOnField;
+    Matrix2f cov;
+    if(!theMeasurementCovariance.transformWithCovLegacy(centre, theBallSpecification.radius, Vector2f(0.04f, 0.06f), posOnField, cov))
+      continue;
+
+    bestConf = conf;
+    ballPercept.positionInImage = centre;
+    ballPercept.radiusInImage = radiusInImage;
+    ballPercept.positionOnField = posOnField;
+    ballPercept.radiusOnField = theBallSpecification.radius;
+    ballPercept.covarianceOnField = cov;
+    ballPercept.status = BallPercept::seen;
+
+    RECTANGLE("module:TRTMultiPerceptor:ball:image",
+              static_cast<int>(x1), static_cast<int>(y1),
+              static_cast<int>(x2), static_cast<int>(y2),
+              2, Drawings::solidPen, ColorRGBA::cyan);
   }
 }
 
@@ -233,5 +237,174 @@ void TRTMultiPerceptor::update(ObstaclesImagePercept& obstaclesImagePercept)
                 obs.left, obs.top, obs.right, obs.bottom, 2,
                 Drawings::solidPen, ColorRGBA::orange);
     }
+  }
+}
+
+void TRTMultiPerceptor::update(MLIntersectionsPercept& mlIntersectionsPercept)
+{
+  mlIntersectionsPercept.intersections.clear();
+
+  if(!apply())
+    return;
+
+  static constexpr int stride = 6;
+#ifdef BUILD_BOOSTER
+  const std::vector<float>& outBuf = trt.hostBuffer("output0");
+  const float* out = outBuf.data();
+  const int maxDet = static_cast<int>(outBuf.size()) / stride;
+#else
+  const auto outTensor = network.output(0);
+  const float* out = outTensor.data();
+  const int maxDet = static_cast<int>(outTensor.size()) / stride;
+#endif
+
+  DECLARE_DEBUG_DRAWING("module:TRTMultiPerceptor:intersections:image", "drawingOnImage");
+
+  for(int i = 0; i < maxDet; ++i)
+  {
+    const float conf = out[i * stride + 4];
+    const int   cls  = static_cast<int>(std::round(out[i * stride + 5]));
+
+    if(conf < intersectionConfidenceThreshold)
+      continue;
+
+    MLIntersectionsPercept::Intersection::IntersectionType type;
+    if((lIntersectionClassId >= 0 && cls == lIntersectionClassId) ||
+       (cornerClassId >= 0 && cls == cornerClassId))
+      type = MLIntersectionsPercept::Intersection::L;
+    else if(tIntersectionClassId >= 0 && cls == tIntersectionClassId)
+      type = MLIntersectionsPercept::Intersection::T;
+    else if(xIntersectionClassId >= 0 && cls == xIntersectionClassId)
+      type = MLIntersectionsPercept::Intersection::X;
+    else
+      continue;
+
+    const float x1 = out[i * stride + 0];
+    const float y1 = out[i * stride + 1];
+    const float x2 = out[i * stride + 2];
+    const float y2 = out[i * stride + 3];
+    const Vector2f centre((x1 + x2) * 0.5f, (y1 + y2) * 0.5f);
+
+    Vector2f posOnField;
+    Matrix2f cov;
+    if(!theMeasurementCovariance.transformWithCovLegacy(centre, 0.f, Vector2f(0.04f, 0.06f), posOnField, cov))
+      continue;
+
+    mlIntersectionsPercept.intersections.emplace_back(type, posOnField, cov);
+
+    const ColorRGBA colour = type == MLIntersectionsPercept::Intersection::L ? ColorRGBA::green
+                           : type == MLIntersectionsPercept::Intersection::T ? ColorRGBA::yellow
+                                                                             : ColorRGBA::red;
+    RECTANGLE("module:TRTMultiPerceptor:intersections:image",
+              static_cast<int>(x1), static_cast<int>(y1),
+              static_cast<int>(x2), static_cast<int>(y2),
+              2, Drawings::solidPen, colour);
+  }
+}
+
+void TRTMultiPerceptor::update(PenaltyMarkPercept& penaltyMarkPercept)
+{
+  penaltyMarkPercept.wasSeen = false;
+
+  if(!apply() || penaltyMarkClassId < 0)
+    return;
+
+  static constexpr int stride = 6;
+#ifdef BUILD_BOOSTER
+  const std::vector<float>& outBuf = trt.hostBuffer("output0");
+  const float* out = outBuf.data();
+  const int maxDet = static_cast<int>(outBuf.size()) / stride;
+#else
+  const auto outTensor = network.output(0);
+  const float* out = outTensor.data();
+  const int maxDet = static_cast<int>(outTensor.size()) / stride;
+#endif
+
+  DECLARE_DEBUG_DRAWING("module:TRTMultiPerceptor:penaltyMark:image", "drawingOnImage");
+
+  float bestConf = penaltyMarkConfidenceThreshold;
+
+  for(int i = 0; i < maxDet; ++i)
+  {
+    const float conf = out[i * stride + 4];
+    const int   cls  = static_cast<int>(std::round(out[i * stride + 5]));
+
+    if(cls != penaltyMarkClassId || conf < bestConf)
+      continue;
+
+    const float x1 = out[i * stride + 0];
+    const float y1 = out[i * stride + 1];
+    const float x2 = out[i * stride + 2];
+    const float y2 = out[i * stride + 3];
+    const Vector2f centre((x1 + x2) * 0.5f, (y1 + y2) * 0.5f);
+
+    Vector2f posOnField;
+    Matrix2f cov;
+    if(!theMeasurementCovariance.transformWithCovLegacy(centre, 0.f, Vector2f(0.04f, 0.06f), posOnField, cov))
+      continue;
+
+    bestConf = conf;
+    penaltyMarkPercept.positionInImage = centre.cast<int>();
+    penaltyMarkPercept.positionOnField = posOnField;
+    penaltyMarkPercept.covarianceOnField = cov;
+    penaltyMarkPercept.wasSeen = true;
+
+    RECTANGLE("module:TRTMultiPerceptor:penaltyMark:image",
+              static_cast<int>(x1), static_cast<int>(y1),
+              static_cast<int>(x2), static_cast<int>(y2),
+              2, Drawings::solidPen, ColorRGBA::magenta);
+  }
+}
+
+void TRTMultiPerceptor::update(MLCirclePercept& mlCirclePercept)
+{
+  mlCirclePercept.wasSeen = false;
+
+  if(!apply() || centreCircleClassId < 0)
+    return;
+
+  static constexpr int stride = 6;
+#ifdef BUILD_BOOSTER
+  const std::vector<float>& outBuf = trt.hostBuffer("output0");
+  const float* out = outBuf.data();
+  const int maxDet = static_cast<int>(outBuf.size()) / stride;
+#else
+  const auto outTensor = network.output(0);
+  const float* out = outTensor.data();
+  const int maxDet = static_cast<int>(outTensor.size()) / stride;
+#endif
+
+  DECLARE_DEBUG_DRAWING("module:TRTMultiPerceptor:centreCircle:image", "drawingOnImage");
+
+  float bestConf = centreCircleConfidenceThreshold;
+
+  for(int i = 0; i < maxDet; ++i)
+  {
+    const float conf = out[i * stride + 4];
+    const int   cls  = static_cast<int>(std::round(out[i * stride + 5]));
+
+    if(cls != centreCircleClassId || conf < bestConf)
+      continue;
+
+    const float x1 = out[i * stride + 0];
+    const float y1 = out[i * stride + 1];
+    const float x2 = out[i * stride + 2];
+    const float y2 = out[i * stride + 3];
+    const Vector2f centre((x1 + x2) * 0.5f, (y1 + y2) * 0.5f);
+
+    Vector2f posOnField;
+    Matrix2f cov;
+    if(!theMeasurementCovariance.transformWithCovLegacy(centre, 0.f, Vector2f(0.04f, 0.06f), posOnField, cov))
+      continue;
+
+    bestConf = conf;
+    mlCirclePercept.pos = posOnField;
+    mlCirclePercept.cov = cov;
+    mlCirclePercept.wasSeen = true;
+
+    RECTANGLE("module:TRTMultiPerceptor:centreCircle:image",
+              static_cast<int>(x1), static_cast<int>(y1),
+              static_cast<int>(x2), static_cast<int>(y2),
+              2, Drawings::solidPen, ColorRGBA::blue);
   }
 }
