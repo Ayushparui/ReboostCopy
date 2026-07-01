@@ -57,16 +57,14 @@ using namespace HandleBallAtOwnGoalPost;
 using enum KickInfo::KickType;
 
 option((SkillBehaviorControl) HandleBallAtOwnGoalPost,
-       defs((float)(500.f) radiusHandlingArea, /**< The radius of the area around the goal posts which shall receive special handling. */
-            (float)(1.2f) hysteresisMultiplierHandlingArea, /**< If this card was previously active, the radius is multiplied by this factor. */
-            (float)(100.f) ballGoalPostTangentOffset, /**< This amount of space should fit between the goal post and the ball. */
-            (float)(50.f) robotGoalPostTangentOffset, /**< This amount of space should fit between the goal post and the robot. */
-            (float)(500.f) hysteresisDecisionPenalty, /**< Changing the decision of the previous frame results in this penalty to the time. */
-            (std::vector<KickInfo::KickType>)({walkForwardsLeft, walkForwardsRight,
-                                               walkForwardsLeftLong, walkForwardsRightLong,
-                                               walkTurnLeftFootToRight, walkTurnRightFootToLeft}) availableKicks, /**< The kicks that may be selected. */
-            (float)(600.f) maxObstacleDistanceToBallForRiskyKicks, /**< If an obstacle is at least this close to the ball, allow for risky kicks. * */
-            (Angle)(5_deg) distanceToSectorBorder), /**< Buffer size for sector used for the kick direction, to determine the precision range. */
+       load((float) radiusHandlingArea, /**< The radius of the area around the goal posts which shall receive special handling. */
+            (float) hysteresisMultiplierHandlingArea, /**< If this card was previously active, the radius is multiplied by this factor. */
+            (float) ballGoalPostTangentOffset, /**< This amount of space should fit between the goal post and the ball. */
+            (float) robotGoalPostTangentOffset, /**< This amount of space should fit between the goal post and the robot. */
+            (float) hysteresisDecisionPenalty, /**< Changing the decision of the previous frame results in this penalty to the time. */
+            (std::vector<KickInfo::KickType>) availableKicks, /**< The kicks that may be selected. */
+            (float) maxObstacleDistanceToBallForRiskyKicks, /**< If an obstacle is at least this close to the ball, allow for risky kicks. * */
+            (Angle) distanceToSectorBorder), /**< Buffer size for sector used for the kick direction, to determine the precision range. */
        vars((std::array<bool, Arms::numOfArms>)({false, false}) armWasBack, /**< Whether the arm was back in the previous frame. */
             (KickInfo::KickType)(KickInfo::numOfKickTypes) lastKickType, /**< The kick type that has been selected in the previous frame. */
             (std::array<ContourAngleOffsets, KickInfo::numOfKickTypes>)(init(theKickInfo)) contourAngleOffsets))

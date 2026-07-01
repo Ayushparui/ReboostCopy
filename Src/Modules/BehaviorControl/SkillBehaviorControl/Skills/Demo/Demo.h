@@ -9,6 +9,9 @@
 /** This skill makes the robot go to a ball and kick it for public demos. */
 option(DemoGoToBallAndKick);
 
+/** This skill makes the robot go to a ball and kick it with the K1's RL-trained kick for public demos. */
+option(DemoGoToBallAndKickK1);
+
 /** This skill makes the robot pose for public demos. */
 option(DemoPose);
 
@@ -25,3 +28,6 @@ option(DemoWave);
 
 /** This skill makes the robot play "soccer" in a public demo. */
 option(DemoSoccer);
+
+/** This skill makes the K1 play "soccer" in a public demo, using its RL-trained kick. */
+option(DemoSoccerK1);

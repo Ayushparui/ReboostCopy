@@ -46,8 +46,8 @@ STREAMABLE(KickInfo,
     walkForwardsRightAlternative,
     walkForwardsLeftAlternative,
 
-    // newKick is a placeholder
-    newKick,
+    standRLK1KickLongRight,
+    standRLK1KickLongLeft,
   });
 
   STREAMABLE(Kick,
@@ -110,6 +110,10 @@ STREAMABLE(KickInfo,
         return KickInfo::walkForwardsLeftAlternative;
       case KickInfo::walkForwardsLeftAlternative:
         return KickInfo::walkForwardsRightAlternative;
+      case KickInfo::standRLK1KickLongRight:
+        return KickInfo::standRLK1KickLongLeft;
+      case KickInfo::standRLK1KickLongLeft:
+        return KickInfo::standRLK1KickLongRight;
       default:
       {
         FAIL("Unknown kick type.");

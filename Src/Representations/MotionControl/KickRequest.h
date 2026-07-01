@@ -52,7 +52,8 @@ STREAMABLE(KickRequest,
     kickForwardFast,
     kickForwardFastLong,
     // kicks up to here are loaded by the KickEngine
-    newKick,
+    standRLK1KickLongRight,
+    standRLK1KickLongLeft,
     none,
   });
 

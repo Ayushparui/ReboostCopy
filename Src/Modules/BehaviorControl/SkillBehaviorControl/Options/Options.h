@@ -16,6 +16,7 @@ option(HandleFastestWalkLeaderboard);
 option(HandleGameState);
 option(HandleGoalkeeperCatchBall);
 option(HandleIllegalAreas);
+option(HandleK1BallKickDemo);
 option(HandleMostPassesLeaderboard);
 option(HandlePenaltyKick);
 option(HandlePenaltyShootout);

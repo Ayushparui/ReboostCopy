@@ -2,11 +2,22 @@
 #include "Tools/BehaviorControl/WalkSpeedConversion.h"
 
 option((SkillBehaviorControl) PenaltyTaker,
+       load((std::vector<KickInfo::KickType>) allowedKicks), /**< The kicks that may be used to take the penalty shot. */
        vars((std::array<unsigned, 3>)({}) obstacleCellTimestamps)) /**< The timestamps when an obstacles was in each cell. */
 {
   const float obstacleCenterThreshold = 180.f; // Obstacles closer than this to the goal center are considered to be in the goal center.
   const int obstacleCenterPriority = 500; // If an obstacle in the goal center has been seen within this duration, all other obstacles are ignored.
   const int obstacleMaxAge = 1000; // Obstacles older than this are ignored.
+
+  // Picks the allowed kick for the given leg, falling back to whatever is allowed if there is no kick for that leg
+  // (e.g. on platforms like K1 that currently only have a single, right-foot-only kick).
+  const auto findKickForLeg = [&](Legs::Leg leg) -> KickInfo::KickType
+  {
+    for(KickInfo::KickType kick : allowedKicks)
+      if(theKickInfo[kick].kickLeg == leg)
+        return kick;
+    return allowedKicks.front();
+  };
 
   // As long as there is an obstacle in the center of the goal, percepts in the corners will be ignored.
   const bool hasCenterObstacle = theFrameInfo.getTimeSince(obstacleCellTimestamps[1]) < obstacleCenterPriority;
@@ -91,9 +102,9 @@ option((SkillBehaviorControl) PenaltyTaker,
                           theBehaviorParameters.penaltyStrikerAngleToLeftPostOffset;
 
       // The right foots kick direction deviates to the right -> more to the middle of the goal. The left to the left -> goal post. We do not want to hit the goal post!
-      KickInfo::KickType kickType = KickInfo::forwardFastRightLong;
+      KickInfo::KickType kickType = findKickForLeg(Legs::right);
       if(theDamageConfigurationBody.sides[Legs::left].weakLeg && !theDamageConfigurationBody.sides[Legs::right].weakLeg)
-        kickType = KickInfo::forwardFastLeftLong;
+        kickType = findKickForLeg(Legs::left);
 
       const Pose2f walkingSpeedRatio = WalkSpeedConversion::convertSpeedRatio(ReduceWalkSpeedType::slow, Pose2f(1.f, 1.f, 1.f), Pose2f(1.f, 1.f, 1.f), theFrameInfo, theGameState, theFieldBall, theWalkingEngineOutput);
 
@@ -124,9 +135,9 @@ option((SkillBehaviorControl) PenaltyTaker,
                           theBehaviorParameters.penaltyStrikerAngleToRightPostOffset;
 
       // The left foots kick direction deviates to the left -> more to the middle of the goal. The right to the right -> goal post. We do not want to hit the goal post!
-      KickInfo::KickType kickType = KickInfo::forwardFastLeftLong;
+      KickInfo::KickType kickType = findKickForLeg(Legs::left);
       if(theDamageConfigurationBody.sides[Legs::right].weakLeg && !theDamageConfigurationBody.sides[Legs::left].weakLeg)
-        kickType = KickInfo::forwardFastRightLong;
+        kickType = findKickForLeg(Legs::right);
 
       const Pose2f walkingSpeedRatio = WalkSpeedConversion::convertSpeedRatio(ReduceWalkSpeedType::slow, Pose2f(1.f, 1.f, 1.f), Pose2f(1.f, 1.f, 1.f), theFrameInfo, theGameState, theFieldBall, theWalkingEngineOutput);
 
