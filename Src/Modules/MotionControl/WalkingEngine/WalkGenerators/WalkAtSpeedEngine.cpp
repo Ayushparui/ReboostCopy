@@ -76,7 +76,5 @@ std::unique_ptr<MotionPhase> WalkAtSpeedEngine::createPhase(const Pose2f& walkTa
 
   stepTarget.translation.x() = walkSpeedScaled.translation.x() >= 0.f ? frontLeft.x() : backRight.x();
   stepTarget.translation.y() = walkSpeedScaled.translation.y() >= 0.f ? frontLeft.y() : backRight.y();
-  if(isLeftPhase == (stepTarget.translation.y() < 0.f))
-    stepTarget.translation.y() = 0.f;
   return theWalkGenerator.createPhase(stepTarget, lastPhase, 0.f);
 }

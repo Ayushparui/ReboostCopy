@@ -924,13 +924,6 @@ void RERLWalkPhaseDummy::calcJoints(const MotionRequest&, JointRequest& jointReq
     }
     standTarget = nextTarget;
     // requestAtStandStart.angles = jointRequest.angles;
-    if(SystemCall::getMode() != SystemCall::simulatedRobot && type == MotionPhase::stand)
-    {
-      jointRequest.stiffnessData.stiffnesses[Joints::lAnklePitch] = 50;
-      jointRequest.stiffnessData.stiffnesses[Joints::lAnkleRoll] = 50;
-      jointRequest.stiffnessData.stiffnesses[Joints::rAnklePitch] = 50;
-      jointRequest.stiffnessData.stiffnesses[Joints::rAnkleRoll] = 50;
-    }
   }
 
   motionInfo.isMotionStable = true;
