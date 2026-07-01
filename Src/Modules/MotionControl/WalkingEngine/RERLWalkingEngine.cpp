@@ -651,6 +651,10 @@ RERLWalkPhaseDummy::RERLWalkPhaseDummy(RERLWalkingEngine& engine, Pose2f useStep
     // rawFrequency feeds the policy's previous frequency output back as the observation (as in sim).
     rawFrequency = lastWalkPhase.rawFrequency;
     frequency = lastWalkPhase.frequency;
+    armRecoveryStartTime = lastWalkPhase.armRecoveryStartTime;
+    armRecoveryElbowYawDuration = lastWalkPhase.armRecoveryElbowYawDuration;
+    armRecoveryArmDuration = lastWalkPhase.armRecoveryArmDuration;
+    armRecoveryStartAngles = lastWalkPhase.armRecoveryStartAngles;
 
     if (lastPhase.type == MotionPhase::stand)
       tBase = engine.theWalkGenerator.isNextLeftPhase(lastPhase, useStepTarget) ? 0.f : 0.5f;
@@ -661,6 +665,35 @@ RERLWalkPhaseDummy::RERLWalkPhaseDummy(RERLWalkingEngine& engine, Pose2f useStep
   else if (lastPhase.type == MotionPhase::prepare)
   {
     beginInterpolation(2000u); // FIXME make configurable
+  }
+  else if(engine.armRecoveryParameters.active)
+  {
+    auto getAngle = [&](Joints::Joint j) -> Angle
+    {
+      return engine.theJointRequest.stiffnessData.stiffnesses[j] > 0
+             ? engine.theJointRequest.angles[j]
+             : engine.theJointAngles.angles[j];
+    };
+
+    const Angle threshold = engine.armRecoveryParameters.deviationThreshold;
+    const bool deviated = (
+      (std::abs(getAngle(Joints::lShoulderPitch) - engine.armParameters.armShoulderPitch) > threshold)
+      || (std::abs(getAngle(Joints::lShoulderRoll) - engine.armParameters.armShoulderRoll) > threshold)
+      || (std::abs(getAngle(Joints::lElbowYaw) - engine.armParameters.armElbowYaw) > threshold)
+      || (std::abs(getAngle(Joints::lElbowRoll) - (-30_deg)) > threshold)
+      || (std::abs(getAngle(Joints::rShoulderPitch) - engine.armParameters.armShoulderPitch) > threshold)
+      || (std::abs(getAngle(Joints::rShoulderRoll) - (-engine.armParameters.armShoulderRoll)) > threshold)
+      || (std::abs(getAngle(Joints::rElbowYaw) - (-engine.armParameters.armElbowYaw)) > threshold)
+      || (std::abs(getAngle(Joints::rElbowRoll) - 30_deg) > threshold)
+    );
+    if(deviated)
+    {
+      armRecoveryStartTime = engine.theFrameInfo.time;
+      armRecoveryElbowYawDuration = engine.armRecoveryParameters.elbowYawDuration;
+      armRecoveryArmDuration = engine.armRecoveryParameters.fullArmDuration;
+      FOREACH_ENUM(Joints::Joint, joint)
+        armRecoveryStartAngles.angles[joint] = getAngle(joint);
+    }
   }
 
   // Motion-level command ramping
@@ -873,18 +906,27 @@ void RERLWalkPhaseDummy::calcJoints(const MotionRequest&, JointRequest& jointReq
 
   jointRequest.stiffnessData.stiffnesses.fill(100);
 
-  jointRequest.angles[Joints::lShoulderPitch] = engine.armParameters.armShoulderPitch + engine.theRobotModel.soleLeft.translation.x() * engine.armParameters.armShoulderPitchFactor / 1000.f;
-  jointRequest.angles[Joints::lShoulderRoll] = engine.armParameters.armShoulderRoll + std::abs(engine.theRobotModel.soleLeft.translation.y()) * engine.armParameters.armShoulderRollIncreaseFactor / 1000.f;
-  jointRequest.angles[Joints::lElbowYaw] = engine.armParameters.armElbowYaw;
-  jointRequest.angles[Joints::lElbowRoll] = -30_deg; // FIXME - was 0_deg - decide which is correct
-  jointRequest.angles[Joints::lWristYaw] = -90_deg;
-  jointRequest.angles[Joints::lHand] = 0.f;
-  jointRequest.angles[Joints::rShoulderPitch] = engine.armParameters.armShoulderPitch + engine.theRobotModel.soleRight.translation.x() * engine.armParameters.armShoulderPitchFactor / 1000.f;
-  jointRequest.angles[Joints::rShoulderRoll] = -engine.armParameters.armShoulderRoll - std::abs(engine.theRobotModel.soleRight.translation.y()) * engine.armParameters.armShoulderRollIncreaseFactor / 1000.f;
-  jointRequest.angles[Joints::rElbowYaw] = -engine.armParameters.armElbowYaw;
-  jointRequest.angles[Joints::rElbowRoll] = 30_deg; // FIXME - was 0_deg - decide which is correct
-  jointRequest.angles[Joints::rWristYaw] = 90_deg;
-  jointRequest.angles[Joints::rHand] = 0.f;
+  const Angle lSP = engine.armParameters.armShoulderPitch + engine.theRobotModel.soleLeft.translation.x()  * engine.armParameters.armShoulderPitchFactor / 1000.f;
+  const Angle lSR = engine.armParameters.armShoulderRoll  + std::abs(engine.theRobotModel.soleLeft.translation.y())  * engine.armParameters.armShoulderRollIncreaseFactor / 1000.f;
+  const Angle lEY = engine.armParameters.armElbowYaw;
+  const Angle lER = -30_deg;
+  const Angle rSP = engine.armParameters.armShoulderPitch + engine.theRobotModel.soleRight.translation.x() * engine.armParameters.armShoulderPitchFactor / 1000.f;
+  const Angle rSR = -engine.armParameters.armShoulderRoll - std::abs(engine.theRobotModel.soleRight.translation.y()) * engine.armParameters.armShoulderRollIncreaseFactor / 1000.f;
+  const Angle rEY = -engine.armParameters.armElbowYaw;
+  const Angle rER = 30_deg;
+
+  jointRequest.angles[Joints::lShoulderPitch] = lSP;
+  jointRequest.angles[Joints::lShoulderRoll]  = lSR;
+  jointRequest.angles[Joints::lElbowYaw]      = lEY;
+  jointRequest.angles[Joints::lElbowRoll]     = lER;
+  jointRequest.angles[Joints::lWristYaw]      = -90_deg;
+  jointRequest.angles[Joints::lHand]          = 0.f;
+  jointRequest.angles[Joints::rShoulderPitch] = rSP;
+  jointRequest.angles[Joints::rShoulderRoll]  = rSR;
+  jointRequest.angles[Joints::rElbowYaw]      = rEY;
+  jointRequest.angles[Joints::rElbowRoll]     = rER;
+  jointRequest.angles[Joints::rWristYaw]      = 90_deg;
+  jointRequest.angles[Joints::rHand]          = 0.f;
 
   jointRequest.angles[Joints::waistYaw] = 0_deg;
 
@@ -923,7 +965,30 @@ void RERLWalkPhaseDummy::calcJoints(const MotionRequest&, JointRequest& jointReq
       jointRequest.angles[j] = lastTarget.angles[j];
     }
     standTarget = nextTarget;
-    // requestAtStandStart.angles = jointRequest.angles;
+
+    if(armRecoveryStartTime)
+    {
+      const float t = static_cast<float>(engine.theFrameInfo.getTimeSince(armRecoveryStartTime));
+      const float eyRatio  = Rangef::ZeroOneRange().limit(t / armRecoveryElbowYawDuration);
+      const float armRatio = Rangef::ZeroOneRange().limit((t - armRecoveryElbowYawDuration) / armRecoveryArmDuration);
+
+      auto lerp = [](Angle a, Angle b, float r) { return a * (1.f - r) + b * r; };
+
+      // Phase 1 (elbow yaw first — prevents knee clipping)
+      jointRequest.angles[Joints::lElbowYaw] = lerp(armRecoveryStartAngles.angles[Joints::lElbowYaw], lEY, eyRatio);
+      jointRequest.angles[Joints::rElbowYaw] = lerp(armRecoveryStartAngles.angles[Joints::rElbowYaw], rEY, eyRatio);
+
+      // Phase 2 (remaining arm joints)
+      jointRequest.angles[Joints::lShoulderPitch] = lerp(armRecoveryStartAngles.angles[Joints::lShoulderPitch], lSP, armRatio);
+      jointRequest.angles[Joints::lShoulderRoll] = lerp(armRecoveryStartAngles.angles[Joints::lShoulderRoll], lSR, armRatio);
+      jointRequest.angles[Joints::lElbowRoll] = lerp(armRecoveryStartAngles.angles[Joints::lElbowRoll], lER, armRatio);
+      jointRequest.angles[Joints::rShoulderPitch] = lerp(armRecoveryStartAngles.angles[Joints::rShoulderPitch], rSP, armRatio);
+      jointRequest.angles[Joints::rShoulderRoll] = lerp(armRecoveryStartAngles.angles[Joints::rShoulderRoll], rSR, armRatio);
+      jointRequest.angles[Joints::rElbowRoll] = lerp(armRecoveryStartAngles.angles[Joints::rElbowRoll], rER, armRatio);
+
+      if(t >= armRecoveryElbowYawDuration + armRecoveryArmDuration)
+        armRecoveryStartTime = 0;
+    }
   }
 
   motionInfo.isMotionStable = true;
