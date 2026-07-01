@@ -96,6 +96,14 @@ STREAMABLE(BallNetworkParameters,
   (bool) active,
 });
 
+STREAMABLE(ArmRecoveryParameters,
+{,
+  (bool) active,               /**< Enable arm recovery interpolation on deviated transitions. */
+  (Angle) deviationThreshold,  /**< Per-joint deviation from nominal that triggers recovery. */
+  (float) elbowYawDuration,    /**< Duration (ms) of Phase 1: elbow yaw interpolation. */
+  (float) fullArmDuration,     /**< Duration (ms) of Phase 2: all other arm joints interpolation. */
+});
+
 STREAMABLE(ReboostWalkNNParameters,
 {,
   (std::string) modelName, /** Neural Network name. Must be .onnx or .hdf5. */
@@ -141,6 +149,7 @@ MODULE(RERLWalkingEngine,
     (BallNetworkParameters) ballNetworkParameters,        /**< Ball parameters for the network. */
     (BrakingModelParameters) brakingModelParameters,      /**< Empirical braking-distance model (forwarded to WalkingEngineOutput). */
     (CommandRampParameters) commandRampParameters,        /**< Motion-level velocity-command ramping (rate limiting). */
+    (ArmRecoveryParameters) armRecoveryParameters,        /**< Arm recovery interpolation triggered when arms deviate substantially. */
   }),
 });
 
@@ -243,6 +252,12 @@ private:
   unsigned interpStartTime = 0; ///< zero means no interpolation active, otherwise time when interpolation started
   unsigned interpDurationMs = 0; ///< how long to interpolate for
   JointAngles interpStartAngles; ///< the starting joint values that we'll blend from until eventually 100% model output
+
+  // Arm recovery: two-phase interpolation triggered when arms are far from walking position
+  unsigned armRecoveryStartTime = 0; ///< zero = inactive; frame time start for arm interpolation
+  float armRecoveryElbowYawDuration = 0.f; ///< ms for Phase 1 (elbow yaw only)
+  float armRecoveryArmDuration = 0.f; ///< ms for Phase 2 (all other arm joints)
+  JointAngles armRecoveryStartAngles; ///< arm joint values captured at recovery start
 
 protected:
   unsigned freeLimbs() const override
