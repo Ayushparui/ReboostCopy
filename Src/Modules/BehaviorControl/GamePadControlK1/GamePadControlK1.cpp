@@ -291,8 +291,9 @@ void GamePadControlK1::updateWalkMotion(MotionRequest& theMotionRequest)
   theMotionRequest.standHigh = false;
 
   theMotionRequest.walkSpeed.translation.x() = applyDeadZone(theGamePadEx.lStickY);
-  theMotionRequest.walkSpeed.translation.y() = applyDeadZone(theGamePadEx.lStickX);
-  // Note: max stick motion left is -1, right is 1, but walk angles are positive left, negative right
+  // Note: lStickX left=-1, right=+1 but robot Y is positive-left, so negate
+  theMotionRequest.walkSpeed.translation.y() = -applyDeadZone(theGamePadEx.lStickX);
+  // Note: rStickX left=-1, right=+1 but rotation is positive-left, so negate
   theMotionRequest.walkSpeed.rotation = -applyDeadZone(theGamePadEx.rStickX);
 
   if (theMotionRequest.walkSpeed != Pose2f())
