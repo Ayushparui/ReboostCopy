@@ -63,6 +63,7 @@ copy()
     fi
   fi
 
+	echo "connecting to $TARGET_USER@$REMOTE:"
   echo "stopping roboeireann"
   ssh $SSHOPTIONS $TARGET_USER@$REMOTE "systemctl --user stop roboeireann.service > /dev/null"
 
