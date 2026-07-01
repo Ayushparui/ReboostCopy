@@ -37,7 +37,7 @@ void SetupPoses::draw() const
         return 1;
     }();
     const auto& pose = getPoseOfRobot(playerNumber);
-    OUTPUT(idConsole, text, "mv " << pose.position.x() << " " << pose.position.y() << " "
+    OUTPUT(idConsole, text, "mvrp " << pose.position.x() << " " << pose.position.y() << " "
            << (Blackboard::getInstance().exists("RobotDimensions") ? static_cast<const RobotDimensions&>(Blackboard::getInstance()["RobotDimensions"]).simOriginHeight : 320.f)
            << " 0 0 " << toDegrees((pose.turnedTowards - pose.position).angle()));
   }

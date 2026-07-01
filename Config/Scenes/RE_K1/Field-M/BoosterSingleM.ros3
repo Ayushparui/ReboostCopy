@@ -30,8 +30,8 @@
 
     <Compound ref="robot type"/>
 
-    <Compound name="location">
-      <Compound name="Field2026-M"/>
+    <Compound name="scenarios">
+      <Compound name="SingleRobotM"/>
     </Compound>
 
   </Scene>

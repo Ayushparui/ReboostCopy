@@ -466,11 +466,12 @@ void OracledPerceptsProvider::update(FieldBoundary& fieldBoundary)
     {
       Vector2f pRobotStart = robotPoseInv * start;
       Vector2f pRobotEnd = robotPoseInv * end;
+      Vector2f pImgStart, pImgEnd;
+      if(!Transformation::robotToImage(pRobotStart, theCameraMatrix, theCameraInfo, pImgStart) ||
+         !Transformation::robotToImage(pRobotEnd, theCameraMatrix, theCameraInfo, pImgEnd))
+        continue;
       fieldBoundary.boundaryOnField.push_back(pRobotStart);
       fieldBoundary.boundaryOnField.push_back(pRobotEnd);
-      Vector2f pImgStart, pImgEnd;
-      VERIFY(Transformation::robotToImage(pRobotStart, theCameraMatrix, theCameraInfo, pImgStart));
-      VERIFY(Transformation::robotToImage(pRobotEnd, theCameraMatrix, theCameraInfo, pImgEnd));
       fieldBoundary.boundaryInImage.push_back(pImgStart.cast<int>());
       fieldBoundary.boundaryInImage.push_back(pImgEnd.cast<int>());
     }

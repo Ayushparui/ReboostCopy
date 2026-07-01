@@ -17,6 +17,7 @@ ci off
 for Cognition mr GroundTruthWorldState LogDataProvider
 for Cognition mr GroundTruthRobotPose SimulatedWorldModelProvider
 for Cognition mr GroundTruthBallModel SimulatedWorldModelProvider
+for Cognition mr RobotPose SimulatedWorldModelProvider
 
 # Activate, so they can provide drawings
 for Upper mr ObstaclesFieldPercept OracledPerceptsProvider
@@ -47,6 +48,10 @@ mr CameraImage off
 mr CameraIntrinsics off
 mr ColorScanLineRegionsHorizontal off
 mr ColorScanLineRegionsVerticalClipped off
+mr MLCirclePercept off
+mr MLIntersectionsPercept off
+mr PerceptRegistration off
+mr SelfLocalizationHypotheses off
 mr ECImage default
 mr JerseyClassifier off
 mr JPEGImage off

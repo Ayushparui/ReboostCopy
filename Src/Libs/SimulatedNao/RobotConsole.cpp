@@ -2117,11 +2117,11 @@ bool RobotConsole::moveRobot(In& stream)
   Vector3f movePos, moveRot;
   stream >> movePos.x() >> movePos.y() >> movePos.z();
   if(stream.eof())
-    simulatedRobot->moveRobotPerTeam(movePos, Vector3f::Zero(), false);
+    simulatedRobot->moveRobotPerTeam(movePos, Vector3f::Zero(), false, true);
   else
   {
     stream >> moveRot.x() >> moveRot.y() >> moveRot.z();
-    simulatedRobot->moveRobotPerTeam(movePos, moveRot * 1_deg, true);
+    simulatedRobot->moveRobotPerTeam(movePos, moveRot * 1_deg, true, true);
   }
   return true;
 }

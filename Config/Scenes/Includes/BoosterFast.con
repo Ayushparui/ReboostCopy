@@ -41,6 +41,7 @@ mr CameraIntrinsics off
 mr CameraResolutionRequest off
 mr CenterCircleWithLine off
 mr CirclePercept off
+mr MLCirclePercept off
 mr ColorScanLineRegionsHorizontal off
 mr ColorScanLineRegionsVerticalClipped off
 mr CustomCalibrationLines off
@@ -52,6 +53,7 @@ mr FilteredBallPercepts off
 mr ImageCoordinateSystem off
 mr IntersectionCandidates off
 mr IntersectionsPercept off
+mr MLIntersectionsPercept off
 mr JerseyClassifier off
 mr JPEGImage off
 mr LinesPercept off
