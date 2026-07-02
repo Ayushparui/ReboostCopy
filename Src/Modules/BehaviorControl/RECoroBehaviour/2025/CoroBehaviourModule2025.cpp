@@ -234,6 +234,8 @@ void CoroBehaviourModule2025::executeBehaviourTick()
   {
     TLOGD(tlogger, "{} [{}]: playing", theGameState.playerNumber, theFrameInfo.time);
 
+    status = playing;
+
     // execute the top level normal play behaviour
     CALL_BASIC_CORO(topLevelBehaviour);
   }
@@ -245,10 +247,12 @@ bool CoroBehaviourModule2025::handlePlayerState()
   switch (theGameState.playerState)
   {
   case GameState::unstiff:
+    status = sittingDown;
     return sitDownUnstiff(), true;
 
   case GameState::calibration:
     // TODO: call calibrationControl behaviour - however we can't mix behaviour schemes currently
+    status = sittingDown;
     sitDownUnstiff(); // FIXME - replace with calibration procedure
     return true;
 
@@ -266,6 +270,7 @@ bool CoroBehaviourModule2025::handlePlayerState()
       ANNOTATION_FMT("Behavior", "Penalized {}", TypeRegistry::getEnumName(theGameState.playerState));
       SystemCall::say("Penalized");
     }
+    status = penalized;
     return commonSkills.standLookForward(/* high */ true), true;
   }
 
@@ -278,11 +283,17 @@ bool CoroBehaviourModule2025::handlePhysicalRobot()
 {
   // camera status
   if (!theCameraStatus.ok)
+  {
+    status = cameraStatusFailed;
     return sitDownUnstiff(), true;
+  }
 #ifndef NDEBUG
   // low battery
   else if (theRobotHealth.batteryLevel <= 1)
+  {
+    status = lowBattery;
     return sitDownUnstiff(), true;
+  }
 #endif
 
   return false;

@@ -98,16 +98,16 @@ namespace v2025
           else if (theTeamBehaviorStatus.role.isBallPlayer())
             strikerPlayingTask();
             
-          else if (theREActiveTactic.formationRole == REFormations::FormationRole::centreBack || 
-                      theREActiveTactic.formationRole == REFormations::FormationRole::centreBackL || 
-                      theREActiveTactic.formationRole == REFormations::FormationRole::centreBackR)
-          {
-            // if the ball was seen and should be playing as a defender
-            // if (theFieldBall.ballWasSeen()) // FIXME - no RL behaviour for now
-            //   defenderNeuralControlTask();
-            // else
-              supporterPlayingTask();
-          }
+          // else if (theREActiveTactic.formationRole == REFormations::FormationRole::centreBack || 
+          //             theREActiveTactic.formationRole == REFormations::FormationRole::centreBackL || 
+          //             theREActiveTactic.formationRole == REFormations::FormationRole::centreBackR)
+          // {
+          //   // if the ball was seen and should be playing as a defender
+          //   // if (theFieldBall.ballWasSeen()) // FIXME - no RL behaviour for now
+          //   //   defenderNeuralControlTask();
+          //   // else
+          //     supporterPlayingTask();
+          // }
           else
             supporterPlayingTask();
         }

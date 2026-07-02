@@ -65,7 +65,7 @@
     <Compound ref="field"/>
 
     <Compound name="scenarios">
-      <Compound name="RE_3v3"/>
+      <Compound name="RC2026-3v3"/>
     </Compound>
 
     <Compound ref="robot type"/>

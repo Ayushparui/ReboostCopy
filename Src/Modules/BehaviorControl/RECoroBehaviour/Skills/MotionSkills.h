@@ -94,8 +94,24 @@ namespace RE
       // FIXME - theRecordTargetAndSpeedSkill(p.target.translation, std::max(p.speed.translation.x(),
       // p.speed.translation.y()));
 
+      // defensive fallback: a NaN/Inf target would otherwise fail MotionRequest::verify()'s
+      // ASSERT(walkTarget.isFinite()) and crash the whole behaviour process (on the real robot
+      // too, not just in SimRobot - Develop builds, which is what's deployed by default, keep
+      // asserts active). Whatever produced the bad value, holding the current pose (i.e. "stand
+      // still", since this is a robot-relative target) is a far safer failure mode mid-game than
+      // crashing outright. This is a backstop, not a fix - the warning below is what tells us a
+      // bug still needs chasing even though we no longer crash on it.
+      Pose2f safeTarget = target;
+      if (!target.isFinite())
+      {
+        OUTPUT_WARNING_FMT("MotionSkills::walkToPose: non-finite target requested (rotation={}, x={}, y={}) - "
+                           "holding current pose instead of crashing",
+                           target.rotation, target.translation.x(), target.translation.y());
+        safeTarget = Pose2f();
+      }
+
       theMotionRequest.motion = MotionRequest::walkToPose;
-      theMotionRequest.walkTarget = target;
+      theMotionRequest.walkTarget = safeTarget;
       theMotionRequest.walkSpeed = speed;
       theMotionRequest.keepTargetRotation = keepTargetRotation;
       theMotionRequest.obstacleAvoidance = obstacleAvoidance;

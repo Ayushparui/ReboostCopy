@@ -25,6 +25,7 @@
   #include "Representations/Configuration/FieldDimensions.h"
   #include "Representations/Configuration/RobotDimensions.h"
   #include "Representations/Configuration/REFormations.h"
+  #include "Representations/Configuration/REGameConfig.h"
   #include "Representations/Configuration/RETactics.h"
 
   #include "Representations/Infrastructure/FrameInfo.h"
@@ -93,6 +94,7 @@ MODULE(TeamBehaviourModule2025,
     X_REQUIRES(FieldDimensions)
     X_REQUIRES(RobotDimensions)
     X_REQUIRES(REFormations)
+    X_REQUIRES(REGameConfig)
     X_REQUIRES(RETactics)
 
     X_REQUIRES(FrameInfo)
