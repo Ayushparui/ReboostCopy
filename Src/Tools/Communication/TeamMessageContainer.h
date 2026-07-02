@@ -13,6 +13,6 @@
 
 struct TeamMessageContainer
 {
-  char data[128]; // The length of this is a rule book constant.
+  char data[512]; // The length of this is a rule book constant. (updated for 2026)
   uint8_t length;
 };

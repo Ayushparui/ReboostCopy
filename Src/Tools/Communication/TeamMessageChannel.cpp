@@ -64,6 +64,9 @@ bool TeamMessageChannel::send()
       return false;
   }
 
+  if (out.length == 0)
+    TLOGW(tlogger, "send port {}: writing a zero length buffer", port);
+
   bool result = socket.write(reinterpret_cast<char *>(out.data), out.length);
   if (!result)
   {
@@ -95,7 +98,7 @@ bool TeamMessageChannel::receive()
   {
     if ((size < 0) && (errno != EAGAIN) && (errno != EWOULDBLOCK))
       if (++consecutiveReceiveErrors < 20)
-        TLOGW(tlogger, "receive: problem receiving teammate packet: {} ({})", ErrorStr(errno).str(), errno);
+        TLOGW(tlogger, "receive: problem receiving teammate packet (size {}): {} ({})", size, ErrorStr(errno).str(), errno);
     
     return false;
   }
