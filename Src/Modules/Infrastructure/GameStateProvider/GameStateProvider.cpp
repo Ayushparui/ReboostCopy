@@ -178,7 +178,16 @@ void GameStateProvider::update(GameState& gameState)
       break;
 
     case GameState::prepare:
-      if (activeModeRequested)
+      // F1 (e-stop) must always override, from any state.
+      if (unstiffModeRequested)
+        setToUnstiff("HRI requested");
+      // Leave prepare either via the manual WALK button (activeModeRequested) or automatically
+      // once a real GameController packet for our team has actually arrived - a robot that reaches
+      // prepare (stood up via the STAND button) should not need a human to also press WALK before
+      // it will follow a game that's already under way. Once active, the normal GC state tracking
+      // below picks up whatever the real current state is (initial/ready/set/playing), rather than
+      // assuming the game is still at the very start.
+      else if (activeModeRequested || theGameControllerData.timeLastPacketReceived != 0)
         setToActive();
       break;
 
@@ -804,6 +813,16 @@ void GameStateProvider::updateFromBoosterK1Hri([[maybe_unused]] GameState& gameS
 
     bool nearSwitchToOperational = theFrameInfo.getTimeSince(timeWhenRobotBecameOperational) < 300;
 
+    // F1 is an e-stop: it must work from every playerState, unconditionally, overriding whatever
+    // the GameController is saying. Checked here, before the per-state switch below, rather than
+    // buried in a single case, so it can never be missed for a state that doesn't explicitly
+    // handle it (this used to only do anything while already in GameState::unstiff).
+    if (theEnhancedKeyStates.clickedDuration[KeyStates::k1_f1] >= fromSafetyTrippedMs)
+    {
+      TLOGI(tlogger, "F1 button long-clicked: unstiffModeRequested (e-stop)");
+      unstiffModeRequested = true;
+    }
+
     switch (gameState.playerState)
     {
     case GameState::unstiff:
@@ -817,10 +836,6 @@ void GameStateProvider::updateFromBoosterK1Hri([[maybe_unused]] GameState& gameS
       {
         TLOGI(tlogger, "Unstiff: STAND button long-clicked once near switching to operational: prepareModeRequested");
         prepareModeRequested = true;
-      }
-      else if (nearSwitchToOperational && (theEnhancedKeyStates.clickedDuration[KeyStates::k1_f1] >= fromSafetyTrippedMs))
-      {
-        TLOGI(tlogger, "Unstiff: F1 button long-clicked once near switching to operational: stay in unstiff");
       }
       break;
 
