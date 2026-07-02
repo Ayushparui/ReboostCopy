@@ -15,6 +15,7 @@
 // #include "Modules/BehaviorControl/RECoroBehaviour/ActiveTacticSkills.h"
 #include "Modules/BehaviorControl/RECoroBehaviour/Skills/TeamBehaviorStatusSkills.h"
 #include "Representations/Configuration/REFormations.h"
+#include "Representations/Configuration/REGameConfig.h"
 #include "Representations/Configuration/RETactics.h"
 
 #include "Debugging/DebugDrawings.h"
@@ -93,6 +94,7 @@ namespace v2025
     READS(RobotDimensions);
     READS(REFormations);
     READS(RETactics);
+    READS(REGameConfig);
     READS(RETeamData);
     READS(FrameInfo);
     READS(RobotPose);
@@ -372,8 +374,13 @@ namespace v2025
 
       // clamp the yShift (derived from the ball effect) to apply based on the valid range
       shiftedAnchor.y() = Rangef(-formation.yShift, formation.yShift).clamped(scaledBallPos.y());
-      // set the scaling of the formation based on where we are in the available shift range
-      float yScale = Rangef(1.0f, formation.yScale).scale(std::abs(shiftedAnchor.y()), Rangef(0, formation.yShift));
+      // set the scaling of the formation based on where we are in the available shift range.
+      // Range::scale() divides by (tRange.max - tRange.min), i.e. formation.yShift here - guard
+      // against a formation configured with yShift = 0 (a fully static formation with no
+      // ball-tracking shift), which would otherwise divide by zero and produce NaN.
+      float yScale = (formation.yShift > 0.f)
+          ? Rangef(1.0f, formation.yScale).scale(std::abs(shiftedAnchor.y()), Rangef(0, formation.yShift))
+          : 1.0f;
 
       // TLOGV(tlogger, "yShift = {:.0f}, yScale = {:.2f}", yShift, yScale);
 
@@ -386,11 +393,17 @@ namespace v2025
       // ACTGRAPH_FMT("xShift: {}", xShift);
 
       // set the xScale to apply based on where we are in the available xShift range
-      // and whether it is in the subrange from min to zero, or from zero to max
+      // and whether it is in the subrange from min to zero, or from zero to max.
+      // Same divide-by-zero guard as yScale above - formation.xShift.min/max = 0 (a fully
+      // static formation) must not be passed as the "to" range of Range::scale().
       float xScale =
           xShift <= 0
-              ? Rangef(1.0f, formation.xScale.min).scale(std::abs(xShift), Rangef(0, std::abs(formation.xShift.min)))
-              : Rangef(1.0f, formation.xScale.max).scale(xShift, Rangef(0, formation.xShift.max));
+              ? (formation.xShift.min < 0.f
+                     ? Rangef(1.0f, formation.xScale.min).scale(std::abs(xShift), Rangef(0, std::abs(formation.xShift.min)))
+                     : 1.0f)
+              : (formation.xShift.max > 0.f
+                     ? Rangef(1.0f, formation.xScale.max).scale(xShift, Rangef(0, formation.xShift.max))
+                     : 1.0f);
 
       shiftedAnchor.x() = formation.xAnchor + xShift;
 
@@ -411,6 +424,12 @@ namespace v2025
       size_t numPlayersOnField = theRETeamData.activeTeammates.size();
       if (!theGameState.isPenalized())
         numPlayersOnField += 1; // self is not in activeTeammates so add 1 if it is an active player
+
+      // Before the first GameController packet is received, theGameControllerData (and therefore
+      // theRETeamData.activeTeammates) defaults to every player slot looking "active", which can
+      // transiently inflate numPlayersOnField up to Settings::numPlayerNumbers. Clamp to the
+      // configured roster size so that startup race doesn't look like a genuine oversized team.
+      numPlayersOnField = std::min(numPlayersOnField, static_cast<size_t>(theREGameConfig.playersPerTeam));
 
       // find the formation which most closely matches the number of players
       size_t iBest = 0;

@@ -193,8 +193,11 @@ void RETeammatesLocator::draw(const std::vector<RETeammatesLocationModel::Locati
       {
         // no fixed "coming from" point since it is updated on every cycle
 
-        const Vector2f &targetPos =
-            theREActiveTactic.formationPoses[Settings::toPlayerIndex(location.playerNumber)].translation;
+        const int formationIndex = Settings::toPlayerIndex(location.playerNumber);
+        if ((formationIndex < 0) || (static_cast<size_t>(formationIndex) >= theREActiveTactic.formationPoses.size()))
+          continue;
+
+        const Vector2f &targetPos = theREActiveTactic.formationPoses[formationIndex].translation;
 
         // heading to
         LINE("module:RETeammatesLocator", location.pose.translation.x(), location.pose.translation.y(), targetPos.x(),

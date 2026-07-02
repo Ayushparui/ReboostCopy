@@ -39,7 +39,7 @@
  *       motion thread.
  *
  * @author Thomas Röfer
- * @author Rudi Villing (modifications)
+ * @author Rudi Villing (extensive modifications)
  */
 
 #include "BoosterK1Provider.h"
@@ -72,14 +72,16 @@ DECL_TLOGGER(tlogger, "BoosterK1Provider", TextLogging::DEBUG);
 #define ANNOTATION_K1(...) ANNOTATION_FMT("BoosterK1Provider", __VA_ARGS__)
 
 
-static constexpr unsigned LOG_INTERVAL_LONG = 30000u;
-static constexpr unsigned LOG_INTERVAL_MEDIUM = 15000u;
-
 namespace
 {
 // inline bool isOK(int32_t boosterResultCode) { return boosterResultCode == 0; }
 
 #ifdef TARGET_BOOSTER
+
+constexpr unsigned LOG_INTERVAL_LONG = 30000u;
+constexpr unsigned LOG_INTERVAL_MEDIUM = 15000u;
+
+
 const char *robotModeString(booster::robot::RobotMode mode)
 {
   switch (mode)
@@ -866,7 +868,7 @@ void BoosterK1Provider::updateRobotModeFromMotion()
   booster::robot::RobotMode targetMode = booster::robot::RobotMode::kCustom;
 
   // if (theMotionRequest.motion == MotionRequest::playDead)
-  if ((theMotionInfo.executedPhase == MotionPhase::playDead) || (theDamageConfigurationBody.allMotionDisabled))
+  if ((theMotionInfo.executedPhase == MotionPhase::playDead) || (theDamageConfigurationBody.disableAllMotion))
     targetMode = booster::robot::RobotMode::kDamping;
   // else if (theMotionRequest.motion == MotionRequest::prepare)
   else if (theMotionInfo.executedPhase == MotionPhase::prepare)

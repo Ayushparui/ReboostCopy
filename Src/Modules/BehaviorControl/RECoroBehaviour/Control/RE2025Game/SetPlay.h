@@ -347,16 +347,16 @@ namespace v2025
 
       CRBEHAVIOUR_LOOP()
       {
-        // CR_CHECKPOINT(gettingToKickInTacticPose);
-        // supporterKickInTacticsTask();
-        gotoTacticPoseTask();
+        // gotoTacticPoseTask() just walks to the normal (ball-following) formation pose, which
+        // can pull a "backing off" supporter toward the ball during a set play instead of away
+        // from it. supporterKickInTacticsTask() respects the exclusion zone around the ball.
+        supporterKickInTacticsTask();
         CR_YIELD();
       }
     }
 
   private:
     SupporterKickInTacticsTask supporterKickInTacticsTask {env};
-    GotoTacticPoseTask gotoTacticPoseTask {env};
   };
 
 

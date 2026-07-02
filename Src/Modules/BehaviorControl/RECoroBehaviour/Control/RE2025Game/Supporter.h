@@ -144,7 +144,10 @@ namespace v2025
           // ball pos
           Vector2f ballToFormationPos = theREActiveTactic.formationPose.translation - ballPos;
 
-          tacticPose = theRobotPose.toRobotCoordinates(ballPos + ballToFormationPos.normalize(1000.f));
+          // guard against normalizing a zero-length vector (NaN) when our formation slot
+          // coincides exactly with the ball position - just keep the default tacticPose instead
+          if (ballToFormationPos.squaredNorm() > sqr(1.f))
+            tacticPose = theRobotPose.toRobotCoordinates(ballPos + ballToFormationPos.normalize(1000.f));
         }
       }
     }
@@ -632,7 +635,7 @@ namespace v2025
 
     // Get the exclusion zone enforcing path
     Pose2f getOutExclZone() {
-      if((theFieldBall.recentBallPositionOnField() - Vector2f(0.0f, 0.0f)).squaredNorm() >= params.exclusionRadius + params.exclusionThreshold)
+      if((theFieldBall.recentBallPositionOnField() - Vector2f(0.0f, 0.0f)).squaredNorm() >= sqr(params.exclusionRadius + params.exclusionThreshold))
       {
         Pose2f walkingPose(theRobotPose.rotation, 0.0f, 0.0f); // field relative
         Vector2f ballRelativeTactic = walkingPose.inverse() * theFieldBall.endPositionOnField;

@@ -35,6 +35,7 @@ void LibLookActiveProvider::update(LibLookActive& libLookActive)
   };
 }
 
+// see .h file for explanatory comment
 HeadTarget LibLookActiveProvider::calculateHeadTarget(const bool withBall, const bool ignoreBall, const bool onlyOwnBall, const bool fixTilt, const float slowdownFactor)
 {
   theBallPositionRelative = theBallModel.estimate.position;
@@ -57,7 +58,8 @@ HeadTarget LibLookActiveProvider::calculateHeadTarget(const bool withBall, const
 
   const Angle pan = calculatePan(forceBall);
   PLOT("module:LibLookActiveProvider:pan", pan.toDegrees());
-  const Angle tilt = fixTilt ? Angle(0.38f) : calculateTilt(forceBall, onlyOwnBall);
+  const Angle fixedTiltAngle = Global::getSettings().robotType == Settings::k1 ? Angle(20_deg) : /* nao and assumed default */ Angle(0.38f);
+  const Angle tilt = fixTilt ? fixedTiltAngle : calculateTilt(forceBall, onlyOwnBall);
   PLOT("module:LibLookActiveProvider:tilt", tilt.toDegrees());
   const Angle speed = calculateSpeed(forceBall, pan, slowdownFactor);
   PLOT("module:LibLookActiveProvider:speed", speed.toDegrees());

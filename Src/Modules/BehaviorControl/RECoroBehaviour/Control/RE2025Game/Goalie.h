@@ -257,13 +257,15 @@ namespace v2025
     DEFINES_PARAMS(GoaliePlayingTask,
     {,
       (unsigned)(300) ballSeenSaveTimeoutMs, ///< we can only save the ball if we've seen it very recently
-      (Rangef)(80.f, 800.f) saveYRange, ///< if the ball intersects inside foot distance, don't move, otherwise check up to max dive range
+      (Rangef)(80.f, 520.f) saveYRange, ///< if the ball intersects inside foot distance, don't move, otherwise check up to max genuflect/wide-stance range
       (Rangef)(0.5f, 3.f) saveTimeRangeSecs, ///< we don't try to save if the ball will pass too quick or not save yet if too far in the future
       (float)(2500.f) ballSaveDistance, ///< don't try to save ball unless it is closer than this
       // (float)(1600.f) kickAwayXMax, ///< we will go to the ball and kick it away in these x distances from ground line
       // (float)(1500.f) kickAwayYMax, ///< maximum y-value at which we kick away. Together With kickAwayXRange, this defines a box
       (unsigned)(3000) kickAwayBallSeenTimeoutMs, ///< we'll allow the ball to be obstructed briefly on the way to kicking it away
-      (unsigned)(bit(Interception::genuflectStand) | bit(Interception::jumpLeft) | bit(Interception::jumpRight)) enabledSaves,
+      // K1 is quicker on its feet than the Nao goalie this was tuned for, so we rely on the wider
+      // genuflect/wide-stance reach instead of diving - no jump saves (see goalieSaveTask.cfg)
+      (unsigned)(bit(Interception::genuflectStand)) enabledSaves,
     });
 
     READS(FieldBall);

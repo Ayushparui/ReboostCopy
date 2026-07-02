@@ -806,9 +806,11 @@ void RETeamMessageHandler2025::maintainTeammateList(RETeamData& teamData) const
 
         // default ObstacleModel is OK - nothing to add here
 
-        if (!theREActiveTactic.formationPoses.empty())
+        const int teammateFormationIndex = Settings::toPlayerIndex(teammate.number);
+        if ((teammateFormationIndex >= 0) &&
+            (static_cast<size_t>(teammateFormationIndex) < theREActiveTactic.formationPoses.size()))
           teammate.theBehaviorStatus.walkingTo = teammate.theRobotPose.toLocal(
-              theREActiveTactic.formationPoses[Settings::toPlayerIndex(teammate.number)].translation);
+              theREActiveTactic.formationPoses[teammateFormationIndex].translation);
         else
           teammate.theBehaviorStatus.walkingTo = teammate.theRobotPose.toLocal(teammate.theRobotPose.translation);
 

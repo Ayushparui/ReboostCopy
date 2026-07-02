@@ -34,7 +34,7 @@
     </Compound>
 
     <Compound name="scenarios">
-      <Compound name="RE_5v5"/>
+      <Compound name="RC2026-5v5"/>
     </Compound>
 
     <Compound ref="robot type"/>
