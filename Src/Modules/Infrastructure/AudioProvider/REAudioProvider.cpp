@@ -16,6 +16,10 @@ MAKE_MODULE(REAudioProvider);
 REAudioProvider::REAudioProvider()
 {
 #ifdef TARGET_ROBOT
+
+  if (!enabled)
+    return;
+
   OUTPUT_TEXT("Initializing audio capture device...");
   /* Check for whether we can open the input audio device */
   for (uint retryNumber = 0; retryNumber < retries; retryNumber++)
@@ -52,6 +56,9 @@ REAudioProvider::REAudioProvider()
 REAudioProvider::~REAudioProvider()
 {
 #ifdef TARGET_ROBOT
+  if (!enabled)
+    return;
+
   Duerwen_wakeup_unit(wakeupHandle);
   if (inputMixer)
     snd_mixer_close(inputMixer);
@@ -146,6 +153,12 @@ void REAudioProvider::initBuffers(AudioData& audioData)
 void REAudioProvider::update([[maybe_unused]] AudioData& audioData)
 {
 #ifdef TARGET_ROBOT
+  if (!enabled)
+  {
+    Thread::sleep(30);
+    return;
+  }
+
   /* Create our audio buffers and clear values to 0 */
   if (!bufferInit)
   {

@@ -34,6 +34,7 @@ MODULE(REAudioProvider,
   PROVIDES(FrameInfo),
   LOADS_PARAMETERS(
   {,
+    (bool)enabled,
     (unsigned)retries, /* Number of tries to open device. */
     (unsigned)retryDelay, /* Delay before a retry to open device. */
     (unsigned)sampleRate, /* Sample rate to capture on microphone. */
