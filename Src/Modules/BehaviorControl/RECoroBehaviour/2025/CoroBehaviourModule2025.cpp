@@ -256,6 +256,21 @@ bool CoroBehaviourModule2025::handlePlayerState()
     sitDownUnstiff(); // FIXME - replace with calibration procedure
     return true;
 
+  case GameState::prepare:
+    // K1-specific: must be entered before handing over control to our motion code. This is
+    // neither penalized nor substitute, so it must not fall through to the default branch below -
+    // that branch announced "Penalized" and treated the robot as penalized while it was simply
+    // waiting here, sometimes for a long time (real match: robots got stuck repeating "Penalized"
+    // and never reached active/playing).
+    // This is a stiff stand, not sitDownUnstiff()/compliant - the STAND button that triggers this
+    // state means "stand up", and MotionEngine.cpp deliberately suppresses automatic get-up motions
+    // while playerState == prepare so it doesn't fight this deliberate stand.
+    status = inactive;
+    headSkills.lookAtAngles(JointAngles::off, JointAngles::off);
+    motionSkills.prepare();
+    //
+    return true;
+
   case GameState::active:
     if (theExtendedGameState.wasPenalized())
     {

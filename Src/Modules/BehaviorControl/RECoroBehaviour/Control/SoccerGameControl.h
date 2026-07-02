@@ -18,6 +18,8 @@
 #include "Modules/BehaviorControl/RECoroBehaviour/Skills/MotionSkills.h"
 #include "Modules/BehaviorControl/RECoroBehaviour/Skills/ArmSkills.h"
 
+#include "Framework/Settings.h"
+#include "Streaming/Global.h"
 #include "TextLogging/TextLogging.h"
 
 namespace RE
@@ -95,6 +97,12 @@ namespace RE
             CR_CHECKPOINT(set_state);
             // commonSkills.recordActivity(BehaviorStatus::set);
             CALL_BASIC_CORO(params.setStateBehaviour); // the configured set state behaviour
+          }
+          else if (theGameState.isMotionStoppedState())
+          {
+            CR_CHECKPOINT(stopped_state);
+            // commonSkills.recordActivity(BehaviorStatus::stopped);
+            commonSkills.standLookForward(true);
           }
           else
           {
@@ -175,7 +183,15 @@ namespace RE
                                   // specifically requesting a sit down is not accidental so exclude it
                                   !theMotionInfo.isKeyframeMotion(KeyframeMotionRequest::sitDown));
 
-      return (fallen || accidentalSquatting) && !theGameState.isInitial(); // we do allow a get up in finished state
+      // The Nao workflow deliberately suppresses auto-getup during initial (an operator may still
+      // be positioning a fallen robot before the match starts). K1's STAND button is an explicit
+      // "get up now" request that intentionally happens while the game is still in initial
+      // (beforeHalf) - suppressing it there would defeat the button interface, so only apply the
+      // suppression for Nao.
+      const bool suppressDuringInitial =
+          (Global::getSettings().robotType == Settings::nao) && theGameState.isInitial();
+
+      return (fallen || accidentalSquatting) && !suppressDuringInitial; // we do allow a get up in finished state
     }
   };
 

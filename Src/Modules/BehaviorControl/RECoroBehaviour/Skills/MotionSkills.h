@@ -47,6 +47,13 @@ namespace RE
       return theMotionInfo.executedPhase == MotionPhase::playDead;
     }
 
+    bool prepare()
+    {
+      theMotionRequest.motion = MotionRequest::prepare;
+      theMotionRequest.energySavingWalk = false;
+      theLibCheck.inc(LibCheck::motionRequest);
+      return theMotionInfo.executedPhase == MotionPhase::prepare;
+    }
     /**
      * Make the robot stand.
      * @param high True if the knees should be straight (low energy),
