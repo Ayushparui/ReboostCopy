@@ -265,6 +265,12 @@ void RLKickPhase::update()
   if(executedTime >= engine.maxKickTime + engine.postKickSettleTime)
     done = true;
 
+  // Early out: once the ball is clearly moving it has been kicked, so don't linger for the
+  // rest of maxKickTime. Gated by minKickTime so pre-contact estimate noise can't end the kick.
+  if(executedTime >= engine.minKickTime &&
+     engine.theMotionRequest.ballEstimate.velocity.norm() >= engine.finishBallSpeed)
+    done = true;
+
   // Safety: fall back to next phase if the torso has tipped past the configured "cone".
   // FallEngine will catch real falls; this guards against runaway policy outputs.
   if(std::abs(engine.theInertialData.angle.x()) > engine.abortTorsoTilt ||

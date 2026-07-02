@@ -11,6 +11,7 @@
 #include "Framework/Settings.h"
 #include "Debugging/Annotation.h"
 #include "Math/BHMath.h"
+#include "Math/Geometry.h"
 #include "Tools/Modeling/BallPhysics.h"
 #include "Tools/Motion/Transformation.h"
 
@@ -39,34 +40,70 @@ void DribbleEngine::update(DribbleGenerator& dribbleGenerator)
 
     if(theFrameInfo.getTimeSince(motionRequest.ballTimeWhenLastSeen) < 3000.f)
     {
-      // check forward kick that is faster to execute
-      Legs::Leg kickLeg = ballSCS.y() > 0.f ? Legs::left : Legs::right;
-
-      WalkKickVariant walkKickVariant(kickLeg == Legs::left ? KickInfo::walkForwardsLeft : KickInfo::walkForwardsRight, WalkKicks::Type::forward, kickLeg, motionRequest.alignPrecisely, motionRequest.kickLength, motionRequest.targetDirection, false);
-      bool isInPositionForKick = theWalkKickGenerator.canStart(walkKickVariant, lastPhase, motionRequest.directionPrecision, motionRequest.preStepType, motionRequest.turnKickAllowed);
-
-      // check forward kick that is slower but executable on the next step
-      if(!isInPositionForKick)
+      if(Global::getSettings().robotType == Settings::k1)
       {
-        kickLeg = ballSCS.y() < 0.f ? Legs::left : Legs::right;
-        walkKickVariant = WalkKickVariant(kickLeg == Legs::left ? KickInfo::walkForwardsLeft : KickInfo::walkForwardsRight, WalkKicks::Type::forward, kickLeg, motionRequest.alignPrecisely, motionRequest.kickLength, motionRequest.targetDirection, false);
-        isInPositionForKick = theWalkKickGenerator.canStart(walkKickVariant, lastPhase, motionRequest.directionPrecision, motionRequest.preStepType, motionRequest.turnKickAllowed);
-      }
+        // [K1] Always dribble-kick with the RL kicks, they work more reliably on this platform than the walk kicks.
+        const KickInfo::KickType kickType = ballSCS.y() > 0.f ? KickInfo::standRLK1KickLongLeft : KickInfo::standRLK1KickLongRight;
+        const Vector2f expectedBallInRobot = -theKickInfo[kickType].ballOffset;
+        bool isInPositionForKick = (ballSCS - expectedBallInRobot).norm() < k1KickPositionTolerance;
+        isInPositionForKick &= std::abs(directionSCS + theKickInfo[kickType].rotationOffset) < k1KickDirectionTolerance;
+        isInPositionForKick &= motionRequest.ballTimeWhenLastSeen >= theMotionInfo.lastKickTimestamp;
+        // velocity.norm() does not need to be transformed to another coordinate system.
+        isInPositionForKick &= motionRequest.ballEstimate.velocity.norm() < maxBallVelocity;
 
-      isInPositionForKick &= motionRequest.ballTimeWhenLastSeen >= theMotionInfo.lastKickTimestamp;
-      // velocity.norm() does not need to be transformed to another coordinate system.
-      isInPositionForKick &= motionRequest.ballEstimate.velocity.norm() < maxBallVelocity;
-
-      if(isInPositionForKick)
-      {
-        auto kickPhase = theWalkKickGenerator.createPhase(walkKickVariant, lastPhase, false);
-        if(kickPhase)
+        if(isInPositionForKick)
         {
-          kickPhase->kickType = walkKickVariant.kickType;
-          return kickPhase;
+          // Fallback: once positioned behind the ball (same positioning as the kick version), walk
+          // through the ball instead of kicking it.
+          if(walkThroughBallInsteadOfKick)
+            return createWalkThroughBallPhase(motionRequest, ballSCS, directionSCS, isLeftPhase, lastPhase);
+
+          KickRequest kr;
+          kr.kickMotionType = theKickInfo[kickType].kickMotionType;
+          kr.mirror = theKickInfo[kickType].mirror;
+          kr.armsBackFix = false;
+          kr.calcDynPoints = [](int) -> std::vector<DynPoint> { return {}; };
+          auto kickPhase = theKickGenerator.createPhase(kr, lastPhase);
+          if(kickPhase)
+          {
+            kickPhase->kickType = kickType;
+            return kickPhase;
+          }
+          else
+            ANNOTATION("DribbleEngine", "Creating Kick Phase of Type " << TypeRegistry::getEnumName(kickType) << " in DribbleEngine returned an empty kick!");
         }
-        else
-          ANNOTATION("DribbleEngine", "Creating Kick Phase of Type " << TypeRegistry::getEnumName(walkKickVariant.kickType) << " in WalkToBallAndKickEngine returned an empty kick!");
+      }
+      else
+      {
+        // check forward kick that is faster to execute
+        Legs::Leg kickLeg = ballSCS.y() > 0.f ? Legs::left : Legs::right;
+
+        WalkKickVariant walkKickVariant(kickLeg == Legs::left ? KickInfo::walkForwardsLeft : KickInfo::walkForwardsRight, WalkKicks::Type::forward, kickLeg, motionRequest.alignPrecisely, motionRequest.kickLength, motionRequest.targetDirection, false);
+        bool isInPositionForKick = theWalkKickGenerator.canStart(walkKickVariant, lastPhase, motionRequest.directionPrecision, motionRequest.preStepType, motionRequest.turnKickAllowed);
+
+        // check forward kick that is slower but executable on the next step
+        if(!isInPositionForKick)
+        {
+          kickLeg = ballSCS.y() < 0.f ? Legs::left : Legs::right;
+          walkKickVariant = WalkKickVariant(kickLeg == Legs::left ? KickInfo::walkForwardsLeft : KickInfo::walkForwardsRight, WalkKicks::Type::forward, kickLeg, motionRequest.alignPrecisely, motionRequest.kickLength, motionRequest.targetDirection, false);
+          isInPositionForKick = theWalkKickGenerator.canStart(walkKickVariant, lastPhase, motionRequest.directionPrecision, motionRequest.preStepType, motionRequest.turnKickAllowed);
+        }
+
+        isInPositionForKick &= motionRequest.ballTimeWhenLastSeen >= theMotionInfo.lastKickTimestamp;
+        // velocity.norm() does not need to be transformed to another coordinate system.
+        isInPositionForKick &= motionRequest.ballEstimate.velocity.norm() < maxBallVelocity;
+
+        if(isInPositionForKick)
+        {
+          auto kickPhase = theWalkKickGenerator.createPhase(walkKickVariant, lastPhase, false);
+          if(kickPhase)
+          {
+            kickPhase->kickType = walkKickVariant.kickType;
+            return kickPhase;
+          }
+          else
+            ANNOTATION("DribbleEngine", "Creating Kick Phase of Type " << TypeRegistry::getEnumName(walkKickVariant.kickType) << " in WalkToBallAndKickEngine returned an empty kick!");
+        }
       }
     }
     MotionRequest::ObstacleAvoidance obstacleAvoidanceSCS = motionRequest.obstacleAvoidance;
@@ -89,6 +126,16 @@ Pose2f DribbleEngine::calcBasePose(const Vector2f& ballInSCS, Angle directionInS
     sign = static_cast<float>(sgnPos(angleDiff));
 
   Pose2f kickPose(directionInSCS, ballInSCS);
+
+  if(Global::getSettings().robotType == Settings::k1)
+  {
+    // [K1] Walk to the stance expected by the RL kick instead of the walk kick's stance.
+    const KickInfo::KickType kickType = sign > 0.f ? KickInfo::standRLK1KickLongRight : KickInfo::standRLK1KickLongLeft;
+    kickPose.rotate(theKickInfo[kickType].rotationOffset);
+    kickPose.translate(theKickInfo[kickType].ballOffset);
+    return kickPose;
+  }
+
   KickInfo::KickType forwardKick = sign > 0.f ? KickInfo::walkForwardsRight : KickInfo::walkForwardsLeft;
   KickInfo::KickType turnKick = forwardKick == KickInfo::walkForwardsLeft ? KickInfo::walkTurnLeftFootToRight : KickInfo::walkTurnRightFootToLeft;
   const Angle useDirection = turnKickAllowed ? directionInSCS : 0_deg;
@@ -96,6 +143,39 @@ Pose2f DribbleEngine::calcBasePose(const Vector2f& ballInSCS, Angle directionInS
   kickPose.rotate(theKickInfo[forwardKick].rotationOffset * (1.f - factor) + theKickInfo[turnKick].rotationOffset * factor);
   kickPose.translate(theKickInfo[forwardKick].ballOffset * (1.f - factor) + theKickInfo[turnKick].ballOffset * factor);
   return kickPose;
+}
+
+std::unique_ptr<MotionPhase> DribbleEngine::createWalkThroughBallPhase(const MotionRequest& motionRequest, const Vector2f& ballInSCS,
+                                                                      const Angle directionInSCS, const bool isLeftPhase,
+                                                                      const MotionPhase& lastPhase) const
+{
+  // Aim at a point beyond the ball along the dribble direction, so the robot keeps walking forward
+  // through the ball instead of stopping at it. Because this is recomputed every step with a fresh
+  // ball estimate, the target stays ahead of the ball and results in a continuous push.
+  const Vector2f target = ballInSCS + Vector2f(walkThroughBallReach, 0.f).rotated(directionInSCS);
+
+  Pose2f step;
+  step.rotation = theWalkGenerator.getRotationRange(isLeftPhase, motionRequest.walkSpeed).clamped(directionInSCS);
+
+  std::vector<Vector2f> translationPolygon;
+  std::vector<Vector2f> translationPolygonNoCenter;
+  theWalkGenerator.getTranslationPolygon(isLeftPhase, step.rotation, lastPhase, motionRequest.walkSpeed,
+                                         translationPolygon, translationPolygonNoCenter, false, false);
+
+  if(Geometry::isPointInsideConvexPolygon(translationPolygon.data(), static_cast<int>(translationPolygon.size()), target))
+    step.translation = target;
+  else
+  {
+    // Clip the requested step to the largest reachable step in the target direction.
+    Vector2f intersection;
+    if(target.squaredNorm() > 0.f &&
+       Geometry::getIntersectionOfLineAndConvexPolygon(translationPolygon, Geometry::Line(Vector2f(0.f, 0.f), target.normalized()), intersection, false))
+      step.translation = intersection;
+    else
+      step.translation = target;
+  }
+
+  return theWalkGenerator.createPhase(step, lastPhase, 0.f);
 }
 
 void DribbleEngine::calcInterceptionPosition(const MotionRequest& motionRequest, Vector2f& ballSCS,
