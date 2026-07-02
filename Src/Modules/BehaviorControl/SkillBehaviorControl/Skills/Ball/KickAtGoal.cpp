@@ -31,6 +31,8 @@ option((SkillBehaviorControl) KickAtGoal,
             (Angle) kickInaccuracy, /**< The search angle range is narrowed by this to both sides. */
             (float) hysteresisDecisionPenalty, /**< Changing the decision of the previous frame results in this penalty to the time. */
             (float) walkForwardLongMalus, /**< Malus for the range. */
+            (bool) allowOutOfRangeKicks, /**< Also consider kicks whose range cannot reach the goal. */
+            (Angle) maxOutOfRangeKickDirection, /**< Maximum absolute kick direction (in field coordinates) for out-of-range kicks, so they still advance the ball downfield. */
             (std::vector<KickInfo::KickType>) allowedKicks,
             (std::vector<Rangef>) allowedKickRanges), /**< Kicking at the goal is only allowed from these distances. */
        vars((bool)(false) aimingAtGoal, /**< Whether the robot is able to score a goal in the current state. */
@@ -253,10 +255,14 @@ option((SkillBehaviorControl) KickAtGoal,
         {
           float usedRange = theKickInfo[kick].range.max + ((kick == lastKickType) ? hysteresisKickRangeExtension : 0.f);
           usedRange += theKickInfo[kick].walkKickType == WalkKicks::forwardLong ? walkForwardLongMalus : 0.f;
-          if(usedRange < (goalLine.base.x() - theFieldInterceptBall.interceptedEndPositionOnField.x()))
+          const bool outOfRange = usedRange < (goalLine.base.x() - theFieldInterceptBall.interceptedEndPositionOnField.x());
+          if(outOfRange && !allowOutOfRangeKicks)
             continue;
 
-          const Angle absAngle = std::acos((goalLine.base.x() - theFieldInterceptBall.interceptedEndPositionOnField.x()) / usedRange);
+          // In range, the kick direction must be flat enough that the ball can still cross the goal line.
+          // Out of range, the ball cannot reach the goal line anyway, so any direction that advances it downfield is fine.
+          const Angle absAngle = outOfRange ? maxOutOfRangeKickDirection :
+                                 Angle(std::acos((goalLine.base.x() - theFieldInterceptBall.interceptedEndPositionOnField.x()) / usedRange));
           ASSERT(!std::isnan(float(absAngle)));
           ASSERT(absAngle <= pi_2);
           if(sector.angleRange.max < -absAngle || sector.angleRange.min > absAngle)
@@ -272,7 +278,9 @@ option((SkillBehaviorControl) KickAtGoal,
                                      Rangea(clampedRange.min + kickInaccuracy, clampedRange.max - kickInaccuracy) :
                                      Rangea(clampedRange.getCenter());
           const Pose2f kickPose = theRobotPose.inverse() * KickSelection::calcOptimalKickPoseForTargetAngleRange(searchRange, theRobotPose, theFieldInterceptBall.interceptedEndPositionOnField, theKickInfo[kick].ballOffset, theKickInfo[kick].rotationOffset);
-          const float ttrp = KickSelection::calcTTRP(kickPose, theWalkingEngineOutput.maxSpeed) + theKickInfo[kick].executionTime + (kick == lastKickType ? 0.f : hysteresisDecisionPenalty);
+          // Kicks that can actually score must always win against out-of-range kicks.
+          constexpr float outOfRangePenalty = 1000000.f;
+          const float ttrp = KickSelection::calcTTRP(kickPose, theWalkingEngineOutput.maxSpeed) + theKickInfo[kick].executionTime + (kick == lastKickType ? 0.f : hysteresisDecisionPenalty) + (outOfRange ? outOfRangePenalty : 0.f);
 
           if(ttrp < timeToReachBestKickPose)
           {
