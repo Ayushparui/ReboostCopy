@@ -879,6 +879,9 @@ void RERLWalkPhaseDummy::update()
   if(lastModelRequest > engine.theFrameInfo.time)
     lastModelRequest = engine.theFrameInfo.time;
 
+  if(type == MotionPhase::walk)
+    lastTimeWalking = engine.theFrameInfo.time;
+
   tWalk += engine.motionCycleTime;
   // Freeze the gait clock while effectively standing so the phase does not drift; it then
   // restarts cleanly from the current value once a non-zero command returns.
@@ -1001,7 +1004,7 @@ void RERLWalkPhaseDummy::calcJoints(const MotionRequest&, JointRequest& jointReq
   else
     motionInfo.speed = Pose2f();
 
-  if (engine.theFrameInfo.getTimeSince(lastTimeWalking) >= 0)
+  if (engine.theFrameInfo.getTimeSince(lastTimeWalking) >= 2000)
     odometryOffset = Pose2f(0_deg, 0.f, 0.f);
   else
     odometryOffset = engine.theOdometryDataPreview.odometryChange;
