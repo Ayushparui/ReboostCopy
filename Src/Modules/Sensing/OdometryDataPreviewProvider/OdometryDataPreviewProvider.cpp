@@ -29,8 +29,18 @@ Pose2f OdometryDataPreviewProvider::getOdometryOffset(const RobotModel& theRobot
 {
   Pose2f odometryOffset;
 
+  // Sole poses in a gravityaligned frame
+  const Pose3f gravityAlignedTorso(theTorsoMatrix.rotation);
+  const Pose3f currentLeftSole3D = gravityAlignedTorso * theRobotModel.soleLeft;
+  const Pose3f currentRightSole3D = gravityAlignedTorso * theRobotModel.soleRight;
+  const Pose2f currentSoleLeft(currentLeftSole3D.rotation.getZAngle(), currentLeftSole3D.translation.head<2>());
+  const Pose2f currentSoleRight(currentRightSole3D.rotation.getZAngle(), currentRightSole3D.translation.head<2>());
+
   if(!theMotionInfo.isMotion(MotionPhase::walk))
-    odometryOffset = Pose2f(0_deg, 0.f, 0.f);
+  {
+    lastLeftSole = currentSoleLeft;
+    lastRightSole = currentSoleRight;
+  }
   else
   {
     bool leftIsSupport;
@@ -50,30 +60,13 @@ Pose2f OdometryDataPreviewProvider::getOdometryOffset(const RobotModel& theRobot
       leftIsSupport = !useIsLeftPhase;
     }
 
-    const Pose3f currentLeftSole3D = theTorsoMatrix * theRobotModel.soleLeft;
-    const Pose3f currentRightSole3D = theTorsoMatrix * theRobotModel.soleRight;
-    const Pose2f currentSoleLeft(currentLeftSole3D.rotation.getZAngle(), currentLeftSole3D.translation.head<2>());
-    const Pose2f currentSoleRight(currentRightSole3D.rotation.getZAngle(), currentRightSole3D.translation.head<2>());
-
-    if(ambiguous)
+    // On ambiguous frames both soles are (nearly) flat on the ground
+    if(!ambiguous)
     {
-      odometryOffset = Pose2f(0_deg, 0.f, 0.f);
-      lastLeftSole = currentSoleLeft;
-      lastRightSole = currentSoleRight;
-    }
-    else
-    {
-      const Pose2f& lastSupportFoot   = leftIsSupport ? lastLeftSole     : lastRightSole;
-      const Pose2f& lastSwingFoot     = leftIsSupport ? lastRightSole    : lastLeftSole;
-      const Pose2f& currentSupportFoot = leftIsSupport ? currentSoleLeft : currentSoleRight;
-      const Pose2f& currentSwingFoot   = leftIsSupport ? currentSoleRight : currentSoleLeft;
+      const Pose2f& lastSupportSole = leftIsSupport ? lastLeftSole : lastRightSole;
+      const Pose2f& currentSupportSole = leftIsSupport ? currentSoleLeft : currentSoleRight;
 
-      const Vector2f lastRef    = lastSwingFoot.translation    - lastSupportFoot.translation;
-      const Vector2f currentRef = currentSwingFoot.translation - currentSupportFoot.translation;
-
-      odometryOffset.translation = 0.5f * (currentRef - lastRef);
-      odometryOffset.rotation = Angle::normalize(0.5f * ((currentSwingFoot.rotation - currentSupportFoot.rotation)
-                                                      - (lastSwingFoot.rotation    - lastSupportFoot.rotation)));
+      odometryOffset = lastSupportSole * currentSupportSole.inverse();
 
       odometryOffset.translation.x() *= odometryWalkScaling.x();
       odometryOffset.translation.y() *= odometryWalkScaling.y();
