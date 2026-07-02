@@ -67,6 +67,8 @@ MODULE(RLKickEngine,
     (float) maxKickTime,        /**< Kick duration (ms); phase_progress reaches 1 here. */
     (float) postKickSettleTime, /**< Extra time (ms) the phase keeps running after maxKickTime with phase_progress pinned at 1, so the policy stabilizes the robot before the walk handoff. Scaled by speedFactor like maxKickTime. */
     (float) speedFactor,        /**< Multiplier on executedTime; >1 plays the kick faster. */
+    (float) minKickTime,        /**< Minimum executedTime (ms) before the ball-speed early-out can fire, so pre-contact noise cannot end the kick. */
+    (float) finishBallSpeed,    /**< Ball speed (mm/s) above which the ball is considered kicked and the phase finishes early. */
     (float) maxKickLength,      /**< Normalization for kickLength observation (mm). */
     (Angle) abortTorsoTilt,     /**< Safety cap: abort the kick if torso pitch/roll exceeds this. */
   }),
