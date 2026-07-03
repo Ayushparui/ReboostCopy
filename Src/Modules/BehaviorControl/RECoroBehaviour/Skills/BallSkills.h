@@ -20,6 +20,9 @@
 #include "Modules/BehaviorControl/RECoroBehaviour/Skills/HeadSkills.h"
 #include "Modules/BehaviorControl/RECoroBehaviour/Skills/BehaviorStatusSkills.h"
 
+#include "Streaming/Global.h"
+#include "Framework/Settings.h"
+
 
 namespace RE
 {
@@ -145,6 +148,10 @@ namespace RE
                     bool ignoreObstacles = false,
                     const Rangea &directionPrecision = Rangea(0_deg, 0_deg))
     {
+      if(Global::getSettings().robotType == Settings::k1)
+        kickType = theKickInfo[kickType].kickLeg == Legs::left ? KickInfo::standRLK1KickLongLeft
+                                                               : KickInfo::standRLK1KickLongRight;
+
       const Pose2f kickPose = Pose2f(targetDirection, theFieldBall.endPositionRelative)
                                   .rotate(theKickInfo[kickType].rotationOffset)
                                   .translate(theKickInfo[kickType].ballOffset);
@@ -259,7 +266,8 @@ namespace RE
                         const Rangea &directionPrecision, const Pose2f &kickPose,
                         bool usePathPlanner, bool avoidObstacles)
     {
-      const float kickPower = kickLengthToPower(kickType, length, targetDirection);
+      const float kickPower = Global::getSettings().robotType == Settings::k1
+                              ? length : kickLengthToPower(kickType, length, targetDirection);
       auto obstacleAvoidance =
           usePathPlanner ? thePathPlanner.plan(theRobotPose * kickPose, speed)
                          : theLibWalk.calcObstacleAvoidance(kickPose, /* rough: */ true,

@@ -85,9 +85,15 @@ void WalkToBallAndKickEngine::update(WalkToBallAndKickGenerator& walkToBallAndKi
     if(Global::getSettings().robotType != Settings::nao)
     {
       const Vector2f expectedBallInRobot = -theKickInfo[motionRequest.kickType].ballOffset;
-      isInPositionForKick = (ballPosition - expectedBallInRobot).norm() < k1KickPositionTolerance;
-      isInPositionForKick &= std::abs(targetDirection + theKickInfo[motionRequest.kickType].rotationOffset) < k1KickDirectionTolerance;
-      isInPositionForKick &= motionRequest.ballEstimate.velocity.norm() < maxBallVelocityKickEngine;
+
+      isInPositionForKick = (perceivedBallPosition - expectedBallInRobot).norm() < k1KickPositionTolerance;
+
+      const Angle directionError = -Angle::normalize(targetDirection + theKickInfo[motionRequest.kickType].rotationOffset);
+      const Rangea allowedDirectionError(
+        std::max<Angle>(-k1KickDirectionPrecisionCap, std::min<Angle>(-k1KickDirectionTolerance, motionRequest.directionPrecision.min)),
+        std::min<Angle>(k1KickDirectionPrecisionCap, std::max<Angle>(k1KickDirectionTolerance, motionRequest.directionPrecision.max)));
+      isInPositionForKick &= allowedDirectionError.isInside(directionError);
+      isInPositionForKick &= motionRequest.ballEstimate.velocity.norm() < k1MaxBallVelocity;
       walkKickVariant.kickType = motionRequest.kickType;
     }
     else switch(motionRequest.kickType)
