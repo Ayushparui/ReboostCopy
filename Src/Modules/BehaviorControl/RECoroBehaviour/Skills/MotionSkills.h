@@ -279,7 +279,7 @@ namespace RE
 
     void operator()(const Pose2f &target, float speed, Avoidance avoidance = AVOIDANCE_AUTO,
                     bool keepTargetRotation = false, bool standAtTarget = true,
-                    Rangef positionThreshold = {60.f, 50.f}, Rangea angleThreshold = {3_deg, 1_deg})
+                    Rangef positionThreshold = {50.f, 250.f}, Rangea angleThreshold = {3_deg, 15_deg})
     {
       const Pose2f speedPose = Pose2f(speed, speed, speed);
       const float targetDistance = target.translation.norm();
