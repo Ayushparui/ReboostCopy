@@ -38,15 +38,24 @@ void DribbleEngine::update(DribbleGenerator& dribbleGenerator)
 
     const Angle directionSCS = Angle::normalize(scsCognition.rotation + motionRequest.targetDirection);
 
+    // Decide the dribble foot once per phase, so the kick-trigger check below and the pose the
+    // robot walks to (calcBasePose) always target the same foot pocket.
+    updateDribbleSign(ballSCS, directionSCS);
+
     if(theFrameInfo.getTimeSince(motionRequest.ballTimeWhenLastSeen) < 3000.f)
     {
       if(Global::getSettings().robotType == Settings::k1)
       {
-        // [K1] Always dribble-kick with the RL kicks, they work more reliably on this platform than the walk kicks.
-        const KickInfo::KickType kickType = ballSCS.y() > 0.f ? KickInfo::standRLK1KickLongLeft : KickInfo::standRLK1KickLongRight;
+        const KickInfo::KickType kickType = lastSign > 0.f ? KickInfo::standRLK1KickLongRight : KickInfo::standRLK1KickLongLeft;
         const Vector2f expectedBallInRobot = -theKickInfo[kickType].ballOffset;
-        bool isInPositionForKick = (ballSCS - expectedBallInRobot).norm() < k1KickPositionTolerance;
-        isInPositionForKick &= std::abs(directionSCS + theKickInfo[kickType].rotationOffset) < k1KickDirectionTolerance;
+        // Trigger on the perceived ball
+        bool isInPositionForKick = (perceivedBallPosition - expectedBallInRobot).norm() < k1KickPositionTolerance;
+        const Angle directionError = -Angle::normalize(directionSCS + theKickInfo[kickType].rotationOffset);
+        const Rangea allowedDirectionError(
+          std::max<Angle>(-k1KickDirectionPrecisionCap, std::min<Angle>(-k1KickDirectionTolerance, motionRequest.directionPrecision.min)),
+          std::min<Angle>(k1KickDirectionPrecisionCap, std::max<Angle>(k1KickDirectionTolerance, motionRequest.directionPrecision.max)));
+        isInPositionForKick &= allowedDirectionError.isInside(directionError);
+        isInPositionForKick &= lastPhase.type == MotionPhase::stand || lastPhase.type == MotionPhase::walk; // prevent kicking from potential unstable phases
         isInPositionForKick &= motionRequest.ballTimeWhenLastSeen >= theMotionInfo.lastKickTimestamp;
         // velocity.norm() does not need to be transformed to another coordinate system.
         isInPositionForKick &= motionRequest.ballEstimate.velocity.norm() < maxBallVelocity;
@@ -117,14 +126,17 @@ void DribbleEngine::update(DribbleGenerator& dribbleGenerator)
   };
 }
 
-Pose2f DribbleEngine::calcBasePose(const Vector2f& ballInSCS, Angle directionInSCS, float& sign, const bool turnKickAllowed) const
+void DribbleEngine::updateDribbleSign(const Vector2f& ballInSCS, Angle directionInSCS)
 {
   // Determine the foot which should be behind the ball depending on whether the robot is left or right of the line from the ball to the target.
   // -1 = dribble with left foot, 1 = dribble with right foot
   const Angle angleDiff = Angle::normalize(directionInSCS - ballInSCS.angle());
   if(std::abs(angleDiff) > redecideSignThreshold)
-    sign = static_cast<float>(sgnPos(angleDiff));
+    lastSign = static_cast<float>(sgnPos(angleDiff));
+}
 
+Pose2f DribbleEngine::calcBasePose(const Vector2f& ballInSCS, Angle directionInSCS, float sign, const bool turnKickAllowed) const
+{
   Pose2f kickPose(directionInSCS, ballInSCS);
 
   if(Global::getSettings().robotType == Settings::k1)

@@ -67,7 +67,9 @@ MODULE(WalkToBallAndKickEngine,
     (float)(0.036f) maxStandDelayTime, /**< Delay next walk phase for max this time. */
     (Vector2f)(0.5f, 2.f) slippingCorrectionFactor, /**< When positioning behind the ball, use those factors to scale the odometry error. */
     (float)(50.f) k1KickPositionTolerance, /**< [K1] Ball-to-expected-position tolerance (mm) for triggering the RL kick. */
-    (Angle)(6_deg) k1KickDirectionTolerance, /**< [K1] Target-direction tolerance for triggering the RL kick. */
+    (Angle)(6_deg) k1KickDirectionTolerance, /**< [K1] Target-direction tolerance for triggering the kick. */
+    (Angle)(15_deg) k1KickDirectionPrecisionCap, /**< [K1] Upper cap on widening the direction gate from motionRequest.directionPrecision. */
+    (float)(150.f) k1MaxBallVelocity, /**< [K1] Max ball speed (mm/s) for triggering the RL kick. */
   }),
 });
 
