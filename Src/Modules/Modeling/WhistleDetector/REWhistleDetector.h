@@ -48,6 +48,8 @@ public:
 
 private:
 
+  bool extraInit = false;
+
   class NoiseFilter {
   private:
     unsigned int numSample = 0;
@@ -68,9 +70,9 @@ private:
   SampleBuffer monoBuffer;         // Mono mixdown buffer.
 
   /* FFTW related members */
-  float* samples;             // The samples that will be used with the FFT
-  fftwf_complex* spectrum;     // the spectrum of the samples
-  fftwf_plan fft;              // The plan to compute the FFT.
+  float* samples = nullptr;             // The samples that will be used with the FFT
+  fftwf_complex* spectrum = nullptr;     // the spectrum of the samples
+  fftwf_plan fft = nullptr;              // The plan to compute the FFT.
 
   /* magSpectrums Contains numFFTs FFTs of size spectrumSize */
   RingBuffer<std::vector<float>> magSpectrums;
@@ -84,7 +86,7 @@ private:
 
   /* CompiledNN members */
   NeuralNetworkONNX::CompiledNN whistleDetector;
-  std::unique_ptr<NeuralNetworkONNX::Model> model;
+  std::unique_ptr<NeuralNetworkONNX::Model> model = nullptr;
 
   void update(Whistle&);              /* Runs update cycle for WD */
   void processAudio(Whistle&, bool);  /* Processes Audio for inferrence */
