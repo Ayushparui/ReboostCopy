@@ -359,7 +359,9 @@ std::string UdpComm::getWifiBroadcastAddress()
     if(ifa->ifa_addr != nullptr && ifa->ifa_addr->sa_family == AF_INET)
     {
       std::string interfaceName(ifa->ifa_name);
-      if(interfaceName.find("wlan") != std::string::npos)
+      // if(interfaceName.find("wlan") != std::string::npos)
+      // FIXME HACK for BOOSTER K1
+      if(interfaceName.find("wlP1p1s0") != std::string::npos)
       {
         in_addr_t mask = reinterpret_cast<sockaddr_in*>(ifa->ifa_netmask)->sin_addr.s_addr;
         in_addr_t addr = reinterpret_cast<sockaddr_in*>(ifa->ifa_addr)->sin_addr.s_addr;
