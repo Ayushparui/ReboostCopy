@@ -57,14 +57,14 @@ namespace v2025
         else if (theGameState.isFreeKick()) // other set plays - TODO: not implemented yet
         {
           // if (theExtendedGameInfo.timeSinceFreeKickStarted > 0 && theExtendedGameInfo.timeSinceFreeKickStarted < 7000) // simrobot hack DO NOT USE
-          if (commonSkills.isNoTeamKick() && !theTeamBehaviorStatus.role.isGoalkeeper() &&
-              // theExtendedGameInfo.timeSinceFreeKickStarted < 7000) // wont work in SimRobot
-              theFrameInfo.getTimeSince(theGameState.timeWhenStateStarted) < 7000)
-          {
-            // get the visual referee to signal the set play
-            setPlayLookAtRefereeTask();
-          }
-          else if (theTeamBehaviorStatus.role.isBallPlayer())
+          // if (commonSkills.isNoTeamKick() && !theTeamBehaviorStatus.role.isGoalkeeper() &&
+          //     // theExtendedGameInfo.timeSinceFreeKickStarted < 7000) // wont work in SimRobot
+          //     theFrameInfo.getTimeSince(theGameState.timeWhenStateStarted) < 7000)
+          // {
+          //   // get the visual referee to signal the set play
+          //   setPlayLookAtRefereeTask();
+          // }
+          if (theTeamBehaviorStatus.role.isBallPlayer())
           {
             if (commonSkills.isOurTeamKick())
             {
@@ -76,7 +76,7 @@ namespace v2025
                 setPlaySupporterPlayingTask(); // yes - we use supporter task just to back off a bit
             }
             else // not our kick so defending
-              setPlaySupporterPlayingTask(); // yes - we use supporter task just to back off a bit
+              setPlaySupporterPlayingTask();
           }
           else if (theTeamBehaviorStatus.role.isGoalkeeper())
           {
@@ -98,6 +98,7 @@ namespace v2025
           else if (theTeamBehaviorStatus.role.isBallPlayer())
             strikerPlayingTask();
             
+          // RL DEFENDER BLOCK DONT USE UNLESS 7v7
           // else if (theREActiveTactic.formationRole == REFormations::FormationRole::centreBack || 
           //             theREActiveTactic.formationRole == REFormations::FormationRole::centreBackL || 
           //             theREActiveTactic.formationRole == REFormations::FormationRole::centreBackR)

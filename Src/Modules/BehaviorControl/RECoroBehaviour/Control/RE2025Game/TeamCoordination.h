@@ -211,6 +211,7 @@ namespace v2025
 
       assignNormalGoalkeeper();
       assignBallPlayer(useBall);
+      assignSupporterIndices();
     }
 
 
@@ -560,6 +561,25 @@ namespace v2025
 
       // update the situationRoles
       theREActiveTactic.situationRoles[Settings::toPlayerIndex(bestPlayerNumber)] = PlayerRole::ballPlayer;
+    }
+
+
+    /**
+     * Every remaining player (i.e. not the goalkeeper or ball player) is a supporter.
+     * Give each one a distinct legacy supporterN role in formation order so that
+     * PlayerRole::supporterIndex() can tell them apart. Without this, every supporter's
+     * situationRole stays PlayerRole::none, supporterIndex() reports -1 for all of them,
+     * and SupporterKickInTacticsTask::getTacticPose() (Supporter.h) falls back to the same
+     * interceptor position for the whole team during a set play.
+     */
+    void assignSupporterIndices()
+    {
+      int supporterIndex = 0;
+      for (PlayerRole::Type& situationRole : theREActiveTactic.situationRoles)
+      {
+        if (situationRole == PlayerRole::none)
+          situationRole = static_cast<PlayerRole::Type>(PlayerRole::firstSupporterRole + supporterIndex++);
+      }
     }
 
 
