@@ -108,17 +108,17 @@ namespace v2025
           // ANDY COMMENT THIS OUT TO REMOVE PASSING
           // else if (theFieldBall.endPositionOnField.x() < 1500.f &&
           //           theFieldBall.endPositionOnField.x() > theFieldDimensions.xPosHalfwayLine)
-          else if ((theRETeamData.countActiveTeammatesKickedSinceRestart() == 0) &&
-                   passing.update(theFieldBall.endPositionOnField.x()))
-          //  (theFieldBall.endPositionOnField.x() >
-          //   (wasPassing ? theFieldDimensions.xPosHalfwayLine - 250.f : theFieldDimensions.xPosHalfwayLine - 100)))
-          {
-            CR_CHECKPOINT(proceed_to_pass);
-            setPassAngleAndDistance();
-            setPassKickType();
-            gotoBallAndKickTask(kickAngle, kickType, kickAlignPrecisely);
-            // passingNow = true;
-          }
+          // else if ((theRETeamData.countActiveTeammatesKickedSinceRestart() == 0) &&
+          //          passing.update(theFieldBall.endPositionOnField.x()))
+          // //  (theFieldBall.endPositionOnField.x() >
+          // //   (wasPassing ? theFieldDimensions.xPosHalfwayLine - 250.f : theFieldDimensions.xPosHalfwayLine - 100)))
+          // {
+          //   CR_CHECKPOINT(proceed_to_pass);
+          //   setPassAngleAndDistance();
+          //   setPassKickType();
+          //   gotoBallAndKickTask(kickAngle, kickType, kickAlignPrecisely);
+          //   // passingNow = true;
+          // }
           else
           {
             CR_CHECKPOINT(proceed_to_kick);
