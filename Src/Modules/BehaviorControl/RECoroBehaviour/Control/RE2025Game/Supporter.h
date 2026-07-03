@@ -468,7 +468,7 @@ namespace v2025
       (float)(0.9f)   walkSpeed,               ///< The robot's walkspeed
       (float)(100.f)  distanceThreshold,       ///< The distance threshold for the positioning of the robot
       (float)(5_deg)  angleThreshold,          ///< The angle threshold for the positioning of the robot
-      (float)(750.f)  exclusionRadius,         ///< Radius around the ball for a legal kick in
+      (float)(1000.f)  exclusionRadius,         ///< Radius around the ball for a legal kick in (rule book is 75cm, use 1m for inaccuracies)
       (float)(100.f)  exclusionThreshold,      ///< A 10cm tolerance for the exclusion radius
       (unsigned)(2000)   ballSeenTimeout,
       (float)(3000.f) lookAtBallDistance,
