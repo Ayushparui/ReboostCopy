@@ -73,6 +73,16 @@ private:
   std::vector<int16_t> waitBuffer; /* Since the API requires 1024, this is needed. */
   std::vector<std::vector<int16_t>> inputAudioBuffers;  /* 4, mic 1, mic 2, mic 3, ref */
   std::vector<std::vector<int16_t>> outputAudioBuffers; /* 4, out 1, out 2, out 3, ref */
+
+  enum AudioInit
+  {
+    AUDIO_INIT_NOT_STARTED,
+    AUDIO_INIT_CTOR,
+    AUDIO_INIT_SET_VOLUME,
+    AUDIO_INIT_OK,
+    AUDIO_INIT_FAILED // sticky state on any failure
+  };
+  AudioInit initState = AUDIO_INIT_NOT_STARTED;
 #endif
 
   unsigned audioTimestamp = 0;

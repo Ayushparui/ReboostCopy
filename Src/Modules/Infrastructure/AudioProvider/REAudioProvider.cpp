@@ -9,8 +9,27 @@
 #include "REAudioProvider.h"
 #include "Platform/Thread.h"
 #include "Platform/Time.h"
+#include "Platform/SystemCall.h"
+#include "TextLogging/TextLogging.h"
 
 MAKE_MODULE(REAudioProvider);
+
+DECL_TLOGGER(tlogger, "REAudioProvider", TextLogging::INFO);
+
+
+#define CHECK_ALSA(alsaFn, errorAction)                                                                                \
+  do                                                                                                                   \
+  {                                                                                                                    \
+    int err_ = (alsaFn);                                                                                               \
+    if (err_ < 0)                                                                                                      \
+    {                                                                                                                  \
+      initState = AUDIO_INIT_FAILED;                                                                                   \
+      TLOGW(tlogger, "{} failed: {} ({})", #alsaFn, snd_strerror(err_), err_);                                         \
+      SystemCall::playSound("doh.wav");                                                                                \
+      SystemCall::say("Audio initialization failed");                                                                  \
+      errorAction;                                                                                                     \
+    }                                                                                                                  \
+  } while (0)
 
 
 REAudioProvider::REAudioProvider()
@@ -21,15 +40,28 @@ REAudioProvider::REAudioProvider()
     return;
 
   OUTPUT_TEXT("Initializing audio capture device...");
-  /* Check for whether we can open the input audio device */
-  for (uint retryNumber = 0; retryNumber < retries; retryNumber++)
-  {
-    if (snd_pcm_open(&inputDevice, deviceName.c_str(), SND_PCM_STREAM_CAPTURE, 0) == 0)
-      break;
+  TLOGI(tlogger, "Ctor: Initializing audio capture device...");
 
-    FAIL("Failed to open microphone...");
-    Thread::sleep(retryDelay);
+  /* Check for whether we can open the input audio device */
+  unsigned retryNumber;
+  int err;
+  for (retryNumber = 0; retryNumber < retries; retryNumber++)
+  {
+    err = snd_pcm_open(&inputDevice, deviceName.c_str(), SND_PCM_STREAM_CAPTURE, 0);
+    if (err == 0)
+      break;
+    else
+    {
+      TLOGW(tlogger, "Failed to open microphone (attempt {}): {} ({})", retryNumber+1, snd_strerror(err), err);
+      Thread::sleep(retryDelay);
+    }
   }
+  if (retryNumber == retries) // did we use up all retries?
+  {
+    initState = AUDIO_INIT_FAILED;
+    return;
+  }
+
 
   currentCaptureVolume = 100.f;
 
@@ -42,11 +74,14 @@ REAudioProvider::REAudioProvider()
   snd_pcm_hw_params_set_channels(inputDevice, params, numChannels);
   snd_pcm_hw_params_set_rate_near(inputDevice, params, &sampleRate, nullptr);
 
-  VERIFY(!snd_pcm_hw_params(inputDevice, params));
+  CHECK_ALSA(snd_pcm_hw_params(inputDevice, params), return);
 
   OUTPUT_TEXT("Starting audio device...");
-  snd_pcm_prepare(inputDevice);
-  VERIFY(!snd_pcm_start(inputDevice));
+  
+  CHECK_ALSA(snd_pcm_prepare(inputDevice), return);
+  CHECK_ALSA(snd_pcm_start(inputDevice), return);
+
+  initState = AUDIO_INIT_CTOR;  
 
   bufferInit = false;
   setVolume();
@@ -68,35 +103,49 @@ REAudioProvider::~REAudioProvider()
 #ifdef TARGET_ROBOT
 bool REAudioProvider::setVolume()
 {
+  if (!enabled || initState == AUDIO_INIT_FAILED)
+    return false;
+
   if (mixerName == "")
   {
     OUTPUT_WARNING("There is no mixer. volume not set. Expect 100%...");
     return false;
   }
 
-  VERIFY(!snd_mixer_open(&inputMixer, 0));
-  VERIFY(!snd_mixer_attach(inputMixer, deviceName.c_str()));
+  CHECK_ALSA(snd_mixer_open(&inputMixer, 0), return false);
+  CHECK_ALSA(snd_mixer_attach(inputMixer, deviceName.c_str()), return false);
 
-  VERIFY(!snd_mixer_selem_register(inputMixer, nullptr, nullptr));
-  VERIFY(!snd_mixer_load(inputMixer));
+  CHECK_ALSA(snd_mixer_selem_register(inputMixer, nullptr, nullptr), return false);
+  CHECK_ALSA(snd_mixer_load(inputMixer), return false);
 
   snd_mixer_selem_id_alloca(&sid);
   snd_mixer_selem_id_set_index(sid, 0);
   snd_mixer_selem_id_set_name(sid, mixerName.c_str());
 
   elem = snd_mixer_find_selem(inputMixer, sid);
-  VERIFY(elem != 0);
+  if (!elem)
+  {
+    initState = AUDIO_INIT_FAILED;
+    TLOGW(tlogger, "snd_mixer_find_selem failed: no matching mixer element '{}'", mixerName);
+    return false;
+  }
 
-  long min = -1;
-  long max = -1;
-  int returnVal = snd_mixer_selem_get_capture_volume_range(elem, &min, &max);
-  VERIFY(!returnVal);
-  VERIFY(min < max);
+  long minVol = -1;
+  long maxVol = -1;
+  CHECK_ALSA(snd_mixer_selem_get_capture_volume_range(elem, &minVol, &maxVol), return false);
+  if (!(minVol < maxVol))
+  {
+    initState = AUDIO_INIT_FAILED;
+    TLOGW(tlogger, "snd_mixer_selem_get_capture_volume_range failed: {} < {} is false", minVol, maxVol);
+    return false;
+  }
 
   currentCaptureVolume = std::clamp(captureVolume, 0.f, 100.f);
-  long volume = static_cast<long>(currentCaptureVolume * max / 100.f);
+  long volume = static_cast<long>(currentCaptureVolume * maxVol / 100.f);
 
-  snd_mixer_selem_set_capture_volume_all(elem, volume);
+  CHECK_ALSA(snd_mixer_selem_set_capture_volume_all(elem, volume), return false);
+  
+  initState = AUDIO_INIT_SET_VOLUME;
   return true;
 }
 
@@ -110,9 +159,13 @@ bool REAudioProvider::setVolume()
 void REAudioProvider::initBuffers(AudioData& audioData)
 {
   int retDuerwen = -1;
-  for (int initRetries = 0; initRetries < 10; initRetries++)
+  constexpr int maxRetries = 10;
+  int initRetries;
+  for (initRetries = 0; initRetries < maxRetries; initRetries++)
   {
     OUTPUT_TEXT("Initializing WakeupAPI...");
+    TLOGI(tlogger, "Initializing WakeupAPI (attempt {})...", initRetries+1);
+    
     retDuerwen = Duerwen_wakeup_init(&wakeupHandle, 0);
     if (retDuerwen == 0)
       break;
@@ -126,8 +179,14 @@ void REAudioProvider::initBuffers(AudioData& audioData)
       Thread::sleep(100);
     }
   }
+  if (initRetries == maxRetries)
+  {
+    TLOGW(tlogger, "Failed to initialize WakeupAPI - giving up");
+    initState = AUDIO_INIT_FAILED;
+    return;
+  }
 
-  VERIFY(retDuerwen == 0);
+  // VERIFY(retDuerwen == 0);
 
   OUTPUT_TEXT("Initializing audio buffers...");
 
@@ -147,13 +206,18 @@ void REAudioProvider::initBuffers(AudioData& audioData)
     inputAudioBuffers[bufferInd].resize(wakeupAPIBufferSize);
     outputAudioBuffers[bufferInd].resize(wakeupAPIBufferSize);
   }
+
+  initState = AUDIO_INIT_OK;
+  TLOGI(tlogger, "WakeupAPI initialized");
 }
 #endif
 
 void REAudioProvider::update([[maybe_unused]] AudioData& audioData)
 {
 #ifdef TARGET_ROBOT
-  if (!enabled)
+  audioData.samples.clear(); // size is now zero
+
+  if (!enabled || initState == AUDIO_INIT_FAILED)
   {
     Thread::sleep(30);
     return;
@@ -163,10 +227,11 @@ void REAudioProvider::update([[maybe_unused]] AudioData& audioData)
   if (!bufferInit)
   {
     initBuffers(audioData); // note: might block for a period of time retrying this
+    if (initState == AUDIO_INIT_FAILED)
+      return;
+
     bufferInit = true;
   }
-
-  audioData.samples.clear(); // size is now zero
 
   // use the following loop to ensure that the update function generally doesn't return
   // until audioData contains usable samples
