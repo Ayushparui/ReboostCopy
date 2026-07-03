@@ -52,7 +52,7 @@ MODULE(DribbleEngine,
     (float)(100.f) k1KickPositionTolerance, /**< [K1] Ball-to-expected-position tolerance (mm) for triggering the RL kick. */
     (Angle)(6_deg) k1KickDirectionTolerance, /**< [K1] Target-direction tolerance for triggering the RL kick, used when the behavior provides no wider precision range. */
     (Angle)(15_deg) k1KickDirectionPrecisionCap, /**< [K1] Upper cap on widening the direction gate from motionRequest.directionPrecision. */
-    (bool)(false) walkThroughBallInsteadOfKick, /**< Fallback: do not kick at all, just walk through the ball aligned to the dribble direction. */
+    (bool)(true) walkThroughBallInsteadOfKick, /**< Fallback: do not kick at all, just walk through the ball aligned to the dribble direction. */
     (float)(100.f) walkThroughBallReach, /**< [walk-through] Aim this far (mm) past the ball along the dribble direction, so the robot keeps pushing through it. */
   }),
 });
