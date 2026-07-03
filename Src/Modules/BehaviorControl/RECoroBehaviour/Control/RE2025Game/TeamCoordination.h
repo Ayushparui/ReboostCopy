@@ -458,15 +458,16 @@ namespace v2025
     }
 
 
+    // Team convention: player 1 always plays goalkeeper
+    static constexpr int ownGoalkeeperPlayerNumber = 1;
+
     void assignNormalGoalkeeper()
     {
-      // assign the goalkeeper
-      auto& formationRoles = theREActiveTactic.formationRoles;
-      auto iter = std::find_if(formationRoles.begin(), formationRoles.end(),
-                               [](REFormations::FormationRole r) { return r == REFormations::goalie; });
-
-      if (iter != formationRoles.end())
-        theREActiveTactic.situationRoles[iter - formationRoles.begin()] = PlayerRole::goalkeeper;
+      // Assign by fixed player number rather than searching formationRoles for the slot
+      // labelled "goalie" - every other assignment in this file (assignBallPlayer,
+      // assignSupporterIndices) indexes situationRoles by
+      // Settings::toPlayerIndex(playerNumber) directly, so this stays consistent with that.
+      theREActiveTactic.situationRoles[Settings::toPlayerIndex(ownGoalkeeperPlayerNumber)] = PlayerRole::goalkeeper;
     }
 
 
@@ -508,18 +509,11 @@ namespace v2025
         // if we're the only active robot
         int tmp;
 
-        if (!recentlyPenalized && (!theGameState.isGoalkeeper() || theRETeamData.activeTeammates.empty()))
+        if (!recentlyPenalized &&
+            ((theGameState.playerNumber != ownGoalkeeperPlayerNumber) || theRETeamData.activeTeammates.empty()))
         {
-          // what role do all other teammates believe we have
-          PlayerRole::Type currentRole = PlayerRole::none;
-          bool isUpright = true;
-          if (theRESentTeamMessage2025.frameTime > 0)
-          {
-            currentRole = theRESentTeamMessage2025.teamMessage.activeTacticStatus.situationRole;
-            isUpright = theRESentTeamMessage2025.teamMessage.isUpright;
-          }
-          // tmp = getTimeToBall(theRobotPose, theREActiveTactic.situationRole); // includes hysteresis
-          tmp = getTimeToBall(theRobotPose, currentRole, isUpright); // includes hysteresis
+          bool isUpright = (theRESentTeamMessage2025.frameTime > 0) ? theRESentTeamMessage2025.teamMessage.isUpright : true;
+          tmp = getTimeToBall(theRobotPose, theREActiveTactic.situationRole, isUpright); // includes hysteresis
           if (tmp < bestTimeToBall)
           {
             bestPlayerNumber = theGameState.playerNumber;
@@ -534,7 +528,7 @@ namespace v2025
         {
           RETeammate& teammate = *theRETeamData.teammatesByNumber[location.playerNumber];
 
-          if (teammate.isGoalkeeper) // we don't want the goalkeeper to be striker
+          if (teammate.number == ownGoalkeeperPlayerNumber) // we don't want the goalkeeper to be striker
             continue;
 
           tmp = getTimeToBall(location.pose, teammate.theREActiveTacticStatus.situationRole,
