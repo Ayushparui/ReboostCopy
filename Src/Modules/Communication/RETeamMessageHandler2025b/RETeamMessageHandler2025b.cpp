@@ -768,6 +768,11 @@ void RETeamMessageHandler2025b::maintainTeammateList(RETeamData& teamData) const
       if (teammateNumber == theGameState.playerNumber)
         continue;
 
+      // ignore GC slots beyond our configured team size - the GC does not reliably mark
+      // unused slots as substitute, so relying on that alone lets phantom teammates in
+      if (teammateNumber > static_cast<int>(theREGameConfig.playersPerTeam))
+        continue;
+
       const bool playerInTheGame = (teammatePlayerState != GameState::penalizedSentOff) &&
                                    (teammatePlayerState != GameState::penalizedRequestForPickup) &&
                                    (teammatePlayerState != GameState::substitute);
