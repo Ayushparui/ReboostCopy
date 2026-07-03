@@ -13,6 +13,7 @@
 #include "Platform/Thread.h"
 #include "Streaming/InStreams.h"
 #include "Streaming/OutStreams.h"
+#include <atomic>
 #include <cstdlib>
 
 class ThreadFrame;
@@ -39,8 +40,9 @@ public:
 protected:
   ThreadFrame* thread;   /**< The thread this receiver is associated with. */
   void* packet[3];           /**< A triple buffer for received packets. */
-  volatile int reading = 0;   /**< Index of packet reserved for reading. */
-  volatile int actual = 0;    /**< Index of packet that is the most actual. */
+  // Non volatile indices
+  std::atomic<int> reading = 0;   /**< Index of packet reserved for reading. Written by the receiver thread. */
+  std::atomic<int> actual = 0;    /**< Index of packet that is the most actual. Written by the sender thread. */
 
 public:
   /**
@@ -100,7 +102,7 @@ public:
    */
   void receivePacket()
   {
-    reading = actual;
+    reading = actual.load();
     if(packet[reading])
     {
       PacketType& data = *static_cast<PacketType*>(this);
