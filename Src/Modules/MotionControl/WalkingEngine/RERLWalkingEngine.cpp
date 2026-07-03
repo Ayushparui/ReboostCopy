@@ -734,6 +734,22 @@ RERLWalkPhaseDummy::RERLWalkPhaseDummy(RERLWalkingEngine& engine, Pose2f useStep
     }
   }
 
+  // Handle walking commands below zeroCmdThreshold
+  if (type == MotionPhase::walk && !standRequested && !isWalkKick)
+  {
+    const float invPeriod = 1.f / (engine.configuredParameters.baseWalkPeriod / 1000.f);
+    const float cmdMag = Vector3f(step.translation.x() * invPeriod / 1000.f,
+                                  step.translation.y() * invPeriod / 1000.f,
+                                  step.rotation * invPeriod).norm();
+    const float minCmd = engine.reboostWalkNNParameters.zeroCmdThreshold;
+    if (cmdMag > 0.f && cmdMag < minCmd)
+    {
+      const float scale = 1.001f * minCmd / cmdMag;
+      step.translation *= scale;
+      step.rotation *= scale;
+    }
+  }
+
   // Set walk values
   engine.theWalkStepData.updateWalkValues(step, 0.2f, isLeftPhase);
   //lastTarget = engine.theJointAngles;
