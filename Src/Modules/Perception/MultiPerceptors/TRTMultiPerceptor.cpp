@@ -164,8 +164,34 @@ void TRTMultiPerceptor::update(BallPercept& ballPercept)
     const float y1 = out[i * stride + 1];
     const float x2 = out[i * stride + 2];
     const float y2 = out[i * stride + 3];
-    const Vector2f centre((x1 + x2) * 0.5f, (y1 + y2) * 0.5f);
-    const float radiusInImage = ((x2 - x1) + (y2 - y1)) * 0.25f;
+    const float width = x2 - x1;
+    const float height = y2 - y1;
+
+    const float radiusInImage = std::max(width, height) * 0.5f;
+
+    constexpr float edgeTolerance = 2.f;
+    const bool clippedLeft = x1 <= edgeTolerance;
+    const bool clippedRight = x2 >= static_cast<float>(theCameraInfo.width) - edgeTolerance;
+    const bool clippedTop = y1 <= edgeTolerance;
+    const bool clippedBottom = y2 >= static_cast<float>(theCameraInfo.height) - edgeTolerance;
+
+    float centreX;
+    if (clippedLeft)
+      centreX = x2 - radiusInImage;
+    else if (clippedRight)
+      centreX = x1 + radiusInImage;
+    else
+      centreX = (x1 + x2) * 0.5f;
+
+    float centreY;
+    if (clippedTop)
+      centreY = y2 - radiusInImage;
+    else if (clippedBottom)
+      centreY = y1 + radiusInImage;
+    else
+      centreY = (y1 + y2) * 0.5f;
+
+    const Vector2f centre(centreX, centreY);
 
     Vector2f posOnField;
     Matrix2f cov;
