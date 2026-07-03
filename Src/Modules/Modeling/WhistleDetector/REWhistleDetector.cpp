@@ -30,15 +30,26 @@ REWhistleDetector::REWhistleDetector()
 {
   /* Obtain location for Whistle Detector model */
   const std::string baseDir = std::string(File::getBHDir()) + "/Config/NeuralNets/WhistleDetector/";
-  model = std::make_unique<NeuralNetworkONNX::Model>(baseDir + whistleDetName);
+
+  if (model == nullptr)
+  {
+    model = std::make_unique<NeuralNetworkONNX::Model>(baseDir + whistleDetName);
+  }
+  else
+  {
+    TLOGI(tlogger, "Model already loaded...");
+  }
 
   TLOGI(tlogger, "Loading whistle detector model: {}", (baseDir + whistleDetName));
 
   /* Memory Allocation for FFT */
   spectrumSize = static_cast<int>((fftSize / 2) + 1);
   maxFFTs = ((bufferSize - fftSize) / fftStep) + 1;
-  samples = fftwf_alloc_real(fftSize);
-  spectrum = fftwf_alloc_complex(spectrumSize);
+
+  if (samples == nullptr)
+    samples = fftwf_alloc_real(fftSize);
+  if (spectrum == nullptr)
+    spectrum = fftwf_alloc_complex(spectrumSize);
 
   /* Compile NN */
   whistleDetector.compile(*model);
@@ -52,8 +63,15 @@ REWhistleDetector::REWhistleDetector()
 
   SYNC;
 
+  if (fft != nullptr)
+  {
+    fftwf_destroy_plan(fft);
+    fft = nullptr;
+  }
+
   /* Implementing FFTW plans */
-  fft = fftwf_plan_dft_r2c_1d(fftSize, samples, spectrum, FFTW_MEASURE);
+  if (fft == nullptr)
+    fft = fftwf_plan_dft_r2c_1d(fftSize, samples, spectrum, FFTW_MEASURE);
 
   /* Initialize samples buffer are all set to 0 */
   std::memset(samples, 0, sizeof(float) * fftSize);
@@ -63,17 +81,32 @@ REWhistleDetector::REWhistleDetector()
   for (int i = 0; i < fftSize; i++)
     hannWindow[i] = static_cast<float>(std::pow(std::sin(pi * i / fftSize), 2));
 
+  magSpectrums.clear();
+  monoBuffer.clear();
+
   /* Resize magSpectrums according specifications */
   magSpectrums.reserve(whistleDetector.input(0).dims(0));
   monoBuffer.reserve(bufferSize);
+
+  extraInit = false;
 }
 
 REWhistleDetector::~REWhistleDetector()
 {
   SYNC;
-  fftwf_destroy_plan(fft);
-  fftwf_free(spectrum);
-  fftwf_free(samples);
+
+  magSpectrums.clear();
+  monoBuffer.clear();
+  channelBuffers.clear();
+
+  if (fft != nullptr)
+    fftwf_destroy_plan(fft);
+
+  if (spectrum != nullptr)
+    fftwf_free(spectrum);
+
+  if (samples != nullptr)
+    fftwf_free(samples);
 }
 
 void REWhistleDetector::update(Whistle &theWhistle)
@@ -93,9 +126,7 @@ void REWhistleDetector::update(Whistle &theWhistle)
   } /* go for whistle detection */
   else
   {
-
-    static bool init = false;
-    if (!init)
+    if (!extraInit)
     {
       /* Adapt number of channels to audio data; we assume this only changes at startup */
       channelBuffers.resize(theAudioData.channels);
@@ -107,7 +138,7 @@ void REWhistleDetector::update(Whistle &theWhistle)
       /* Initialize the Noise filter params */
       const float windowLenMs = 1000.0f * fftStep / theAudioData.sampleRate;
       noisefilter.setParams(spectrumSize, static_cast<unsigned>((noiseAvgLenMs) / windowLenMs));
-      init = true;
+      extraInit = true;
     }
 
     processAudio(theWhistle, true);
@@ -130,7 +161,7 @@ void REWhistleDetector::processAudio(Whistle &theWhistle, bool detectWhistle)
      * (only the most recent bufferSize samples will be available in the ring buffer
      * after this)
      */
-  for (std::size_t i = 0; i < theAudioData.samples.size(); i += stepSize)
+  for (std::size_t i = 0; i + stepSize <= theAudioData.samples.size(); i += stepSize)
   {
     /* Total sum of samples */
     float monoSum = 0;
@@ -192,9 +223,11 @@ float REWhistleDetector::inferenceCheck()
      * fftOffset sets the starting point of the monoBuffer to read from.
      * numFFTs is capped to 18, with the excess left for next cycle.
      */
-  int numFFTs = std::min(maxFFTs, static_cast<int>((monoBuffer.size() / fftStep)));
-  int fftOffset = 0;
+  int numFFTs = std::min(maxFFTs, static_cast<int>((monoBuffer.size() - fftSize) / fftStep) + 1);
+  if (static_cast<int>(monoBuffer.size()) < fftSize)
+    numFFTs = 0; // not enough samples yet for even one full window
 
+  int fftOffset = 0;
   /* For all the available FFT from buffer */
   for (int i = 0; i < numFFTs; i++)
   {
@@ -204,7 +237,13 @@ float REWhistleDetector::inferenceCheck()
 
     /* Get our buffer samples for the FFT, with gain scaling */
     for (int sampleIndex = 0; sampleIndex < fftSize; sampleIndex++)
+    {
       samples[sampleIndex] = monoBuffer.from_back(fftOffset + sampleIndex) * hannWindow[sampleIndex];
+      bool hasNaN = false;
+      if (std::isnan(samples[sampleIndex])) hasNaN = true;
+      if (hasNaN)
+        TLOGW(tlogger, "NaN value detected...");
+    }
 
     /* Perform the FFT on current set of samples */
     fftwf_execute(fft);
@@ -229,6 +268,7 @@ float REWhistleDetector::inferenceCheck()
     fftOffset += fftStep;
   }
 
+  TLOGD(tlogger, "magSpectrums.size()={} maxFFTs={}", magSpectrums.size(), maxFFTs);
   /* In the event we don't have enough FFTs for an inference check */
   if (static_cast<int>(magSpectrums.size()) < maxFFTs)
     return 0.f;
@@ -246,14 +286,13 @@ float REWhistleDetector::inferenceCheck()
   /* Inference check */
   whistleDetector.apply();
   const float whistleConfidence = whistleDetector.output(0).data()[0];
-
+  //TLOGI(tlogger, "Confidence Value: {}", whistleConfidence);
   /* Prints values of the whistleConfidence. Debugging. */
   PLOT("module:REWhistleDetector:whistleConfidence", whistleConfidence);
   PLOT("module:REWhistleDetector:whistleConfidenceThresh", whistleConfidenceThresh);
 
   return whistleConfidence;
 }
-
 void REWhistleDetector::NoiseFilter::setParams(unsigned spectSize, unsigned sampleAvg)
 {
   spectProfile.resize(spectSize, 0);
