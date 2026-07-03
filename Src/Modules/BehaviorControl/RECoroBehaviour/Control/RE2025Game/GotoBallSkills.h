@@ -3,8 +3,11 @@
  *
  * This file contains some RE2019 based goto skills.
  * It has been adapted from the RoboEireann 2019 behaviour
- * to fit the BH2021 code release framework and coro behaviour 
+ * to fit the BH2021 code release framework and coro behaviour
  * engine.
+ *
+ * Note: K1 kicks are not handled here. GotoBallAndKickTask remaps every kick
+ * type chosen in this file to an RL kick; only the kick foot choice survives.
  *
  * @author Rudi Villing
  * @author James Petri
@@ -30,6 +33,26 @@ namespace RE
 {
 namespace v2025
 {
+
+  // =====================================================================
+
+  /**
+   * Update the kick foot choice: extreme kick angles force the foot,
+   * otherwise hysteresis on ball y keeps the foot nearest the ball.
+   * On K1 this foot choice is the only thing that survives from the kick
+   * types chosen in this file (GotoBallAndKickTask remaps them to RL kicks).
+   */
+  inline bool updateKickFoot(Comparatorf& kickToLeft, Angle kickAngle, float ballYRelative)
+  {
+    if (kickAngle < -45_deg) // aiming right => left foot
+      kickToLeft.state = true;
+    else if (kickAngle > 45_deg) // aiming left => right foot
+      kickToLeft.state = false;
+    else
+      kickToLeft.update(ballYRelative);
+
+    return kickToLeft.state;
+  }
 
   // =====================================================================
 
@@ -377,25 +400,21 @@ namespace v2025
 
     void setClearanceKickType()
     {
-      // has the kickAngle changed enough that we should switch which foot we kick with?
-      // if (!kickToLeft && kickAngle > (0_deg + params.switchKickThreshold)) // kicking with right foot (toward our left)
-      //   kickToLeft = true;
-      // else if (kickToLeft && kickAngle < (0_deg - params.switchKickThreshold)) // kicking with left foot (toward our right)
-      //   kickToLeft = false;
-
       ACTGRAPH_FMT("kickAngleDeg: {}", kickAngle);
-      if (kickAngle < -45_deg) // Right foot aiming left
-      {
-        kickToLeft.state = true;
-      }
-      else if (kickAngle > 45_deg) // Left foot aiming right
-      {
-        kickToLeft.state = false;
-      }
-      else
-      {
-        kickToLeft.update(theFieldBall.positionRelative.y());
-      }
+      // was:
+      // if (kickAngle < -45_deg) // Right foot aiming left
+      // {
+      //   kickToLeft.state = true;
+      // }
+      // else if (kickAngle > 45_deg) // Left foot aiming right
+      // {
+      //   kickToLeft.state = false;
+      // }
+      // else
+      // {
+      //   kickToLeft.update(theFieldBall.positionRelative.y());
+      // }
+      updateKickFoot(kickToLeft, kickAngle, theFieldBall.positionRelative.y());
 
       kickAlignPrecisely = KickPrecision::notPrecise;
 
@@ -430,32 +449,26 @@ namespace v2025
 
     void setGoalKickType()
     {
-      // has the kickAngle changed enough that we should switch which foot we kick with?
-      // if (!kickToLeft && kickAngle > (0_deg + params.switchKickThreshold)) // kicking with right foot (toward our left)
-      //   kickToLeft = true;
-      // else if (kickToLeft && kickAngle < (0_deg - params.switchKickThreshold)) // kicking with left foot (toward our right)
-      //   kickToLeft = false;
-
-      // kickToLeft.update(kickAngle);
       ACTGRAPH_FMT("kickAngle: {}", kickAngle);
-      if (kickAngle < -45_deg) // Right foot aiming left
-      {
-        kickToLeft.state = true;
-      }
-      else if (kickAngle > 45_deg) // Left foot aiming right
-      {
-        kickToLeft.state = false;
-      }
-      else
-      {
-        kickToLeft.update(theFieldBall.positionRelative.y());
-      }
-      
+      // if (kickAngle < -45_deg) // Right foot aiming left
+      // {
+      //   kickToLeft.state = true;
+      // }
+      // else if (kickAngle > 45_deg) // Left foot aiming right
+      // {
+      //   kickToLeft.state = false;
+      // }
+      // else
+      // {
+      //   kickToLeft.update(theFieldBall.positionRelative.y());
+      // }
+      updateKickFoot(kickToLeft, kickAngle, theFieldBall.positionRelative.y());
+
       kickAlignPrecisely = KickPrecision::notPrecise;
 
       bool canTakeLongShot = (theRobotPose.translation.x() >= theREBehaviourParams.longShotAtGoalMinX);
 
-      // how strong to make the kick?
+      // kick type by range is Nao only: on K1 all types below collapse to the same RL kick
       if (obstacleSkills.isOpponentDangerNearBallDuel(500.f))
       {
         // if (theRobotPose.translation.x() > theFieldDimensions.centerCircleRadius)
@@ -477,14 +490,20 @@ namespace v2025
         kickType = kickToLeft.state ? KickInfo::walkForwardsLeftLong : KickInfo::walkForwardsRightLong;
       else
       {
-        // one of the walk kicks must be enabled
+        // prefer an enabled walk kick; if none is configured, fall back instead of aborting
+        // (the kick type doesn't matter on K1 anyway)
         if (theREBehaviourParams.walkForwardsKickAtGoalRange.getSize() > 0)
           kickType = kickToLeft.state ? KickInfo::walkForwardsLeft : KickInfo::walkForwardsRight;
         else if (theREBehaviourParams.walkForwardsLongKickAtGoalRange.getSize() > 0)
           kickType = kickToLeft.state ? KickInfo::walkForwardsLeftLong : KickInfo::walkForwardsRightLong;
         else
-          TLOG_ABORT(TextLogging::get("GotoBallAndKickBestOption"),
-                     "At least one walk kick must have a valid range in behaviourParams.cfg");
+        {
+          // was: TLOG_ABORT(TextLogging::get("GotoBallAndKickBestOption"),
+          //                 "At least one walk kick must have a valid range in behaviourParams.cfg");
+          TLOGE(TextLogging::get("GotoBallAndKickBestOption"),
+                "no walk kick range configured in behaviourParams.cfg, defaulting to walkForwards");
+          kickType = kickToLeft.state ? KickInfo::walkForwardsLeft : KickInfo::walkForwardsRight;
+        }
       }
 
       ACTGRAPH_FMT("kickToLeft: {}\nkickType: {}\nkickAlignPrecisely: {}", kickToLeft.state,
@@ -522,29 +541,25 @@ namespace v2025
 
     void setDuelKickType()
     {
-      // if (!kickToLeft && kickAngle > (0_deg + params.switchKickThreshold))
-      //   kickToLeft = true;
-      // else if (kickToLeft && kickAngle < (0_deg - params.switchKickThreshold))
-      //   kickToLeft = false;
-
       ACTGRAPH_FMT("kickAngle: {}", kickAngle);
-      if (kickAngle < -45_deg) // Right foot aiming left
-      {
-        kickToLeft.state = true;
-      }
-      else if (kickAngle > 45_deg) // Left foot aiming right
-      {
-        kickToLeft.state = false;
-      }
-      else
-      {
-        kickToLeft.update(theFieldBall.positionRelative.y());
-      }
+      // was:
+      // if (kickAngle < -45_deg) // Right foot aiming left
+      // {
+      //   kickToLeft.state = true;
+      // }
+      // else if (kickAngle > 45_deg) // Left foot aiming right
+      // {
+      //   kickToLeft.state = false;
+      // }
+      // else
+      // {
+      //   kickToLeft.update(theFieldBall.positionRelative.y());
+      // }
+      updateKickFoot(kickToLeft, kickAngle, theFieldBall.positionRelative.y());
+
       // we want the kick to be as fast as possible
       kickAlignPrecisely = KickPrecision::notPrecise;
-      
       kickType = kickToLeft.state ? KickInfo::walkForwardsLeftLong : KickInfo::walkForwardsRightLong;
-      // kickType = KickInfo::walkSidewardsLeftFootToLeft;
     }
 
     void setPassAngleAndDistance()
@@ -643,25 +658,22 @@ namespace v2025
 
     void setPassKickType()
     {
-      // has the kickAngle changed enough that we should switch which foot we kick with?
-      // if (!kickToLeft && kickAngle > (0_deg + params.switchKickThreshold))
-      //   kickToLeft = true;
-      // else if (kickToLeft && kickAngle < (0_deg - params.switchKickThreshold))
-      //   kickToLeft = false;
-
       ACTGRAPH_FMT("kickAngle: {}", kickAngle);
-      if (kickAngle < -45_deg) // Right foot aiming left
-      {
-        kickToLeft.state = true;
-      }
-      else if (kickAngle > 45_deg) // Left foot aiming right
-      {
-        kickToLeft.state = false;
-      }
-      else
-      {
-        kickToLeft.update(theFieldBall.positionRelative.y());
-      }
+      // was:
+      // if (kickAngle < -45_deg) // Right foot aiming left
+      // {
+      //   kickToLeft.state = true;
+      // }
+      // else if (kickAngle > 45_deg) // Left foot aiming right
+      // {
+      //   kickToLeft.state = false;
+      // }
+      // else
+      // {
+      //   kickToLeft.update(theFieldBall.positionRelative.y());
+      // }
+      updateKickFoot(kickToLeft, kickAngle, theFieldBall.positionRelative.y());
+
       kickAlignPrecisely = KickPrecision::notPrecise;
 
       kickType = kickToLeft.state ? KickInfo::walkForwardsLeftLong : KickInfo::walkForwardsRightLong;
@@ -731,6 +743,8 @@ namespace v2025
       // skill if the ball has not been seen for too long, so we just use
       // the current ball model as the real position and don't bother checking
       // when we saw it last
+      kickToLeft.resetThresholds(params.kickFootThresholds);
+
       CRBEHAVIOUR_LOOP()
       {
         updateKickParams(minKickSectorSize);
@@ -762,6 +776,7 @@ namespace v2025
       (float)(2000.f) maxKickInDistanceNonGoalie,  ///< Maximum distance we are allowing the non goalie robots to shoot at in a kickIn
       (float)(5000.f) goalKickInLongShot,          ///< Distance the goalie shoots upfield if it finds an obstacle free path
       // (Angle)(5_deg) minKickSectorSize,
+      (HystThresholdsf)(-70, 70) kickFootThresholds,
     });
 
     READS(RobotPose);
@@ -774,6 +789,7 @@ namespace v2025
     float kickDistance;
     KickInfo::KickType kickType;
     KickPrecision kickAlignPrecisely;
+    Comparatorf kickToLeft { /* stateWhenInputLow */ false, /* stateWhenInputHigh */ true, /* initialStateLow */ true };
 
     CommonSkills commonSkills {env};
     ObstacleSkills obstacleSkills {env};
@@ -804,16 +820,18 @@ namespace v2025
 
     void setGoalKickType()
     {
-      bool left;
+      // was:
+      // bool left;
+      // if (kickAngle > 15_deg) // kicking with right foot (toward our left)
+      //   left = true;
+      // else if (kickAngle < 15_deg) // kicking with left foot (toward our right)
+      //   left = false;
+      // else
+      //   left = Random::bernoulli();
+      // kickType = left? KickInfo::forwardFastLeftLong : KickInfo::forwardFastRightLong;
+      updateKickFoot(kickToLeft, kickAngle, theFieldBall.positionRelative.y());
 
-      if (kickAngle > 15_deg) // kicking with right foot (toward our left)
-        left = true;
-      else if (kickAngle < 15_deg) // kicking with left foot (toward our right)
-        left = false;
-      else
-        left = Random::bernoulli();
-      
-      kickType = left? KickInfo::forwardFastLeftLong : KickInfo::forwardFastRightLong;
+      kickType = kickToLeft.state ? KickInfo::forwardFastLeftLong : KickInfo::forwardFastRightLong;
       kickAlignPrecisely = KickPrecision::precise;
     }
   };
@@ -831,6 +849,8 @@ namespace v2025
       // the current ball model as the real position and don't bother checking
       // when we saw it last
       CRBEHAVIOUR_BEGIN();
+
+      kickToLeft.resetThresholds(params.kickFootThresholds);
 
       while (true)
       {
@@ -869,7 +889,8 @@ namespace v2025
       (float)(400.f) duelBallDistance,
       (Vector2f)(100.f, 100.f) ballKickableDistance, ///< when the ball is closer than this to front/side of the feet, we assume we were about to kick
       (Vector2f)(150.f, 150.f) ballNotKickableDistance, ///< when the ball is closer than this to front/side of the feet, we assume we were about to kick
-      (Angle)(15_deg) switchKickThreshold,  // hysteresis value for switching which foot we kick with when the kickAngle changes
+      // (Angle)(15_deg) switchKickThreshold,  // hysteresis value for switching which foot we kick with when the kickAngle changes
+      (HystThresholdsf)(-70, 70) kickFootThresholds,
     });
 
     READS(RobotPose);
@@ -886,7 +907,8 @@ namespace v2025
     float kickDistance;
     KickInfo::KickType kickType;
     KickPrecision kickAlignPrecisely;
-    bool kickToLeft = false;
+    // was: bool kickToLeft = false;
+    Comparatorf kickToLeft { /* stateWhenInputLow */ false, /* stateWhenInputHigh */ true, /* initialStateLow */ true };
 
     CommonSkills commonSkills {env};
     HeadSkills headSkills {env};
@@ -957,19 +979,16 @@ namespace v2025
 
     void setSetPlayKickType()
     {
-      // has the kickAngle changed enough that we should switch which foot we kick with?
-      if (!kickToLeft && kickAngle > (0_deg + params.switchKickThreshold)) // kicking with right foot (toward our left)
-        kickToLeft = true;
-      else if (kickToLeft && kickAngle < (0_deg - params.switchKickThreshold)) // kicking with left foot (toward our right)
-        kickToLeft = false;
+      // was:
+      // if (!kickToLeft && kickAngle > (0_deg + params.switchKickThreshold)) // kicking with right foot (toward our left)
+      //   kickToLeft = true;
+      // else if (kickToLeft && kickAngle < (0_deg - params.switchKickThreshold)) // kicking with left foot (toward our right)
+      //   kickToLeft = false;
+      updateKickFoot(kickToLeft, kickAngle, theFieldBall.positionRelative.y());
 
       kickAlignPrecisely = KickPrecision::notPrecise;
 
-      // how strong to make the kick?
-      // if (kickDistance < 3000.f)
-      //   kickType = kickToLeft ? KickInfo::walkForwardsLeft : KickInfo::walkForwardsRight;
-      // else
-      kickType = kickToLeft ? KickInfo::forwardFastLeft : KickInfo::forwardFastRight;
+      kickType = kickToLeft.state ? KickInfo::forwardFastLeft : KickInfo::forwardFastRight;
     }
 
     bool isRelativeKickInsideField(Rangea angleR, float distance) {
@@ -1207,6 +1226,8 @@ namespace v2025
 
     void operator()(void)
     {
+      kickToLeft.resetThresholds(params.kickFootThresholds);
+
       CRBEHAVIOUR_LOOP()
       {//opponentInWay not used yet
         while((!passAvailable || opponentInWay) &&
@@ -1277,7 +1298,7 @@ namespace v2025
       (float)(1000.f)dribbleDistance,
       (Angle)(10_deg) minKickSectorSize,
       (float)(15000.f)timePassTargetExpire,
-
+      (HystThresholdsf)(-70, 70) kickFootThresholds,
     });
 
     READS(RobotPose);
@@ -1289,6 +1310,7 @@ namespace v2025
     float kickDistance;
     KickInfo::KickType kickType;
     KickPrecision kickAlignPrecisely;
+    Comparatorf kickToLeft { /* stateWhenInputLow */ false, /* stateWhenInputHigh */ true, /* initialStateLow */ true };
     Vector2f passTargetOnField;
     //Best Pass sector to determine whether to pass and then to have target
     std::tuple <Rangea, float, bool> bestPassSector;
@@ -1422,19 +1444,20 @@ namespace v2025
 
     void setGoalKickType()
     {
-      bool left;
-
-      if (kickAngle > 15_deg) // kicking with right foot (toward our left)
-        left = true;
-      else if (kickAngle < 15_deg) // kicking with left foot (toward our right)
-        left = false;
-      else
-        left = Random::bernoulli();
+      // was:
+      // bool left;
+      // if (kickAngle > 15_deg) // kicking with right foot (toward our left)
+      //   left = true;
+      // else if (kickAngle < 15_deg) // kicking with left foot (toward our right)
+      //   left = false;
+      // else
+      //   left = Random::bernoulli();
+      // kickType = left ? KickInfo::walkForwardsLeft : KickInfo::walkForwardsRight;
+      updateKickFoot(kickToLeft, kickAngle, theFieldBall.positionRelative.y());
 
       kickAlignPrecisely = KickPrecision::notPrecise;
 
-      // how strong to make the kick?
-      kickType = left ? KickInfo::walkForwardsLeft : KickInfo::walkForwardsRight;
+      kickType = kickToLeft.state ? KickInfo::walkForwardsLeft : KickInfo::walkForwardsRight;
     }
 
 

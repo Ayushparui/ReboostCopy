@@ -107,6 +107,15 @@ bool TRTMultiPerceptor::apply()
     return false;
   }
 
+#ifdef BUILD_BOOSTER
+  if(trt.hostBuffer("images").size() != static_cast<std::size_t>(3 * inputHeight * inputWidth))
+  {
+    TLOGE(tlogger, "TRTMultiPerceptor: engine input size {} does not match 3x{}x{}",
+          trt.hostBuffer("images").size(), inputHeight, inputWidth);
+    return false;
+  }
+#endif
+
   if(lastPrediction == theCameraImage.timestamp)
     return true;
 
