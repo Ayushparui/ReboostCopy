@@ -176,7 +176,7 @@ public:
    * Returns true when p is inside the opponent goal.
    * (Allows for optional tolerance)
    */
-  bool isInsideOpponentGoal(const Vector2f& p, const Vector2f& tolerance = Vector2f(70.f, 100.f)) const
+  bool isInsideOpponentGoal(const Vector2f& p, const Vector2f& tolerance = Vector2f(150.f, 100.f)) const
   {
     return (p.x() >= (xPosOpponentGoalLine + tolerance.x())) && // slightly inside goal (so we don't leave a ball sit on the line)
            (p.y() < (yPosLeftGoal + tolerance.y())) && // slightly wider than real goal
