@@ -108,12 +108,13 @@ namespace WalkSpeedConversion
 
     const float dMeters = std::max(targetDistanceMm, 0.f) * 0.001f * bm.distanceSafetyFactor;
     const float discriminant = bm.quadB * bm.quadB - 4.f * bm.quadA * (bm.quadC - dMeters);
-    float vMaxSafeMm = 0.f;
+    // Floor the cap at minCappedSpeed: near the target the model becomes unsolvable
+    float vMaxSafeMm = bm.minCappedSpeed * 1000.f;
     if(discriminant > 0.f)
     {
       const float numerator = -bm.quadB + std::sqrt(discriminant);
       if(numerator > 0.f)
-        vMaxSafeMm = (numerator / (2.f * bm.quadA)) * 1000.f;
+        vMaxSafeMm = std::max(vMaxSafeMm, (numerator / (2.f * bm.quadA)) * 1000.f);
     }
 
     Pose2f result = walkingSpeedRatio;

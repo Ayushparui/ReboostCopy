@@ -26,6 +26,7 @@
 #include "Representations/Sensing/FootSupport.h"
 #include "Representations/Sensing/InertialData.h"
 #include "Representations/Sensing/RobotModel.h"
+#include "Representations/Sensing/RobotStableState.h"
 #include "Representations/Sensing/SolePressureState.h"
 #include "Tools/Motion/MotionPhase.h"
 #include "Tools/RECommon/IntervalTrigger.h"
@@ -58,6 +59,33 @@ STREAMABLE(CommandRampParameters,
   (Angle)(360_deg) maxRotationAcceleration, /**< Max increase of the angular velocity command magnitude, in (rad/s)/s. */
   (Angle)(540_deg) maxRotationDeceleration, /**< Max (positive) decrease of the angular velocity command toward zero / on reversal, in (rad/s)/s. */
   (float)(0.06f) maxRampTimeStep, /**< Upper clamp on the ramp integration time step [s], guards against large gaps (e.g. resuming from stand). */
+  (int)(0) settleTimeAfterInstability, /**< Hold the ramp target at zero for this long (ms) after fall/getUp/freeze/playDead phases. 0 = off. */
+});
+
+STREAMABLE(TiltRecoveryParameters,
+{,
+  (bool)(false) active, /**< Enable capture-step commands */
+
+  (Angle)(12_deg) pitchTrigger, /**< |pitch| beyond which recovery engages. */
+  (Angle)(6_deg) pitchExit, /**< Hysteresis: once engaged, the pitch trigger releases below this |pitch|. */
+  (Angle)(0_deg) rollTrigger, /**< |roll| trigger. */
+  (Angle)(0_deg) rollExit, /**< Hysteresis exit for roll. */
+
+  (float)(0.5f) comForwardNeutral, /**< Value of comInFeet.forward when balanced fore-aft. */
+  (float)(0.f) comForwardTrigger, /**< |forward - neutral| beyond which recovery engages. */
+  (float)(0.15f) comForwardExit, /**< Hysteresis exit for the CoM trigger. */
+
+  (float)(2.f) tiltGain, /**< Command per unit gravity xy-projection. */
+  (float)(1.5f) comGain, /**< Command per unit of forward CoM bias. */
+  (bool)(false) lateralEnabled, /**< Allow a sideways (y) recovery command component (tilt-derived). */
+  (float)(0.f) minCommand, /**< Floor for the recovery command (m/s). */
+  (float)(0.5f) maxCommand, /**< Clip for the recovery command magnitude (m/s). */
+
+  (float)(0.25f) maxCmdToActivate, /**< Only engage while the current command magnitude is below this. */
+  (bool)(true) requireGroundContact, /**< Require ground contact to engage. */
+  (int)(1500) maxDuration, /**< Give up after this long (ms) continuously engaged (e.g. leaning against an obstacle). */
+  (int)(500) cooldown, /**< No reengagement for this long (ms) after disengaging. */
+  (bool)(true) restrictToPlayingStates, /**< Only engage in playing/ready and unpenalized (or without an active GameController). */
 });
 
 STREAMABLE(BoosterStepSizeParameters,
@@ -131,6 +159,7 @@ MODULE(RERLWalkingEngine,
   REQUIRES(OdometryDataPreview),
   REQUIRES(RobotDimensions),
   REQUIRES(RobotModel),
+  REQUIRES(RobotStableState),
   REQUIRES(SolePressureState),
   PROVIDES(WalkStepData),
   USES(WalkStepData),
@@ -150,6 +179,7 @@ MODULE(RERLWalkingEngine,
     (BrakingModelParameters) brakingModelParameters,      /**< Empirical braking-distance model (forwarded to WalkingEngineOutput). */
     (CommandRampParameters) commandRampParameters,        /**< Motion-level velocity-command ramping (rate limiting). */
     (ArmRecoveryParameters) armRecoveryParameters,        /**< Arm recovery interpolation triggered when arms deviate substantially. */
+    (TiltRecoveryParameters) tiltRecoveryParameters,      /**< Tilt-triggered recovery commands while (nearly) standing. */
   }),
 });
 
@@ -171,9 +201,28 @@ public:
 
   Pose2f lastRampedStep;     /**< Last ramped step target. */
   unsigned lastRampTime = 0; /**< Frame time [ms] the ramp was last advanced. */
+  unsigned lastInstabilityPhaseEnd = 0; /**< Frame time [ms] a fall/getUp/freeze/playDead phase last handed control back. */
+
+  Vector2f tiltRecoveryCmd = Vector2f::Zero(); /**< Current tilt-recovery command (m/s), valid while engaged. */
 
   Pose2f rampCommand(const Pose2f& current, const Pose2f& target, const float dt) const;
+
+  /**
+   * Advance the balance-recovery state machine. Engages only when active, on the ground, in an
+   * allowed game state and the current command is (nearly) zero; then commands a capture step
+   * "into" the imbalance so the policy places its feet back under the CoM instead of freezing at
+   * zero command. Two independent triggers: base tilt (gravity projection) and CoM-over-feet
+   * offset (from forward kinematics) — the latter fires even when the base is still straight.
+   * @param cmdMag Norm of the current velocity command (m/s, rad/s).
+   * @param gravity Gravity unit vector in the body frame (as fed to the policy).
+   * @return Whether the recovery command in tiltRecoveryCmd should override the walk command.
+   */
+  bool updateTiltRecovery(const float cmdMag, const Vector3f& gravity);
+  bool tiltRecoveryActive() const { return tiltRecoveryEngagedSince != 0; }
 private:
+  unsigned tiltRecoveryEngagedSince = 0; /**< Frame time [ms] the recovery engaged, 0 = inactive. */
+  unsigned tiltRecoveryBlockedUntil = 0; /**< No re-engagement before this frame time [ms]. */
+
   float rampValue(const float current, const float target, const float maxAccelDelta, const float maxDecelDelta) const;
 
   void update(WalkStepData& walkStepData) override;
