@@ -22,6 +22,7 @@
 
 #include "Streaming/Global.h"
 #include "Framework/Settings.h"
+#include "Tools/BehaviorControl/WalkSpeedConversion.h"
 
 
 namespace RE
@@ -228,6 +229,7 @@ namespace RE
     READS(PathPlanner);
     READS(RobotPose);
     READS(LibWalk);
+    READS(WalkingEngineOutput);
 
     BehaviorStatusSkills behaviorStatusSkills  {env};
     HeadSkills headSkills {env};
@@ -268,15 +270,17 @@ namespace RE
     {
       const float kickPower = Global::getSettings().robotType == Settings::k1
                               ? length : kickLengthToPower(kickType, length, targetDirection);
+      const Pose2f cappedSpeed =
+          WalkSpeedConversion::applyBrakingCap(speed, kickPose.translation.norm(), theWalkingEngineOutput);
       auto obstacleAvoidance =
-          usePathPlanner ? thePathPlanner.plan(theRobotPose * kickPose, speed)
+          usePathPlanner ? thePathPlanner.plan(theRobotPose * kickPose, cappedSpeed)
                          : theLibWalk.calcObstacleAvoidance(kickPose, /* rough: */ true,
                                                             /* disableAvoidance */ !avoidObstacles, /* toBall */ true);
       Vector2f kickTarget = theFieldBall.endPositionRelative +
                             Vector2f(theKickInfo[kickType].range.max, 0.f).rotated(targetDirection);
 
       gotoBallHeadControlTask(kickPose.translation.norm(), /* lookAtKickTarget: */ true, kickTarget);
-      walkToBallAndKickTask(targetDirection, kickType, alignPrecisely, kickPower, speed,
+      walkToBallAndKickTask(targetDirection, kickType, alignPrecisely, kickPower, cappedSpeed,
                                 obstacleAvoidance, preStepType, turnKickAllowed, directionPrecision);
     }
 
@@ -400,6 +404,7 @@ namespace RE
     READS(PathPlanner);
     READS(RobotPose);
     READS(LibWalk);
+    READS(WalkingEngineOutput);
 
     BehaviorStatusSkills behaviorStatusSkills  {env};
     HeadSkills headSkills {env};
@@ -413,15 +418,17 @@ namespace RE
                         const Rangea &directionPrecision, const Pose2f &dribblePose,
                         bool usePathPlanner, bool avoidObstacles)
     {
+      const Pose2f cappedSpeed =
+          WalkSpeedConversion::applyBrakingCap(speed, dribblePose.translation.norm(), theWalkingEngineOutput);
       auto obstacleAvoidance =
-          usePathPlanner ? thePathPlanner.plan(theRobotPose * dribblePose, speed)
+          usePathPlanner ? thePathPlanner.plan(theRobotPose * dribblePose, cappedSpeed)
                          : theLibWalk.calcObstacleAvoidance(dribblePose, /* rough: */ true,
                                                             /* disableAvoidance */ !avoidObstacles, /* toBall */ true);
       Vector2f kickTarget = theFieldBall.endPositionRelative +
                             Vector2f(3000.f, 0.f).rotated(targetDirection);
 
       gotoBallHeadControlTask(dribblePose.translation.norm(), /* lookAtKickTarget: */ true, kickTarget);
-      dribbleTask(targetDirection, alignPrecisely, kickLength, speed,
+      dribbleTask(targetDirection, alignPrecisely, kickLength, cappedSpeed,
                                 obstacleAvoidance, preStepType, turnKickAllowed, directionPrecision);
 
       ACTGRAPH_FMT("kickLength: {}", kickLength);

@@ -12,6 +12,7 @@
  */
 
 #include "RERLWalkingEngine.h"
+#include "Debugging/Annotation.h"
 #include "Platform/SystemCall.h"
 #include "TextLogging/TextLogging.h"
 
@@ -495,6 +496,65 @@ Pose2f RERLWalkingEngine::rampCommand(const Pose2f& current, const Pose2f& targe
   return result;
 }
 
+bool RERLWalkingEngine::updateTiltRecovery(const float cmdMag, const Vector3f& gravity)
+{
+  const TiltRecoveryParameters& p = tiltRecoveryParameters;
+  const bool engaged = tiltRecoveryActive();
+
+  // base tilt -- gravity vector projected into the body xy-plane.
+  // Forward x pos, right y neg
+  const Vector2f tiltXY(gravity.x(), p.lateralEnabled ? gravity.y() : 0.f);
+  const Angle pitch = std::abs(theInertialData.angle.y());
+  const Angle roll = std::abs(theInertialData.angle.x());
+  const bool pitchBeyond = p.pitchTrigger > 0_deg && pitch > (engaged ? p.pitchExit : p.pitchTrigger);
+  const bool rollBeyond = p.rollTrigger > 0_deg && roll > (engaged ? p.rollExit : p.rollTrigger);
+
+  // CoM not over the support foot
+  const bool leftSupport = theFootSupport.support >= 0.f;
+  const float forward = theRobotStableState.comInFeet[leftSupport ? Legs::left : Legs::right].forward;
+  const float comBias = forward - p.comForwardNeutral; // +front / -back
+  const bool comBeyond = p.comForwardTrigger > 0.f &&
+                         std::abs(comBias) > (engaged ? p.comForwardExit : p.comForwardTrigger);
+
+  const bool stateAllowed = !p.restrictToPlayingStates ||
+                            !theGameState.gameControllerActive ||
+                            ((theGameState.isPlaying() || theGameState.isReady()) && !theGameState.isPenalized());
+
+  const bool allow = p.active &&
+                     stateAllowed &&
+                     (!p.requireGroundContact || theGroundContactState.contact) &&
+                     cmdMag <= p.maxCmdToActivate &&
+                     (pitchBeyond || rollBeyond || comBeyond) &&
+                     theFrameInfo.time >= tiltRecoveryBlockedUntil &&
+                     (!engaged || theFrameInfo.getTimeSince(tiltRecoveryEngagedSince) <= p.maxDuration);
+
+  if(!allow)
+  {
+    if(engaged)
+      tiltRecoveryBlockedUntil = theFrameInfo.time + p.cooldown;
+    tiltRecoveryEngagedSince = 0;
+    tiltRecoveryCmd.setZero();
+    return false;
+  }
+
+  Vector2f recover = p.tiltGain * tiltXY + Vector2f(p.comGain * comBias, 0.f); // body-frame velocity (m/s)
+  const float norm = recover.norm();
+  if(norm < 1e-5f)
+    return false;
+
+  if(!engaged)
+  {
+    tiltRecoveryEngagedSince = theFrameInfo.time;
+    ANNOTATION("RERLWalkingEngine", "recovery engaged, pitch " << theInertialData.angle.y() << " roll " << theInertialData.angle.x() << " comFwd " << forward);
+    TLOGI(tlogger, "recovery engaged: pitch={}deg roll={}deg comFwd={} cmdMag={}", theInertialData.angle.y().toDegrees(), theInertialData.angle.x().toDegrees(), forward, cmdMag);
+  }
+
+  const float minCmd = std::max(p.minCommand, 1.001f * reboostWalkNNParameters.zeroCmdThreshold);
+  const float mag = Rangef(minCmd, std::max(p.maxCommand, minCmd)).limit(norm);
+  tiltRecoveryCmd = recover * (mag / norm);
+  return true;
+}
+
 Rangea RERLWalkingEngine::getMaxRotationToStepFactor(const bool isFastWalk, const bool isLeftPhase, const Angle customReduceOffset, const Vector2f& stepRatio)
 {
   // rotation based on y-translation
@@ -701,7 +761,20 @@ RERLWalkPhaseDummy::RERLWalkPhaseDummy(RERLWalkingEngine& engine, Pose2f useStep
   const bool rampActive = engine.commandRampParameters.active && !isWalkKick;
   if (rampActive)
   {
-    const Pose2f rampTarget = standRequested ? Pose2f() : step; // ramp toward zero when a stand is requested
+    // The ramp state is stale whenever the walk engine was not in control (fall, getUp, kick,
+    // prepare, playDead): resume from zero instead of the pre-interruption command. After
+    // instability phases additionally hold the target at zero for settleTimeAfterInstability,
+    // so the robot regains its footing before behavior accelerates it again.
+    if (lastPhase.type != MotionPhase::walk && lastPhase.type != MotionPhase::stand)
+    {
+      engine.lastRampedStep = Pose2f();
+      if (lastPhase.type == MotionPhase::fall || lastPhase.type == MotionPhase::getUp ||
+          lastPhase.type == MotionPhase::freeze || lastPhase.type == MotionPhase::playDead)
+        engine.lastInstabilityPhaseEnd = engine.theFrameInfo.time;
+    }
+    const bool settling = engine.commandRampParameters.settleTimeAfterInstability > 0 && engine.lastInstabilityPhaseEnd &&
+                          engine.theFrameInfo.getTimeSince(engine.lastInstabilityPhaseEnd) < engine.commandRampParameters.settleTimeAfterInstability;
+    const Pose2f rampTarget = standRequested || settling ? Pose2f() : step; // ramp toward zero when a stand is requested
     float dt = engine.theFrameInfo.getTimeSince(engine.lastRampTime) / 1000.f;
     dt = std::min(std::max(dt, 0.f), engine.commandRampParameters.maxRampTimeStep);
     step = engine.rampCommand(engine.lastRampedStep, rampTarget, dt);
@@ -801,9 +874,19 @@ void RERLWalkPhaseDummy::getNextTargetRequest(JointAngles& target)
 
   // walk command (m/s, m/s, rad/s) — derived from the step target and base walk period
   const float invPeriod = 1.f / (engine.configuredParameters.baseWalkPeriod / 1000.f);
-  const float cmdX   = type == MotionPhase::walk ? step.translation.x() * invPeriod / 1000.f : 0.f;
-  const float cmdY   = type == MotionPhase::walk ? step.translation.y() * invPeriod / 1000.f : 0.f;
-  const float cmdYaw = type == MotionPhase::walk ? step.rotation        * invPeriod          : 0.f;
+  float cmdX   = type == MotionPhase::walk ? step.translation.x() * invPeriod / 1000.f : 0.f;
+  float cmdY   = type == MotionPhase::walk ? step.translation.y() * invPeriod / 1000.f : 0.f;
+  float cmdYaw = type == MotionPhase::walk ? step.rotation        * invPeriod          : 0.f;
+
+  // Tilt recovery: when (nearly) standing with the body tilted past the trigger, command a walk
+  // into the lean so the policy steps under the body instead of holding a zero command.
+  // Applies in both walk and stand phases; disabled by default (tiltRecoveryParameters.active).
+  if(engine.updateTiltRecovery(Vector3f(cmdX, cmdY, cmdYaw).norm(), gravity))
+  {
+    cmdX = engine.tiltRecoveryCmd.x();
+    cmdY = engine.tiltRecoveryCmd.y();
+    cmdYaw = 0.f;
+  }
 
   // Mirror training: a command below zero_cmd_threshold means "stand". There the gait
   // frequency (and therefore the phase observation) is zeroed, so we must zero it here too.
@@ -832,7 +915,8 @@ void RERLWalkPhaseDummy::getNextTargetRequest(JointAngles& target)
 
   if(engine.reboostWalkNNParameters.enablePhaseInputs)
   {
-    const bool phaseActive = type == MotionPhase::walk && !standing;
+    // Tilt recovery also runs in stand phases, where the policy must see a live phase clock to step.
+    const bool phaseActive = (type == MotionPhase::walk && !standing) || engine.tiltRecoveryActive();
     *input++ = phaseActive ? std::cos(2.f * Constants::pi * tBase) : 0.f;
     *input++ = phaseActive ? std::sin(2.f * Constants::pi * tBase) : 0.f;
   }
@@ -895,13 +979,13 @@ void RERLWalkPhaseDummy::update()
   if(lastModelRequest > engine.theFrameInfo.time)
     lastModelRequest = engine.theFrameInfo.time;
 
-  if(type == MotionPhase::walk)
+  if(type == MotionPhase::walk || engine.tiltRecoveryActive()) // recovery steps must keep odometry alive
     lastTimeWalking = engine.theFrameInfo.time;
 
   tWalk += engine.motionCycleTime;
   // Freeze the gait clock while effectively standing so the phase does not drift; it then
   // restarts cleanly from the current value once a non-zero command returns.
-  const bool phaseActive = type == MotionPhase::walk && !standing;
+  const bool phaseActive = (type == MotionPhase::walk && !standing) || engine.tiltRecoveryActive();
   tBase = std::fmod(tBase + engine.motionCycleTime * frequency * (phaseActive ? 1.f : 0.f), 1.f);
   if(type == MotionPhase::stand && engine.theFrameInfo.getTimeSince(lastModelRequest) >= 20)
   {
