@@ -176,6 +176,8 @@ namespace RE
 
     bool needsGetUp()
     {
+      bool stopped = theGameState.isMotionStoppedState();
+      bool set = theGameState.isSet();
       bool fallen = (theFallDownState.state == FallDownState::fallen);
       bool accidentalSquatting = (theFallDownState.state == FallDownState::squatting &&
                                   // goalie sit down is not accidental so exclude it
@@ -183,15 +185,9 @@ namespace RE
                                   // specifically requesting a sit down is not accidental so exclude it
                                   !theMotionInfo.isKeyframeMotion(KeyframeMotionRequest::sitDown));
 
-      // The Nao workflow deliberately suppresses auto-getup during initial (an operator may still
-      // be positioning a fallen robot before the match starts). K1's STAND button is an explicit
-      // "get up now" request that intentionally happens while the game is still in initial
-      // (beforeHalf) - suppressing it there would defeat the button interface, so only apply the
-      // suppression for Nao.
-      const bool suppressDuringInitial =
-          (Global::getSettings().robotType == Settings::nao) && theGameState.isInitial();
+      bool shouldSuppress = (stopped || set);
 
-      return (fallen || accidentalSquatting) && !suppressDuringInitial; // we do allow a get up in finished state
+      return (fallen || accidentalSquatting) && !shouldSuppress; // we do allow a get up in finished state
     }
   };
 
