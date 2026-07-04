@@ -237,7 +237,7 @@ namespace v2025
         }
         else if (theGameState.state == GameState::ownGoalKick) 
         {
-          gotoBallAndKickBestOptionTask();
+          gotoBallAndKickBestOptionTask(/*clearance*/ true);
           CR_YIELD();
         } 
         else if (needsClearanceKick())
